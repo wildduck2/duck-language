@@ -33,7 +33,7 @@ impl Parser {
         // Returns Item, not Stmt
         Ok(item) => {
           // println!("{:#?}", item);
-          println!("{:#?}", item);
+          // println!("{:#?}", item);
           // item.print_tree("", true);
           // self.ast.push(item); // ast should be Vec<Item>
         }
