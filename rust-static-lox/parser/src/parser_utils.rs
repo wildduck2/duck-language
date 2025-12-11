@@ -33,10 +33,10 @@ impl Parser {
         // Returns Item, not Stmt
         Ok(item) => {
           // println!("{:#?}", item);
-          // println!("{:#?}", item);
+          println!("{:#?}", item);
           // item.print_tree("", true);
           // self.ast.push(item); // ast should be Vec<Item>
-        }
+        },
         Err(_) => self.synchronize(engine),
       }
     }
@@ -79,7 +79,7 @@ impl Parser {
         ));
         engine.add(diagnostic);
         Err(())
-      }
+      },
     }
   }
 
@@ -100,7 +100,7 @@ impl Parser {
         // Empty statement: just a semicolon
         self.advance(engine);
         Ok(Stmt::Empty)
-      }
+      },
       // let declaration
       KwLet => self.parse_let_statement(context, outer_attributes, engine),
 
@@ -111,13 +111,13 @@ impl Parser {
       // expression statement
       _ if self.current_token().kind.can_start_expr() => {
         self.parse_expr_stmt(outer_attributes, engine)
-      }
+      },
 
       // item statement
       _ => {
         let item = self.parse_item(engine)?;
         Ok(Stmt::Item(Box::new(item)))
-      }
+      },
     }
   }
 
@@ -158,7 +158,7 @@ impl Parser {
       OpenBrace => self.parse_block(label, outer_attributes, engine),
       KwAsync | KwUnsafe | KwTry if self.can_start_block_expression() => {
         self.parse_block(label, outer_attributes, engine)
-      }
+      },
       KwContinue => self.parse_continue_expression(context, engine),
       KwBreak => self.parse_break_expression(context, engine),
       KwLet => self.parse_let_expression(context, engine),
@@ -193,7 +193,7 @@ impl Parser {
       ColonColon => Ok(Expr::Path(self.parse_path(true, engine)?)),
       Ident if matches!(self.peek(1).kind, TokenKind::ColonColon) => {
         Ok(Expr::Path(self.parse_path(true, engine)?))
-      }
+      },
       // Handling struct expr
       // Ident
       //   if matches!(
@@ -236,7 +236,7 @@ impl Parser {
         engine.add(diagnostic);
 
         Err(())
-      }
+      },
     }
   }
 

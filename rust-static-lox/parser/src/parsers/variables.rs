@@ -20,7 +20,6 @@ impl Parser {
 
     let pattern = self.parse_pattern_with_or(context, engine)?;
 
-    println!("debug: {:#?}", pattern);
     let ty = if match_and_consume!(self, engine, TokenKind::Colon)? {
       Some(self.parse_type(engine)?)
     } else {

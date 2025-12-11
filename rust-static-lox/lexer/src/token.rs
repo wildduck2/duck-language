@@ -571,11 +571,11 @@ impl TokenKind {
     )
   }
   pub fn can_start_expression_and_not(&self, and: TokenKind) -> bool {
-    self.can_start_expression() && !matches!(self, and)
+    self.can_start_expression() && *self != and
   }
 
   pub fn can_start_expression_or(&self, or: TokenKind) -> bool {
-    self.can_start_expression() || matches!(self, or)
+    self.can_start_expression() || *self == or
   }
 
   pub fn is_binary_operator(&self) -> bool {
@@ -665,10 +665,6 @@ impl TokenKind {
   /// ```
   pub fn is_literal(&self) -> bool {
     matches!(self, Literal { .. })
-  }
-
-  pub fn can_be_literal(&self) -> bool {
-    matches!(self, Literal { .. } | KwTrue | KwFalse)
   }
 
   /// Returns true if this token represents an error

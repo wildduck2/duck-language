@@ -14,9 +14,16 @@ impl Parser {
 
     let mut arms = vec![];
     self.expect(TokenKind::OpenBrace, engine)?;
+
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
       arms.push(self.parse_match_arm(context, engine)?);
-      self.expect(TokenKind::Comma, engine)?;
+
+      // Here if the arm is the last one, we don't need to consume the comma
+      if !matches!(self.current_token().kind, TokenKind::CloseBrace)
+        || matches!(self.current_token().kind, TokenKind::Comma)
+      {
+        self.advance(engine); // consume the comma
+      }
     }
     self.expect(TokenKind::CloseBrace, engine)?;
 
@@ -41,6 +48,7 @@ impl Parser {
     };
 
     let pattern = self.parse_pattern_with_or(context, engine)?;
+
     let guard = if matches!(self.current_token().kind, TokenKind::KwIf) {
       Some(self.parse_match_guard(context, engine)?)
     } else {
@@ -48,24 +56,9 @@ impl Parser {
     };
 
     self.expect(TokenKind::FatArrow, engine)?;
-    let is_block = matches!(self.current_token().kind, TokenKind::OpenBrace);
     let body = self.parse_expression(vec![], ExprContext::Default, engine)?;
 
-    if is_block {
-      self.expect(TokenKind::Comma, engine)?;
-    }
-
     token.span.merge(self.current_token().span);
-    println!(
-      "debug: {:#?}",
-      MatchArm {
-        attributes: attributes.clone(),
-        pattern: pattern.clone(),
-        guard: guard.clone(),
-        body: body.clone(),
-        span: token.span,
-      }
-    );
 
     Ok(MatchArm {
       attributes,

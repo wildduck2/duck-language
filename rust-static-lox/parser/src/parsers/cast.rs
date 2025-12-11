@@ -36,12 +36,10 @@ impl Parser {
     let mut lhs = self.parse_unary(context, engine)?;
 
     loop {
-      let mut token = self.current_token();
-
-      match token.kind {
+      match self.current_token().kind {
         TokenKind::KwAs => {
-          // Consume the `as` keyword
-          self.advance(engine);
+          let mut token = self.current_token();
+          self.advance(engine); // consume `as`
           let ty = self.parse_type(engine)?;
           token.span.merge(self.current_token().span);
           lhs = Expr::Cast {
@@ -49,8 +47,10 @@ impl Parser {
             ty,
             span: token.span,
           };
-        }
-
+        },
+        TokenKind::OpenParen | TokenKind::Dot | TokenKind::OpenBracket | TokenKind::Question => {
+          lhs = self.parse_postfix_chain(lhs, context, engine)?;
+        },
         _ => break,
       }
     }

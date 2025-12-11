@@ -223,7 +223,7 @@ impl Parser {
           ty,
           default,
         })
-      }
+      },
 
       // lifetime generic: 'a or 'a: 'b + 'c
       TokenKind::Lifetime { .. } => {
@@ -242,7 +242,7 @@ impl Parser {
           name,
           bounds,
         })
-      }
+      },
 
       // type generic: T, U: Bound, T = Default
       TokenKind::Ident => {
@@ -268,7 +268,7 @@ impl Parser {
           bounds,
           default,
         })
-      }
+      },
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
@@ -285,7 +285,7 @@ impl Parser {
 
         engine.add(diagnostic);
         Err(())
-      }
+      },
     }
   }
 
@@ -463,7 +463,7 @@ impl Parser {
       TokenKind::Lifetime { .. } => {
         self.advance(engine); // consume the lifetime
         Ok(GenericArg::Lifetime(name))
-      }
+      },
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Eq | TokenKind::Lt) => {
         self.advance(engine); // consume the identifier
 
@@ -483,7 +483,7 @@ impl Parser {
         let ty = self.parse_type(engine)?;
 
         Ok(GenericArg::Binding { name, generics, ty })
-      }
+      },
 
       TokenKind::Ident => {
         match self.peek(1).kind {
@@ -526,12 +526,12 @@ impl Parser {
           // Otherwise, assume it's a type argument
           _ => Ok(GenericArg::Type(self.parse_type(engine)?)),
         }
-      }
+      },
 
       TokenKind::KwSelfType => {
         self.advance(engine); // consume the 'Self'
         Ok(GenericArg::Type(Type::SelfType))
-      }
+      },
 
       TokenKind::OpenParen => {
         self.advance(engine); // consume the '('
@@ -545,7 +545,7 @@ impl Parser {
         self.expect(TokenKind::CloseParen, engine)?; // consume ')'
 
         Ok(GenericArg::Type(Type::Tuple(params)))
-      }
+      },
       _ => {
         // TODO: enhance the diagnostic later on when we have a full clousure
         let diagnostic = Diagnostic::new(
@@ -563,7 +563,7 @@ impl Parser {
         engine.add(diagnostic);
 
         Err(())
-      }
+      },
     }
   }
 }

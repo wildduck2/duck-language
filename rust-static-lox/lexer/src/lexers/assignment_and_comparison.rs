@@ -42,7 +42,7 @@ impl Lexer {
     Some(TokenKind::Bang)
   }
 
-  /// Lexes a less-than sign (`<`), less-or-equal (`<=`), or left shift (`<<`, `<<=`).
+  /// Lexes a less-than sign (`<`), less-or-equal (`<=`), or left shift assignment (`<<=`).
   ///
   /// Handles:
   /// - `<` - Less than comparison
@@ -51,15 +51,15 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Lt)`, `Some(TokenKind::Le)`, `Some(TokenKind::ShiftLeft)`, or `Some(TokenKind::ShiftLeftEq)`
+  /// `Some(TokenKind::Lt)`, `Some(TokenKind::Le)`, or `Some(TokenKind::ShiftLeftEq)`
   pub(crate) fn lex_less(&mut self) -> Option<TokenKind> {
     if self.match_char('=') {
       return Some(TokenKind::Le);
-    } else if self.match_char('<') && self.match_char('=') {
+    } else if self.match_char('<') {
       if self.match_char('=') {
         return Some(TokenKind::ShiftLeftEq);
       }
-      self.current -= 1; // revert the '<' char
+      self.current -= 1; // put back the '<' when it's just `<<`
     }
 
     Some(TokenKind::Lt)

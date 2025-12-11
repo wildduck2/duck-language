@@ -33,13 +33,10 @@ impl Parser {
       let token = self.current_token();
       match token.kind {
         TokenKind::Or if self.peek(1).kind == TokenKind::Or => {
-          self.advance(engine);
+          self.advance(engine); //
+          self.advance(engine); // consume the "||"
 
-          if self
-            .current_token()
-            .kind
-            .can_start_expression_and_not(TokenKind::Or)
-          {
+          if !self.current_token().kind.can_start_expression() {
             let bad = self.current_token();
             let lexeme = self.get_token_lexeme(&bad);
 
@@ -72,7 +69,7 @@ impl Parser {
             right: Box::new(rhs),
             span: token.span,
           };
-        }
+        },
         _ => break,
       }
     }
@@ -107,11 +104,7 @@ impl Parser {
           self.advance(engine);
           self.advance(engine);
 
-          if self
-            .current_token()
-            .kind
-            .can_start_expression_and_not(TokenKind::And)
-          {
+          if !self.current_token().kind.can_start_expression() {
             let bad = self.current_token();
             let lexeme = self.get_token_lexeme(&bad);
 
@@ -144,7 +137,7 @@ impl Parser {
             right: Box::new(rhs),
             span: token.span,
           };
-        }
+        },
         _ => break,
       }
     }

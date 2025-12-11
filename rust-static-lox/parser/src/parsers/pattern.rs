@@ -1,8 +1,13 @@
-use diagnostic::DiagnosticEngine;
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  DiagnosticEngine,
+};
 use lexer::token::{Token, TokenKind};
 
 use crate::{
-  ast::{path::Path, pattern::*, Mutability, QSelfHeader, Type},
+  ast::{path::Path, pattern::*, Expr, Mutability, QSelfHeader, RangeKind, Type},
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -42,19 +47,30 @@ impl Parser {
 
     let mut token = self.current_token();
 
-    // literal patterns
-    if token.kind.can_be_literal() {
-      return self.parse_literal_pattern(context, engine);
-    }
-
     match token.kind {
+      TokenKind::Literal { .. } | TokenKind::Ident
+        if matches!(self.peek(1).kind, TokenKind::DotDot | TokenKind::DotDotEq) =>
+      {
+        self.parse_range_pattern(context, engine)
+      },
+
+      TokenKind::Literal { .. } | TokenKind::KwTrue | TokenKind::KwFalse | TokenKind::Minus => {
+        self.parse_literal_pattern(context, engine)
+      },
+
       TokenKind::OpenParen => self.parse_tuple_pattern(context, engine),
 
       TokenKind::And => self.parse_reference_pattern(context, engine),
 
-      TokenKind::Ident | TokenKind::KwCrate | TokenKind::Lt => {
+      TokenKind::Ident
+      | TokenKind::KwCrate
+      | TokenKind::Lt
+      | TokenKind::KwSuper
+      | TokenKind::KwSelf
+      | TokenKind::Dollar
+      | TokenKind::ColonColon => {
         self.parse_path_or_struct_or_tuple_struct_pattern(reference, mutability, context, engine)
-      }
+      },
 
       TokenKind::OpenBracket => self.parse_slice_pattern(context, engine),
 
@@ -65,9 +81,10 @@ impl Parser {
         Ok(Pattern::Wildcard {
           span: *token.span.merge(self.current_token().span),
         })
-      }
+      },
     }
   }
+
   fn parse_path_or_struct_or_tuple_struct_pattern(
     &mut self,
     reference: bool,
@@ -90,7 +107,8 @@ impl Parser {
     ) || matches!(
       self.peek(1).kind,
       TokenKind::ColonColon | TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::Bang
-    )
+    ) || (matches!(self.current_token().kind, TokenKind::Dollar)
+      && matches!(self.peek(1).kind, TokenKind::KwCrate))
   }
 
   fn parse_path_based_pattern(
@@ -142,7 +160,7 @@ impl Parser {
           trait_path.segments.extend(path.segments);
           path.leading_colon = trait_path.leading_colon;
           (Some(self_ty), trait_path)
-        }
+        },
         None => (Some(self_ty), path),
       },
     }
@@ -258,6 +276,42 @@ impl Parser {
       depth,
       mutability,
       pattern: Box::new(pattern),
+      span: *token.span.merge(self.current_token().span),
+    })
+  }
+
+  fn parse_range_pattern(
+    &mut self,
+    context: ExprContext,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Pattern, ()> {
+    let mut token = self.current_token();
+    let (start, end, kind) = match self.parse_expression(vec![], context, engine)? {
+      Expr::Range {
+        start, end, kind, ..
+      } => (start, end, kind),
+      _ => {
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
+          "expected a range expression".to_string(),
+          self.source_file.path.clone(),
+        )
+        .with_label(
+          token.span,
+          Some("found a literal pattern here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("a range expression is expected here".to_string());
+
+        engine.add(diagnostic);
+        return Err(());
+      },
+    };
+
+    Ok(Pattern::Range {
+      start,
+      end,
+      kind,
       span: *token.span.merge(self.current_token().span),
     })
   }

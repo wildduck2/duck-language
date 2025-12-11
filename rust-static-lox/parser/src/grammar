@@ -345,87 +345,87 @@ typePathSegment   -> pathIdentSegment genericArgs? ;
 /* Paths in expressions                                                       */
 /* ------------------------------------------------------------------------- */
 
-simplePath        -> "::"? simplePathSegment ("::" simplePathSegment)* ;
-simplePathSegment -> IDENTIFIER | "super" | "self" | "crate" | "$crate" ;
+simplePath        -> "::"? simplePathSegment ("::" simplePathSegment)* ;  [x]
+simplePathSegment -> IDENTIFIER | "super" | "self" | "crate" | "$crate" ; [x]
 
-pathInExpression  -> "::"? pathExprSegment ("::" pathExprSegment)* ;
-pathExprSegment   -> pathIdentSegment ("::" genericArgs)? ;
-pathIdentSegment  -> IDENTIFIER | "super" | "self" | "Self" | "crate" | "$crate" ;
+pathInExpression  -> "::"? pathExprSegment ("::" pathExprSegment)* ;      [x]
+pathExprSegment   -> pathIdentSegment ("::" genericArgs)? ;               [x]
+pathIdentSegment  -> IDENTIFIER | "super" | "self" | "Self" | "crate" | "$crate" ; [x]
 
-qualifiedPathInExpression -> qualifiedPathType ("::" pathExprSegment)+ ;
+qualifiedPathInExpression -> qualifiedPathType ("::" pathExprSegment)+ ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Patterns                                                                  */
 /* ------------------------------------------------------------------------- */
 
-pattern           -> "|"? patternNoTopAlt ("|" patternNoTopAlt)* ;
+pattern           -> "|"? patternNoTopAlt ("|" patternNoTopAlt)* ; [x]
 
-patternNoTopAlt   -> patternWithoutRange
-                   | rangePattern ;
+patternNoTopAlt   -> patternWithoutRange [x]
+                   | rangePattern ;      [x]
 
-patternWithoutRange
-                  -> literalPattern
-                   | identifierPattern
-                   | wildcardPattern
-                   | restPattern
-                   | referencePattern
-                   | structPattern
-                   | tupleStructPattern
-                   | tuplePattern
-                   | groupedPattern
-                   | slicePattern
-                   | pathPattern
-                   | macroInvocation ;
+patternWithoutRange 
+                  -> literalPattern         [x]
+                   | identifierPattern      [x]
+                   | wildcardPattern        [x]
+                   | restPattern            [x]
+                   | referencePattern       [x]
+                   | structPattern          [x]
+                   | tupleStructPattern     [x]
+                   | tuplePattern           [x]
+                   | groupedPattern         [x]
+                   | slicePattern           [x]
+                   | pathPattern            [x]
+                   | macroInvocation ;      [x]
 
-literalPattern    -> "true" | "false"
-                   | CHAR
-                   | BYTE
-                   | STRING
-                   | RAW_STRING
-                   | BYTE_STRING
-                   | RAW_BYTE_STRING
-                   | C_STRING
-                   | RAW_C_STRING
-                   | INTEGER
-                   | FLOAT
-                   | "-" INTEGER
-                   | "-" FLOAT ;
+literalPattern    -> "true" | "false"      [x]
+                   | CHAR                [x]
+                   | BYTE                [x]
+                   | STRING              [x]
+                   | RAW_STRING          [x]
+                   | BYTE_STRING         [x]
+                   | RAW_BYTE_STRING     [x]
+                   | C_STRING            [x]
+                   | RAW_C_STRING        [x]
+                   | INTEGER             [x]
+                   | FLOAT               [x]
+                   | "-" INTEGER         [x]
+                   | "-" FLOAT ;         [x]
 
-identifierPattern -> "ref"? "mut"? IDENTIFIER ("@" patternNoTopAlt)? ;
-wildcardPattern   -> "_" ;
-restPattern       -> ".." ;
-referencePattern  -> ("&" | "&&") "mut"? patternWithoutRange ;
+identifierPattern -> "ref"? "mut"? IDENTIFIER ("@" patternNoTopAlt)? ; [x]
+wildcardPattern   -> "_" ; [x]
+restPattern       -> ".." ; [x]
+referencePattern  -> ("&" | "&&") "mut"? patternWithoutRange ; [x]
 
-structPattern     -> pathInExpression "{" structPatternElements? "}" ;
+structPattern     -> pathInExpression "{" structPatternElements? "}" ; [x]
 structPatternElements
-                  -> structPatternFields ("," structPatternEtCetera?)?
-                   | structPatternEtCetera ;
-structPatternFields -> structPatternField ("," structPatternField)* ;
-structPatternField -> outerAttr* (tupleIndex ":" patternNoTopAlt
-                                  | IDENTIFIER ":" patternNoTopAlt
-                                  | "ref"? "mut"? IDENTIFIER) ;
-structPatternEtCetera -> outerAttr* ".." ;
+                  -> structPatternFields ("," structPatternEtCetera?)? [x]
+                   | structPatternEtCetera ; [x]
+structPatternFields -> structPatternField ("," structPatternField)* ; [x]
+structPatternField -> outerAttr* (tupleIndex ":" patternNoTopAlt [x]
+                                  | IDENTIFIER ":" patternNoTopAlt [x]
+                                  | "ref"? "mut"? IDENTIFIER) ; [x]
+structPatternEtCetera -> outerAttr* ".." ; [x]
 
-tupleStructPattern -> pathInExpression "(" tuplePatternItems? ")" ;
-tuplePattern      -> "(" tuplePatternItems? ")" ;
-tuplePatternItems -> pattern ("," pattern)* ","?
-                   | restPattern ("," pattern)+ ","?
-                   | pattern ("," pattern)* "," restPattern ("," pattern)* ","? ;
+tupleStructPattern -> pathInExpression "(" tuplePatternItems? ")" ; [x]
+tuplePattern      -> "(" tuplePatternItems? ")" ; [x]
+tuplePatternItems -> pattern ("," pattern)* ","? [x]
+                   | restPattern ("," pattern)+ ","? [x]
+                   | pattern ("," pattern)* "," restPattern ("," pattern)* ","? ; [x]
 
-groupedPattern    -> "(" pattern ")" ;
-slicePattern      -> "[" slicePatternItems? "]" ;
-slicePatternItems -> pattern ("," pattern)* ","? ;
+groupedPattern    -> "(" pattern ")" ; [x]
+slicePattern      -> "[" slicePatternItems? "]" ; [x]
+slicePatternItems -> pattern ("," pattern)* ","? ; [x]
 
-pathPattern       -> pathInExpression
-                   | qualifiedPathInExpression ;
+pathPattern       -> pathInExpression             [x]
+                   | qualifiedPathInExpression ;  [x]
 
-rangePattern      -> rangePatternBound ("..=" | "...") rangePatternBound
-                   | rangeInclusiveStart
-                   | obsoleteRangePattern ;
+rangePattern      -> rangePatternBound ("..=" | "...") rangePatternBound [x]
+                   | rangeInclusiveStart [x]
+                   | obsoleteRangePattern ; [x]
 
-rangePatternBound -> CHAR | BYTE | "-"? INTEGER | "-"? FLOAT | pathInExpression ;
-rangeInclusiveStart -> rangePatternBound "..=" ;
-obsoleteRangePattern -> rangePatternBound "..." ;
+rangePatternBound -> CHAR | BYTE | "-"? INTEGER | "-"? FLOAT | pathInExpression ; [x]
+rangeInclusiveStart -> rangePatternBound "..=" ; [x]
+obsoleteRangePattern -> rangePatternBound "..." ; [x]
 
 /* ------------------------------------------------------------------------- */
 /* Statements                                                                 */
@@ -455,7 +455,7 @@ expression        -> assignment ;
 assignment        -> (rangeExpr assignOp)* rangeExpr ;
 assignOp          -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
 
-rangeExpr         -> logicalOr (rangeOp logicalOr?)? ;
+rangeExpr         -> logicalOr (rangeOp logicalOr)? ;
 rangeOp           -> ".." | "..=" ;
 
 logicalOr         -> logicalAnd ("||" logicalAnd)* ;
@@ -535,7 +535,7 @@ literalExpr       -> CHAR            [x]
                    | "false" ;       [x]
 
 pathExpr          -> pathInExpression
-                   | qualifiedPathInExpression ; [x]
+                   | qualifiedPathInExpression ; [-]
 
 groupedExpr       -> "(" expression ")" ; [x]
 
@@ -579,10 +579,10 @@ infiniteLoopExpr  -> loopLabel? "loop" blockExpr ;                              
 predicateLoopExpr -> loopLabel? "while" expression blockExpr ;                          [x]
 predicatePatternLoopExpr -> loopLabel? "while" "let" pattern "=" scrutinee blockExpr ;  [x]
 iteratorLoopExpr  -> loopLabel? "for" pattern "in" expression blockExpr ;               [x]
-loopLabel         -> LIFETIME ":" ;                                                     [x]
-labelBlockExpr    -> loopLabel blockExpr ;
+loopLabel         -> LIFETIME ":" ;  [x]
+labelBlockExpr    -> loopLabel blockExpr ; [x]
 
-scrutinee         -> expression ;
+scrutinee         -> expression ; [x]
 
 ifExpr            -> "if" expression blockExpr ("else" (blockExpr | ifExpr | ifLetExpr))? ;                  [x]
 ifLetExpr         -> "if" "let" pattern "=" scrutinee blockExpr ("else" (blockExpr | ifExpr | ifLetExpr))? ; [x]
@@ -591,17 +591,18 @@ ifLetExpr         -> "if" "let" pattern "=" scrutinee blockExpr ("else" (blockEx
 /* Match expressions (with inner + outer attributes)                         */
 /* ------------------------------------------------------------------------- */
 
-matchExpr         -> "match" scrutinee "{" matchArms? "}" ;
-matchArms         -> matchArm "=>" matchArmBody ","?
-                   (matchArm "=>" matchArmBody ","?)* ;
-matchArmBody      -> expressionWithBlock
-                   | expressionWithoutBlock ;
-matchArm          -> outerAttr* pattern matchArmGuard? ;
-matchArmGuard     -> "if" expression ;
+matchExpr         -> "match" scrutinee "{" matchArms? "}" ; [x]
+matchArms         -> matchArm "=>" matchArmBody ","?    [x]
+                   (matchArm "=>" matchArmBody ","?)* ; [x]
+                   (matchArm "=>" matchArmBody ","?)* ; [x]
+matchArmBody      -> expressionWithBlock                [x]
+                   | expressionWithoutBlock ;           [x]
+matchArm          -> outerAttr* pattern matchArmGuard? ; [x]
+matchArmGuard     -> "if" expression ;                  [x]
 
-continueExpr      -> "continue" LIFETIME? ;
-breakExpr         -> "break" LIFETIME? expression? ;
-returnExpr        -> "return" expression? ;
+continueExpr      -> "continue" LIFETIME? ; [x]
+breakExpr         -> "break" LIFETIME? expression? ; [x]
+returnExpr        -> "return" expression? ; [x]
 
 /* ------------------------------------------------------------------------- */
 /* ExpressionWithoutBlock / ExpressionWithBlock                              */

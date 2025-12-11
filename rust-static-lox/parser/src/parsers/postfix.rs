@@ -44,29 +44,35 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let _ = context;
-    // Parse the base primary expression
-    let mut expr = self.parse_primary(context, engine)?;
+    let expr = self.parse_primary(context, engine)?;
+    self.parse_postfix_chain(expr, context, engine)
+  }
 
-    // Apply postfix operations repeatedly (chained)
+  /// Continues parsing postfix operators for an already parsed expression.
+  pub(crate) fn parse_postfix_chain(
+    &mut self,
+    mut expr: Expr,
+    context: ExprContext,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Expr, ()> {
     loop {
       match self.current_token().kind {
         TokenKind::OpenParen => {
           expr = self.parse_call(context, expr, engine)?;
-        }
+        },
         TokenKind::Dot => {
           if self.peek(1).kind == TokenKind::KwAwait {
             expr = self.parse_await(expr, engine)?;
           } else {
             expr = self.parse_field_or_method(context, expr, engine)?;
           }
-        }
+        },
         TokenKind::OpenBracket => {
           expr = self.parse_index(context, expr, engine)?;
-        }
+        },
         TokenKind::Question => {
           expr = self.parse_try(expr, engine)?;
-        }
+        },
         _ => break,
       }
     }
@@ -205,7 +211,7 @@ impl Parser {
           field: FieldAccess::Named(name),
           span,
         })
-      }
+      },
 
       // Tuple field access: `.0`, `.1`, etc.
       TokenKind::Literal {
@@ -221,7 +227,7 @@ impl Parser {
           field: FieldAccess::Unnamed(index),
           span,
         })
-      }
+      },
 
       // Invalid token after `.`
       _ => {
@@ -239,7 +245,7 @@ impl Parser {
         .with_help("Examples: `.foo`, `.0`, `.await`, or `.method(args)`.".to_string());
         engine.add(diagnostic);
         Err(())
-      }
+      },
     }
   }
 

@@ -107,6 +107,7 @@ impl Parser {
           | TokenKind::KwAs
           | TokenKind::FatArrow
           | TokenKind::Bang
+          | TokenKind::Dot
       )
     {
       self.expect(TokenKind::ColonColon, engine)?; // require '::' separator
@@ -184,7 +185,7 @@ impl Parser {
       TokenKind::Dollar if self.peek(0).kind == TokenKind::KwCrate => {
         self.advance(engine); // consume `$crate`
         Ok((PathSegment::new(PathSegmentKind::DollarCrate, args), true))
-      }
+      },
       _ => {
         // Invalid path segment (e.g. `123::foo`)
         let lexeme = self.get_token_lexeme(&token);
@@ -201,7 +202,7 @@ impl Parser {
         .with_help("Valid path segments are identifiers or keywords like `self`, `super`, `crate`, or `$crate`.".to_string());
         engine.add(diagnostic);
         Err(())
-      }
+      },
     }
   }
 }

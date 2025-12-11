@@ -32,10 +32,9 @@ impl Parser {
   ) -> Result<Expr, ()> {
     let mut lhs = self.parse_bitwise_xor(context, engine)?;
 
-    // println!("debug: parse_bitwise_or {:?}", context);
-    // if matches!(context, ExprContext::Match | ExprContext::IfCondition) {
-    //   return Ok(lhs);
-    // }
+    if matches!(context, ExprContext::Match | ExprContext::IfCondition) {
+      return Ok(lhs);
+    }
 
     while !self.is_eof()
       && !matches!(context, ExprContext::Match)
@@ -45,7 +44,7 @@ impl Parser {
 
       match token.kind {
         TokenKind::Or => {
-          self.advance(engine);
+          self.advance(engine); // consume the "|"
 
           if !self
             .current_token()
@@ -85,7 +84,7 @@ impl Parser {
             right: Box::new(rhs),
             span: token.span,
           };
-        }
+        },
 
         _ => break,
       }
@@ -121,7 +120,7 @@ impl Parser {
 
       match token.kind {
         TokenKind::Caret => {
-          self.advance(engine);
+          self.advance(engine); // consume the "^"
 
           if !self
             .current_token()
@@ -161,7 +160,7 @@ impl Parser {
             right: Box::new(rhs),
             span: token.span,
           };
-        }
+        },
 
         _ => break,
       }
@@ -237,7 +236,7 @@ impl Parser {
             right: Box::new(rhs),
             span: token.span,
           };
-        }
+        },
 
         _ => break,
       }
