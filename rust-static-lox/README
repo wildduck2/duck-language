@@ -3,6 +3,24 @@
 
 Change Log
 ----------
+2025-12-11
+- Expanded `core/lox/duck.lox` with every operator combo we currently support so regression runs
+  stress every precedence layer before future semantic work kicks in.
+- Tightened the lexer/parser handshake: shift tokens now stay split for `<<`, `parse_path` stops
+  before field access, and logical/comparison layers rely on the same `can_start_expression`
+  helpers, eliminating spurious RHS diagnostics.
+- Refactored postfix/cast/unary parsing so casts can chain into calls/fields/indexing, `.await?`
+  survives after type ascriptions, and multi-depth borrows like `&& &mut *&mut -!value` become
+  valid `Expr::Unary` nodes.
+- Brought range, pattern, and match parsing up to date (range patterns, guard-aware notes, TODO
+  refresh) and cleaned the grammar notes to reflect the broader Rust subset we now accept.
+
+2025-12-07
+- Added MIT `LICENSE` files for every crate/workspace (including the TypeScript shim) to document
+  redistribution terms explicitly.
+- Removed the unused `index.ts` TypeScript entrypoint, tightened `rustfmt.toml`, and tweaked
+  parser/rustfmt settings so formatting and helper utilities stay consistent across the repo.
+
 2025-11-28
 - Statement parsing now collects outer attributes/visibility for every stmt or expr and threads a
   strict `ExprContext` through expression + pattern parsing, so control-flow keywords trigger the
