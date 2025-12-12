@@ -275,10 +275,18 @@ pub(crate) struct FnDecl {
 #[derive(Debug, Clone)]
 pub(crate) struct Param {
   pub attributes: Vec<Attribute>,
-  pub pattern: Pattern,
-  pub type_annotation: Option<Type>,
-  pub is_self: bool,
-  pub is_variadic: bool,
+  pub kind: ParamKind,
+  pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum ParamKind {
+  Normal {
+    pattern: Pattern,
+    type_annotation: Option<Type>,
+    is_self: bool,
+  },
+  Variadic,
 }
 
 // ----------------------------------------------------------------------------

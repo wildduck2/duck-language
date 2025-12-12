@@ -119,7 +119,7 @@ impl Parser {
         }
       ) {
         let name = self.get_token_lexeme(&self.current_token());
-        if name != "C" {
+        if name != "\"C\"" {
           let diagnostic = Diagnostic::new(
             DiagnosticCode::Error(DiagnosticError::InvalidAbi),
             "invalid ABI".to_string(),
@@ -164,22 +164,33 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Param, ()> {
+    let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(engine)?;
-    let pattern = self.parse_pattern(context, engine)?;
-    let is_self = self.check_self_param(&pattern, context, engine)?;
-    let type_annotation = if matches!(self.current_token().kind, TokenKind::Colon) {
-      self.advance(engine); // consume ':'
-      Some(self.parse_type(engine)?)
+
+    let kind = if matches!(self.current_token().kind, TokenKind::DotDot) {
+      self.expect(TokenKind::DotDot, engine)?; // consume '..'
+      self.expect(TokenKind::Dot, engine)?; // consume '.'
+      ParamKind::Variadic
     } else {
-      None
+      let pattern = self.parse_pattern(context, engine)?;
+      let is_self = self.check_self_param(&pattern, context, engine)?;
+
+      ParamKind::Normal {
+        pattern,
+        type_annotation: if matches!(self.current_token().kind, TokenKind::Colon) {
+          self.advance(engine); // consume ':'
+          Some(self.parse_type(engine)?)
+        } else {
+          None
+        },
+        is_self,
+      }
     };
 
     Ok(Param {
       attributes,
-      pattern,
-      type_annotation,
-      is_self,
-      is_variadic: false, // Is allowed only in extern functions using a C style ABI.
+      kind,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
