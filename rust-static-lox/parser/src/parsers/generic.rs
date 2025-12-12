@@ -339,10 +339,11 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<TypeBound>, ()> {
     let mut bounds: Vec<TypeBound> = vec![];
+
     while !self.is_eof()
       && !matches!(
         self.current_token().kind,
-        TokenKind::Comma | TokenKind::Gt | TokenKind::Eq | TokenKind::CloseParen
+        TokenKind::Comma | TokenKind::Gt | TokenKind::Eq | TokenKind::CloseParen | TokenKind::Semi
       )
     {
       let modifier = if matches!(self.current_token().kind, TokenKind::Question) {

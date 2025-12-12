@@ -139,7 +139,7 @@ impl Parser {
           ty,
           bounds,
         })
-      }
+      },
 
       TokenKind::Eq => {
         self.advance(engine); // consume '='
@@ -147,7 +147,7 @@ impl Parser {
           ty,
           equals: self.parse_type(engine)?,
         })
-      }
+      },
 
       _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
@@ -166,7 +166,7 @@ impl Parser {
         );
         engine.add(diagnostic);
         Err(())
-      }
+      },
     }
   }
 }

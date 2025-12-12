@@ -65,9 +65,9 @@ impl Parser {
     let name = self.parse_name_identifier(engine)?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::OpenBrace) {
-      EnumVariantKind::Struct(self.parse_enum_record_fields(engine)?)
+      EnumVariantKind::Struct(self.parse_record_fields(engine)?)
     } else if matches!(self.current_token().kind, TokenKind::OpenParen) {
-      EnumVariantKind::Tuple(self.parse_enum_tuple_fields(engine)?)
+      EnumVariantKind::Tuple(self.parse_tuple_fields(engine)?)
     } else {
       EnumVariantKind::Unit
     };
@@ -87,50 +87,5 @@ impl Parser {
       discriminant,
       span: *token.span.merge(token.span),
     })
-  }
-
-  fn parse_enum_tuple_fields(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<TupleField>, ()> {
-    let mut fields = vec![];
-    self.expect(TokenKind::OpenParen, engine)?; // consume '('
-
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-      fields.push(self.parse_enum_tuple_field(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
-    }
-
-    self.expect(TokenKind::CloseParen, engine)?; // consume ')'
-    Ok(fields)
-  }
-
-  fn parse_enum_tuple_field(&mut self, engine: &mut DiagnosticEngine) -> Result<TupleField, ()> {
-    let mut token = self.current_token();
-    let attributes = self.parse_attributes(engine)?;
-    let visibility = self.parse_visibility(engine)?;
-    let ty = self.parse_type(engine)?;
-
-    Ok(TupleField {
-      visibility,
-      attributes,
-      ty,
-      span: *token.span.merge(token.span),
-    })
-  }
-
-  fn parse_enum_record_fields(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<FieldDecl>, ()> {
-    let mut fields = vec![];
-    self.expect(TokenKind::OpenBrace, engine)?; // consume '{'
-
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
-      fields.push(self.parse_struct_record_field(engine)?);
-    }
-
-    self.expect(TokenKind::CloseBrace, engine)?; // consume '}'
-    Ok(fields)
   }
 }
