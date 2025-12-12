@@ -32,6 +32,7 @@ impl Parser {
 
     let inner_attributes = self.parse_inner_attributes(engine)?;
     let mut stmts = vec![];
+
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
       stmts.push(self.parse_stmt(context, engine)?);
       match_and_consume!(self, engine, TokenKind::Semi)?;

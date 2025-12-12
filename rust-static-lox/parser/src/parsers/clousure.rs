@@ -96,11 +96,11 @@ impl Parser {
         TokenKind::KwAsync if !is_async && !is_move => {
           is_async = true;
           self.advance(engine);
-        }
+        },
         TokenKind::KwMove if !is_move => {
           is_move = true;
           self.advance(engine);
-        }
+        },
         _ => break,
       }
     }
@@ -109,36 +109,34 @@ impl Parser {
   }
 
   pub(crate) fn can_start_closure(&self) -> bool {
-    use TokenKind::*;
-
     let tok = self.current_token().kind;
 
     match tok {
-      KwAsync => {
+      TokenKind::KwAsync => {
         // async must be followed by either:
         //   move |
         //   |
         //   otherwise it is an async block, not a closure
         let next = self.peek(1).kind;
         match next {
-          KwMove => {
+          TokenKind::KwMove => {
             // async move must be followed by |
-            matches!(self.peek(2).kind, Or)
-          }
-          Or => true,
+            matches!(self.peek(2).kind, TokenKind::Or)
+          },
+          TokenKind::Or => true,
           _ => false,
         }
-      }
+      },
 
-      KwMove => {
+      TokenKind::KwMove => {
         // move |  and only that
-        matches!(self.peek(1).kind, Or)
-      }
+        matches!(self.peek(1).kind, TokenKind::Or)
+      },
 
-      Or => {
+      TokenKind::Or => {
         // plain closure start
         true
-      }
+      },
 
       _ => false,
     }

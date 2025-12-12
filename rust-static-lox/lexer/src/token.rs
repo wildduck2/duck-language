@@ -571,10 +571,6 @@ impl TokenKind {
       | KwBreak
       | KwContinue
 
-      // async and unsafe expressions
-      | KwAsync
-      | KwUnsafe
-
       // lifetime at expression position (rare but valid, e.g. break 'lbl)
       | Lifetime { .. }
 
@@ -586,6 +582,10 @@ impl TokenKind {
       | KwCrate
 
       | KwTry
+      | KwConst
+      | KwAsync
+      | KwUnsafe
+      | KwExtern
     )
   }
 

@@ -578,10 +578,10 @@ impl Lexer {
               while matches!(self.peek(), Some(' ' | '\t' | '\n' | '\r')) {
                 self.advance();
               }
-            }
+            },
             Some('n') | Some('r') | Some('t') | Some('\\') | Some('"') | Some('0') => {
               self.advance(); // simple escape
-            }
+            },
             Some('x') => {
               self.advance(); // consume 'x'
               let mut count = 0;
@@ -602,7 +602,7 @@ impl Lexer {
                 );
                 engine.add(diag);
               }
-            }
+            },
             Some('u') if self.peek_next(1) == Some('{') => {
               // Unicode escapes are not allowed in byte strings.
               let diag = Diagnostic::new(
@@ -620,7 +620,7 @@ impl Lexer {
                   break;
                 }
               }
-            }
+            },
             _ => {
               // Invalid escape.
               let diag = Diagnostic::new(
@@ -637,13 +637,13 @@ impl Lexer {
               if self.peek().is_some() {
                 self.advance();
               }
-            }
+            },
           }
-        }
+        },
         '"' => {
           terminated = true;
           break;
-        }
+        },
         '\r' => {
           // Bare CR is not allowed in non-raw string/byte literals.
           let diag = Diagnostic::new(
@@ -657,7 +657,7 @@ impl Lexer {
             LabelStyle::Primary,
           );
           engine.add(diag);
-        }
+        },
         _ => {
           // Plain content must be ASCII.
           if !c.is_ascii() {
@@ -669,7 +669,7 @@ impl Lexer {
             );
             engine.add(diag);
           }
-        }
+        },
       }
     }
 
@@ -730,14 +730,14 @@ impl Lexer {
           self.advance();
           terminated = true;
           break;
-        }
+        },
         '\\' => {
           self.advance(); // consume '\'
           match self.peek() {
             Some('n' | 'r' | 't' | '\\' | '\'' | '0') => {
               self.advance();
               produced_bytes = produced_bytes.saturating_add(1);
-            }
+            },
             Some('x') => {
               self.advance(); // consume 'x'
               let mut count = 0;
@@ -760,7 +760,7 @@ impl Lexer {
               } else {
                 produced_bytes = produced_bytes.saturating_add(1);
               }
-            }
+            },
             Some('u') if self.peek_next(1) == Some('{') => {
               let diag = Diagnostic::new(
                 DiagnosticCode::Error(DiagnosticError::InvalidEscape),
@@ -778,7 +778,7 @@ impl Lexer {
                   break;
                 }
               }
-            }
+            },
             Some('\n') => {
               // We choose not to support continuation in byte chars; treat as error.
               let diag = Diagnostic::new(
@@ -788,7 +788,7 @@ impl Lexer {
               );
               engine.add(diag);
               self.advance();
-            }
+            },
             _ => {
               let diag = Diagnostic::new(
                 DiagnosticCode::Error(DiagnosticError::InvalidEscape),
@@ -804,13 +804,13 @@ impl Lexer {
               if self.peek().is_some() {
                 self.advance();
               }
-            }
+            },
           }
-        }
+        },
         '\n' | '\r' => {
           // Unterminated literal.
           break;
-        }
+        },
         _ => {
           if !c.is_ascii() {
             let diag = Diagnostic::new(
@@ -822,7 +822,7 @@ impl Lexer {
           }
           self.advance();
           produced_bytes = produced_bytes.saturating_add(1);
-        }
+        },
       }
     }
 
@@ -904,13 +904,13 @@ impl Lexer {
           self.advance();
           terminated = true;
           break;
-        }
+        },
         '\\' => {
           self.advance(); // consume '\'
           match self.peek() {
             Some('n' | 'r' | 't' | '\\' | '\'' | '0') => {
               self.advance();
-            }
+            },
             Some('x') => {
               // Hex escape: \xNN (two hex digits).
               self.advance();
@@ -932,7 +932,7 @@ impl Lexer {
                 );
                 engine.add(diag);
               }
-            }
+            },
             Some('u') if self.peek_next(1) == Some('{') => {
               // Unicode escape: \u{...}, 1–6 hex digits, valid scalar.
               self.advance(); // 'u'
@@ -950,7 +950,7 @@ impl Lexer {
                     }
                     digits += 1;
                     self.advance();
-                  }
+                  },
                   None => {
                     let diag = Diagnostic::new(
                       DiagnosticCode::Error(DiagnosticError::InvalidEscape),
@@ -960,7 +960,7 @@ impl Lexer {
                     engine.add(diag);
                     self.advance();
                     break;
-                  }
+                  },
                 }
               }
               if self.peek() == Some('}') {
@@ -985,7 +985,7 @@ impl Lexer {
                 );
                 engine.add(diag);
               }
-            }
+            },
             _ => {
               let diag = Diagnostic::new(
                 DiagnosticCode::Error(DiagnosticError::InvalidEscape),
@@ -996,17 +996,17 @@ impl Lexer {
               if self.peek().is_some() {
                 self.advance();
               }
-            }
+            },
           }
-        }
-        '\n' | ':' | ',' => {
+        },
+        '\n' | ':' | ',' | ' ' => {
           // Likely a lifetime or unterminated literal.
           break;
-        }
+        },
         _ => {
           // Plain Unicode scalar.
           self.advance();
-        }
+        },
       }
     }
 
@@ -1104,13 +1104,13 @@ impl Lexer {
       'b' => {
         matches!(next, Some('"') | Some('\''))
           || (matches!(next, Some('r')) && matches!(next2, Some('"') | Some('#')))
-      }
+      },
 
       // c" or cr" or cr#" (C strings)
       'c' => {
         matches!(next, Some('"'))
           || (matches!(next, Some('r')) && matches!(next2, Some('"') | Some('#')))
-      }
+      },
 
       // r" or r#" (raw strings)
       'r' => matches!(next, Some('"') | Some('#')),
@@ -1131,7 +1131,7 @@ impl Lexer {
           self.advance();
           terminated = true;
           break;
-        }
+        },
         '\\' => {
           self.advance(); // consume '\'
           match self.peek() {
@@ -1141,10 +1141,10 @@ impl Lexer {
               while matches!(self.peek(), Some(' ' | '\t' | '\n' | '\r')) {
                 self.advance();
               }
-            }
+            },
             Some('n' | 'r' | 't' | '\\' | '"' | '0') => {
               self.advance();
-            }
+            },
             Some('x') => {
               self.advance(); // consume 'x'
               let mut count = 0;
@@ -1155,7 +1155,7 @@ impl Lexer {
                     value = (value << 4) | d;
                     self.advance();
                     count += 1;
-                  }
+                  },
                   None => break,
                 }
               }
@@ -1167,7 +1167,7 @@ impl Lexer {
                 );
                 engine.add(diag);
               }
-            }
+            },
             Some('u') if self.peek_next(1) == Some('{') => {
               self.advance(); // 'u'
               self.advance(); // '{'
@@ -1184,7 +1184,7 @@ impl Lexer {
                     }
                     digits += 1;
                     self.advance();
-                  }
+                  },
                   None => {
                     let diag = Diagnostic::new(
                       DiagnosticCode::Error(DiagnosticError::InvalidEscape),
@@ -1194,7 +1194,7 @@ impl Lexer {
                     engine.add(diag);
                     self.advance();
                     break;
-                  }
+                  },
                 }
               }
               if self.peek() != Some('}') {
@@ -1219,7 +1219,7 @@ impl Lexer {
                   engine.add(diag);
                 }
               }
-            }
+            },
             _ => {
               let diag = Diagnostic::new(
                 DiagnosticCode::Error(DiagnosticError::InvalidEscape),
@@ -1230,9 +1230,9 @@ impl Lexer {
               if self.peek().is_some() {
                 self.advance();
               }
-            }
+            },
           }
-        }
+        },
         '\r' => {
           // Bare CR is forbidden; only allowed as part of a continuation sequence.
           let diag = Diagnostic::new(
@@ -1245,10 +1245,10 @@ impl Lexer {
           );
           engine.add(diag);
           self.advance();
-        }
+        },
         _ => {
           self.advance();
-        }
+        },
       }
     }
 

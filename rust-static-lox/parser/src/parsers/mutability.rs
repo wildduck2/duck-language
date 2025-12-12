@@ -67,6 +67,9 @@ impl Parser {
     if matches!(token.kind, TokenKind::KwMut) {
       self.advance(engine); // consume mut
       return Ok(Mutability::Mutable);
+    } else if matches!(token.kind, TokenKind::KwConst) {
+      self.advance(engine); // consume const
+      return Ok(Mutability::Immutable);
     }
 
     Ok(Mutability::Immutable)

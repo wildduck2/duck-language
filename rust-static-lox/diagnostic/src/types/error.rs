@@ -43,6 +43,8 @@ pub enum DiagnosticError {
   InvalidBlockFlavorContext,
   InvalidFlavorOrder,
   InvalidCondition,
+  InvalidSelfInFreeFunction,
+  InvalidAbi,
 }
 
 impl DiagnosticError {
@@ -81,6 +83,8 @@ impl DiagnosticError {
       Self::InvalidBlockFlavorContext => "E0029",
       Self::InvalidFlavorOrder => "E0029",
       Self::InvalidCondition => "E0029",
+      Self::InvalidSelfInFreeFunction => "E0029",
+      Self::InvalidAbi => "E0029",
 
       Self::UndefinedVariable => "E0025",
       Self::MismatchedTypes => "E0026",

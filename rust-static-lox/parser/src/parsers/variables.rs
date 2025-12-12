@@ -79,23 +79,22 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    use TokenKind::*;
-
     let mut lhs = self.parse_range_expr(context, engine)?;
 
     let token = self.current_token();
     if matches!(
       self.current_token().kind,
-      Eq | PlusEq
-        | MinusEq
-        | StarEq
-        | SlashEq
-        | PercentEq
-        | AndEq
-        | OrEq
-        | CaretEq
-        | ShiftLeftEq
-        | ShiftRightEq
+      TokenKind::Eq
+        | TokenKind::PlusEq
+        | TokenKind::MinusEq
+        | TokenKind::StarEq
+        | TokenKind::SlashEq
+        | TokenKind::PercentEq
+        | TokenKind::AndEq
+        | TokenKind::OrEq
+        | TokenKind::CaretEq
+        | TokenKind::ShiftLeftEq
+        | TokenKind::ShiftRightEq
     ) {
       self.advance(engine); // consume the assignment operator
 

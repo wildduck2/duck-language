@@ -60,34 +60,34 @@ metaItemInner     -> metaItem | literalExpr ;
 /* ------------------------------------------------------------------------- */
 
 /* Split signature from bodies to model semantics precisely */
-functionSig       -> functionQualifiers "fn" IDENTIFIER
-                     genericParams? "(" functionParams? ")" functionReturnType?
-                     whereClause? ;
+functionSig       -> functionQualifiers "fn" IDENTIFIER                          [x]
+                     genericParams? "(" functionParams? ")" functionReturnType?  [x]
+                     whereClause? ;                                              [x]
 
-functionItem      -> functionSig blockExpr ;                 /* free functions need a body */
+functionItem      -> functionSig blockExpr ;         /* free functions need a body */ [x]
 
 foreignFunctionItem
-                  -> functionSig ";" ;                       /* foreign items end with ';' */
+                  -> functionSig ";" ;               /* foreign items end with ';' */ [x]
 
 associatedFunctionItem
-                  -> functionSig (blockExpr | ";") ;         /* traits may have default bodies or ';' */
+                  -> functionSig (blockExpr | ";") ; /* traits may have default bodies or ';' */ [x]
 
 /* Qualifiers */
-functionQualifiers -> "const"? "async"? "unsafe"? ("extern" abi?)? ;
+functionQualifiers   -> "const"? "async"? "unsafe"? ("extern" abi?)? ;  [x]
 
-abi               -> STRING | RAW_STRING ;
+abi                  -> STRING | RAW_STRING ;  [x]
 
-functionParams    -> selfParam ("," functionParam)* ","?
-                   | functionParam ("," functionParam)* ","? ;
+functionParams       -> selfParam ("," functionParam)* ","?  [x]
+                      | functionParam ("," functionParam)* ","? ;  [x]
 
-selfParam         -> outerAttr* (shorthandSelf | typedSelf) ;
-shorthandSelf     -> ("&" LIFETIME?)? "mut"? "self" ;
-typedSelf         -> "mut"? "self" ":" type ;
+selfParam            -> outerAttr* (shorthandSelf | typedSelf) ;  [x]
+shorthandSelf        -> ("&" LIFETIME?)? "mut"? "self" ;  [x]
+typedSelf            -> "mut"? "self" ":" type ;  [x]
 
-functionParam     -> outerAttr* (functionParamPattern | "...") ;
-functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;
+functionParam        -> outerAttr* (functionParamPattern | "...") ;  [-]
+functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;   [-]
 
-functionReturnType -> "->" type ;
+functionReturnType -> "->" type ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Structs                                                                   */

@@ -255,6 +255,7 @@ pub(crate) struct UnionDecl {
 
 #[derive(Debug, Clone)]
 pub(crate) struct FnDecl {
+  pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
   pub name: String,
   pub generics: Option<GenericParams>,
@@ -262,7 +263,7 @@ pub(crate) struct FnDecl {
   pub return_type: Option<Type>,
   pub where_clause: Option<WhereClause>,
   // None for trait methods without body or extern functions
-  pub body: Option<Vec<Stmt>>,
+  pub body: Option<Expr>,
   pub is_async: bool,
   pub is_const: bool,
   pub is_unsafe: bool,

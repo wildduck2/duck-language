@@ -106,7 +106,6 @@ pub(crate) enum Pattern {
   /// Reference pattern: `&p` or `&mut p`.
   Reference {
     depth: usize,
-    mutability: Mutability,
     pattern: Box<Pattern>,
     span: Span,
   },

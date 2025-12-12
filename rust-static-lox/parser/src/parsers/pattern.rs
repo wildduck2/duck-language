@@ -268,13 +268,10 @@ impl Parser {
       depth += 1;
       self.advance(engine);
     }
-
-    let mutability = self.parse_mutability(engine)?;
     let pattern = self.parse_pattern(context, engine)?;
 
     Ok(Pattern::Reference {
       depth,
-      mutability,
       pattern: Box::new(pattern),
       span: *token.span.merge(self.current_token().span),
     })
