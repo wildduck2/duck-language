@@ -15,9 +15,9 @@ pub(crate) enum ExprContext {
   IfCondition,
   Match,
   LetElse,
-  Block,
-  WhileCondition,
   LoopCondition,
+  WhileCondition,
+  Block,
   Function,
   Closure,
   Macro,
@@ -44,13 +44,16 @@ impl Parser {
   }
 
   /// Dispatches to the correct item parser after consuming attributes & visibility.
-  fn parse_item(&mut self, engine: &mut DiagnosticEngine) -> Result<Item, ()> {
-    let attributes = self.parse_outer_attributes(engine)?;
-    let visibility = self.parse_visibility(engine)?;
-
+  fn parse_item(
+    &mut self,
+    attributes: Vec<Attribute>,
+    visibility: Visibility,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Item, ()> {
     match self.current_token().kind {
       TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility, engine),
       TokenKind::KwFn => self.parse_fn_decl(attributes, visibility, engine),
+      TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, engine),
       // TokenKind::KwConst => self.parse_const_decl(attributes, visibility, engine),
       // TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, engine),
       // TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, engine),
@@ -118,7 +121,7 @@ impl Parser {
 
       // item statement
       _ => {
-        let item = self.parse_item(engine)?;
+        let item = self.parse_item(outer_attributes, visibility, engine)?;
         Ok(Stmt::Item(Box::new(item)))
       },
     }

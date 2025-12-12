@@ -68,18 +68,7 @@ impl Parser {
         TokenKind::KwCrate => Ok(Visibility::LicCrate),
         TokenKind::KwSelf => Ok(Visibility::LicSelf),
         TokenKind::KwSuper => Ok(Visibility::LicSuper),
-
-        TokenKind::KwIn => {
-          // Special case: pub(in crate)
-          if matches!(self.current_token().kind, TokenKind::KwCrate)
-            && self.peek(1).kind == TokenKind::CloseParen
-          {
-            return Ok(Visibility::LicCrate);
-          }
-
-          // Otherwise: pub(in path)
-          Ok(Visibility::LicIn(self.parse_path(false, engine)?))
-        }
+        TokenKind::KwIn => Ok(Visibility::LicIn(self.parse_path(false, engine)?)),
 
         _ => {
           let lexeme = self.get_token_lexeme(&restriction);
@@ -103,7 +92,7 @@ impl Parser {
 
           engine.add(diagnostic);
           Err(())
-        }
+        },
       };
 
       self.expect(TokenKind::CloseParen, engine)?; // consume ")"

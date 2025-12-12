@@ -117,16 +117,14 @@ tupleField        -> outerAttr* visibility? type ;
 /* Enums                                                                     */
 /* ------------------------------------------------------------------------- */
 
-enumItem          -> "enum" IDENTIFIER genericParams?
-                     whereClause? "{" enumVariants? "}" ;
+enumItem          -> "enum" IDENTIFIER genericParams? whereClause? "{" enumVariants? "}" ;  [x]
 
-enumVariants      -> enumVariant ("," enumVariant)* ","? ;
+enumVariants      -> enumVariant ("," enumVariant)* ","? ;  [x]
 
-enumVariant       -> outerAttr* visibility? IDENTIFIER
-                     (enumVariantFields | discriminant)? ;
+enumVariant       -> outerAttr* visibility? IDENTIFIER (enumVariantFields | discriminant)? ;  [x]
 
-enumVariantFields -> recordStructFields | tupleStructFields ;
-discriminant      -> "=" expression ;
+enumVariantFields -> recordStructFields | tupleStructFields ;  [x]
+discriminant      -> "=" expression ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Union                                                                     */
@@ -241,7 +239,7 @@ macroParams       -> IDENTIFIER ("," IDENTIFIER)* ","? ;
 /* Generics                                                                   */
 /* ------------------------------------------------------------------------- */
 
-genericParams     -> "<" (genericParam ("," genericParam)* ","?)? ">" ;
+genericParams     -> "<" (genericParam ("," genericParam)* ","?)? ">" ; 
 genericParam      -> outerAttr* (lifetimeParam | typeParam | constParam) ;
 
 lifetimeParam     -> LIFETIME (":" lifetimeBounds)? ;
@@ -295,7 +293,7 @@ constrainedTypeParam -> IDENTIFIER genericArgs? ":" typeParamBounds ;
 /* Visibility                                                                 */
 /* ------------------------------------------------------------------------- */
 
-visibility        -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) ")")? ;  [-]
+visibility        -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) ")")? ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Types                                                                      */

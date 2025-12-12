@@ -136,7 +136,10 @@ impl Parser {
   /// ```rust
   /// struct User { name: String, age: u8 }
   /// ```
-  fn parse_struct_record_field(&mut self, engine: &mut DiagnosticEngine) -> Result<FieldDecl, ()> {
+  pub(crate) fn parse_struct_record_field(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<FieldDecl, ()> {
     let mut token = self.current_token();
 
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
