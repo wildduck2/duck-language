@@ -32,15 +32,26 @@ impl Parser {
       None
     };
 
-    Err(())
-    // Ok(Stmt::Let {
-    //   attributes,
-    //   pattern,
-    //   ty,
-    //   init: init.map(Box::new),
-    //   else_block: None,
-    //   span: token.span,
-    // })
+    let context = if matches!(context, ExprContext::LoopCondition) {
+      context
+    } else {
+      ExprContext::LetElse
+    };
+
+    let else_block = if match_and_consume!(self, engine, TokenKind::KwElse)? {
+      Some(self.parse_block(None, context, vec![], engine)?)
+    } else {
+      None
+    };
+
+    Ok(Stmt::Let {
+      attributes,
+      pattern,
+      ty,
+      init: init.map(Box::new),
+      else_block: else_block.map(Box::new),
+      span: token.span,
+    })
   }
 
   pub(crate) fn parse_let_expression(

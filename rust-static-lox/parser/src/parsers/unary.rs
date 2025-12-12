@@ -75,12 +75,12 @@ impl Parser {
           op,
           span: token.span,
         })
-      }
+      },
       TokenKind::And => {
         self.advance(engine); // consume the first '&'
 
         let mut depth = 1;
-        while match_and_consume!(self, engine, TokenKind::And)? {
+        while !self.is_eof() && match_and_consume!(self, engine, TokenKind::And)? {
           depth += 1;
         }
 
@@ -94,7 +94,7 @@ impl Parser {
           op: UnaryOp::Ref { mutable, depth },
           span: token.span,
         })
-      }
+      },
       _ => self.parse_postfix(context, engine),
     }
   }

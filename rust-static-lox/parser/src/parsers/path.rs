@@ -101,6 +101,7 @@ impl Parser {
           | TokenKind::OpenBrace
           | TokenKind::CloseParen
           | TokenKind::Comma
+          | TokenKind::Semi
           | TokenKind::Gt
           | TokenKind::Plus
           | TokenKind::Colon

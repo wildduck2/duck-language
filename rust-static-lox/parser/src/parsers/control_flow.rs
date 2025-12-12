@@ -60,7 +60,7 @@ impl Parser {
 
     let allowed = matches!(
       context,
-      ExprContext::ForCondition | ExprContext::WhileCondition
+      ExprContext::LoopCondition | ExprContext::WhileCondition
     );
 
     if !allowed {
@@ -110,7 +110,7 @@ impl Parser {
 
     let allowed = matches!(
       context,
-      ExprContext::ForCondition | ExprContext::WhileCondition
+      ExprContext::LoopCondition | ExprContext::WhileCondition
     );
 
     if !allowed {
@@ -143,7 +143,10 @@ impl Parser {
 
     let label = self.parse_label(engine)?;
 
-    let value = if !matches!(self.current_token().kind, TokenKind::Semi) {
+    let value = if !matches!(
+      self.current_token().kind,
+      TokenKind::Semi | TokenKind::CloseBrace
+    ) {
       Some(self.parse_expression(vec![], ExprContext::Default, engine)?)
     } else {
       None
@@ -167,7 +170,7 @@ impl Parser {
 
     let allowed = matches!(
       context,
-      ExprContext::Function | ExprContext::IfCondition | ExprContext::Match
+      ExprContext::Function | ExprContext::IfCondition | ExprContext::Match | ExprContext::LetElse
     );
 
     if !allowed {
@@ -198,7 +201,10 @@ impl Parser {
 
     self.advance(engine);
 
-    let value = if !matches!(self.current_token().kind, TokenKind::Semi) {
+    let value = if !matches!(
+      self.current_token().kind,
+      TokenKind::Semi | TokenKind::CloseBrace
+    ) {
       Some(self.parse_expression(vec![], ExprContext::Default, engine)?)
     } else {
       None

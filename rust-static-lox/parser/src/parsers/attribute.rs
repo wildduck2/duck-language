@@ -89,7 +89,7 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
-    while self.current_token().kind == TokenKind::Pound {
+    while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
       attr.push(self.parse_outer_attribute(engine)?);
     }
 
@@ -101,7 +101,7 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
-    while self.current_token().kind == TokenKind::Pound {
+    while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
       attr.push(self.parse_inner_attribute(engine)?);
     }
 
@@ -111,7 +111,7 @@ impl Parser {
   fn parse_outer_attribute(&mut self, engine: &mut DiagnosticEngine) -> Result<Attribute, ()> {
     let mut token = self.current_token();
 
-    self.expect(TokenKind::Pound, engine)?; // consume the pound
+    self.expect(TokenKind::Pound, engine)?; // consume the open bracket
     self.expect(TokenKind::OpenBracket, engine)?; // consume the open bracket
     let attr_input = self.parse_attribute_input(engine)?;
     self.expect(TokenKind::CloseBracket, engine)?; // consume the close bracket
@@ -151,11 +151,11 @@ impl Parser {
         self.advance(engine); // consume the pound
         self.advance(engine); // consume the bang
         AttrStyle::Inner
-      }
+      },
       TokenKind::Pound => {
         self.advance(engine); // consume the pound
         AttrStyle::Outer
-      }
+      },
       _ => {
         let offending = self.current_token();
         let lexeme = self.get_token_lexeme(&offending);
@@ -180,7 +180,7 @@ impl Parser {
         engine.add(diagnostic);
 
         return Err(());
-      }
+      },
     };
 
     self.expect(TokenKind::OpenBracket, engine)?; // consume the open bracket
@@ -268,7 +268,7 @@ impl Parser {
         );
         engine.add(diag);
         return Err(());
-      }
+      },
     };
 
     self.advance(engine); // consume the open delimiter

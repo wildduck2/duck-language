@@ -543,33 +543,112 @@ impl TokenKind {
     matches!(
       self,
       Ident
-        | RawIdent
-        | Literal { .. }
-        | OpenParen
-        | CloseParen
-        | OpenBracket
-        | CloseBracket
-        | OpenBrace
-        | CloseBrace
-        | Or
-        | Minus
-        | Star
-        | Bang
-        | And
-        | KwMove
-        | KwIf
-        | KwMatch
-        | KwWhile
-        | KwLoop
-        | FatArrow
-        | KwFor
-        | KwReturn
-        | KwBreak
-        | KwContinue
-        | KwAsync
-        | KwUnsafe
+      | RawIdent
+      | Literal { .. }
+
+      // grouping and array and block and struct literal
+      | OpenParen
+      | OpenBracket
+      | OpenBrace
+
+      // closure
+      | Or
+      | KwMove
+
+      // unary operators
+      | Minus
+      | Star
+      | Bang
+      | And
+
+      // control flow expressions
+      | KwIf
+      | KwMatch
+      | KwWhile
+      | KwLoop
+      | KwFor
+      | KwReturn
+      | KwBreak
+      | KwContinue
+
+      // async and unsafe expressions
+      | KwAsync
+      | KwUnsafe
+
+      // lifetime at expression position (rare but valid, e.g. break 'lbl)
+      | Lifetime { .. }
+
+      // path starting with ::
+      | ColonColon
+      | KwSelf
+      | KwSelfType
+      | KwSuper
+      | KwCrate
+
+      | KwTry
     )
   }
+
+  pub fn can_continue_expression(&self) -> bool {
+    matches!(
+      self,
+      // postfix ops
+      Dot            // .field, .await, method calls, tuple index
+      | OpenParen  // call
+      | OpenBracket// index
+      | Question   // ?
+
+    // cast
+      | KwAs
+
+    // binary ops
+      | Plus
+      | Minus
+      | Star
+      | Slash
+      | Percent
+      | Caret
+      | Or
+      | And
+
+    // comparison
+      | EqEq
+      | Ne
+      | Lt
+      | Le
+      | Gt
+      | Ge
+
+    // compound assign
+      | PlusEq
+      | MinusEq
+      | StarEq
+      | SlashEq
+      | PercentEq
+      | AndEq
+      | OrEq
+      | CaretEq
+      | ShiftLeftEq
+      | ShiftRightEq
+
+    // ranges
+      | DotDot
+      | DotDotEq
+
+    // call and match arm helpers
+      | ThinArrow
+      | FatArrow
+    )
+  }
+
+  pub fn can_continue_expression_and_not(&self, and: TokenKind) -> bool {
+    self.can_continue_expression() && *self != and
+  }
+
+  pub fn can_continue_expression_or(&self, or: TokenKind) -> bool {
+    self.can_continue_expression() || *self == or
+  }
+
   pub fn can_start_expression_and_not(&self, and: TokenKind) -> bool {
     self.can_start_expression() && *self != and
   }
@@ -595,56 +674,6 @@ impl TokenKind {
   /// ```
   pub fn is_trivia(&self) -> bool {
     matches!(self, Whitespace | LineComment { .. } | BlockComment { .. })
-  }
-
-  /// Returns true if this token can begin an expression
-  ///
-  /// Used by the parser to determine if a token sequence might start
-  /// an expression, which is useful for error recovery and lookahead.
-  ///
-  /// # Examples
-  /// ```rust
-  /// assert!(Ident.can_start_expr());
-  /// assert!(
-  ///   Literal {
-  ///     kind: LiteralKind::Integer {
-  ///       base: Base::Decimal,
-  ///       empty_int: false,
-  ///       suffix_start: 0,
-  ///     },
-  ///   }
-  ///   .can_start_expr()
-  /// );
-  /// assert!(OpenParen.can_start_expr());  // tuple or grouping
-  /// assert!(!Semi.can_start_expr());
-  /// ```
-  pub fn can_start_expr(&self) -> bool {
-    matches!(
-      self,
-      Ident
-        | RawIdent
-        | Literal { .. }
-        | OpenParen      // tuple, grouped expr
-        | OpenBracket    // array literal
-        | OpenBrace      // struct literal, block
-        | Or             // closure: |x| x + 1
-        | Minus          // unary negation
-        | Star           // dereference
-        | Bang           // logical not
-        | And            // borrow
-        | KwMove         // move closure
-        | KwIf
-        | KwMatch
-        | KwWhile
-        | KwLoop
-        | KwFor
-        | KwReturn
-        | KwBreak
-        | KwContinue
-        | KwAsync
-        | KwUnsafe
-        | Lifetime { .. }
-    )
   }
 
   /// Returns true if this token is a literal

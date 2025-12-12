@@ -1,3 +1,5 @@
+use std::io::pipe;
+
 use crate::{
   ast::{Attribute, BlockFlavor, Expr, Stmt},
   match_and_consume,
@@ -16,6 +18,7 @@ impl Parser {
   pub(crate) fn parse_block(
     &mut self,
     label: Option<String>,
+    context: ExprContext,
     outer_attributes: Vec<Attribute>,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
@@ -30,7 +33,7 @@ impl Parser {
     let inner_attributes = self.parse_inner_attributes(engine)?;
     let mut stmts = vec![];
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
-      stmts.push(self.parse_stmt(ExprContext::Default, engine)?);
+      stmts.push(self.parse_stmt(context, engine)?);
       match_and_consume!(self, engine, TokenKind::Semi)?;
     }
     self.expect(TokenKind::CloseBrace, engine)?;
@@ -103,10 +106,10 @@ impl Parser {
             .with_help("valid examples: async { } or async move { }".to_string());
             engine.add(diagnostic);
             return Err(());
-          }
-          _ => {}
+          },
+          _ => {},
         }
-      }
+      },
 
       TokenKind::KwUnsafe => {
         is_unsafe = true;
@@ -128,10 +131,10 @@ impl Parser {
             .with_help("valid example: unsafe { }".to_string());
             engine.add(diagnostic);
             return Err(());
-          }
-          _ => {}
+          },
+          _ => {},
         }
-      }
+      },
 
       TokenKind::KwTry => {
         is_try = true;
@@ -153,10 +156,10 @@ impl Parser {
             .with_help("valid example: try { }".to_string());
             engine.add(diagnostic);
             return Err(());
-          }
-          _ => {}
+          },
+          _ => {},
         }
-      }
+      },
 
       TokenKind::KwMove => {
         // move alone is not allowed for block
@@ -173,9 +176,9 @@ impl Parser {
         .with_help("use async move { } instead".to_string());
         engine.add(diagnostic);
         return Err(());
-      }
+      },
 
-      _ => {}
+      _ => {},
     }
 
     // Check next token is a brace if any flavor was used
