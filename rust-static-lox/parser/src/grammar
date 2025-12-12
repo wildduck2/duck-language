@@ -84,8 +84,8 @@ selfParam            -> outerAttr* (shorthandSelf | typedSelf) ;  [x]
 shorthandSelf        -> ("&" LIFETIME?)? "mut"? "self" ;  [x]
 typedSelf            -> "mut"? "self" ":" type ;  [x]
 
-functionParam        -> outerAttr* (functionParamPattern | "...") ;  [-]
-functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;   [-]
+functionParam        -> outerAttr* (functionParamPattern | "...") ;  [x]
+functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;   [x]
 
 functionReturnType -> "->" type ;  [x]
 

@@ -45,6 +45,7 @@ pub enum DiagnosticError {
   InvalidCondition,
   InvalidSelfInFreeFunction,
   InvalidAbi,
+  InvalidVariadic,
 }
 
 impl DiagnosticError {
@@ -85,6 +86,7 @@ impl DiagnosticError {
       Self::InvalidCondition => "E0029",
       Self::InvalidSelfInFreeFunction => "E0029",
       Self::InvalidAbi => "E0029",
+      Self::InvalidVariadic => "E0029",
 
       Self::UndefinedVariable => "E0025",
       Self::MismatchedTypes => "E0026",

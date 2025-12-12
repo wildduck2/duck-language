@@ -1,1 +1,1 @@
-extern "C" fn f0(...) { a }
+extern "C" fn f0(..., x: i32) { a }

@@ -25,7 +25,7 @@ impl Parser {
 
     let name = self.parse_name_identifier(engine)?;
     let generics = self.parse_generic_params(&mut token, engine)?;
-    let params = self.parse_function_params(ExprContext::Function, engine)?;
+    let params = self.parse_function_params(is_extern, ExprContext::Function, engine)?;
     let return_type = self.parse_return_type(engine)?;
     let where_clause = self.parse_where_clause(engine)?;
     let body = Some(self.parse_block(None, ExprContext::Default, vec![], engine)?);
@@ -144,6 +144,7 @@ impl Parser {
 
   fn parse_function_params(
     &mut self,
+    is_extern: bool,
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<Param>, ()> {
@@ -151,7 +152,7 @@ impl Parser {
 
     self.expect(TokenKind::OpenParen, engine)?; // consume '('
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-      params.push(self.parse_function_param(context, engine)?);
+      params.push(self.parse_function_param(is_extern, context, engine)?);
       match_and_consume!(self, engine, TokenKind::Comma)?;
     }
     self.expect(TokenKind::CloseParen, engine)?; // consume ')'
@@ -161,6 +162,7 @@ impl Parser {
 
   fn parse_function_param(
     &mut self,
+    is_extern: bool,
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Param, ()> {
@@ -168,6 +170,26 @@ impl Parser {
     let attributes = self.parse_outer_attributes(engine)?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::DotDot) {
+      if !is_extern {
+        let mut token = self.current_token();
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidVariadic),
+          "variadic parameters are not allowed in non-extern functions".to_string(),
+          self.source_file.path.clone(),
+        )
+        .with_label(
+          *token.span.merge(diagnostic::Span {
+            start: token.span.start,
+            end: token.span.end + 1,
+          }),
+          Some("variadic parameters are not allowed in non-extern functions".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("variadic parameters are only allowed in extern functions".to_string());
+        engine.add(diagnostic);
+        return Err(());
+      }
+
       self.expect(TokenKind::DotDot, engine)?; // consume '..'
       self.expect(TokenKind::Dot, engine)?; // consume '.'
       ParamKind::Variadic
@@ -200,31 +222,29 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<bool, ()> {
-    match pattern {
-      Pattern::Ident { name, .. } if matches!(context, ExprContext::Impl | ExprContext::Trait) => {
-        if name == "self" {
-          Ok(true)
-        } else {
-          Ok(false)
+    if let Pattern::Ident { name, span, .. } = pattern {
+      if name == "self" {
+        if matches!(context, ExprContext::Impl | ExprContext::Trait) {
+          return Ok(true);
         }
-      },
-      _ => {
-        let token = self.tokens[self.current - 1].clone();
+
         let diagnostic = Diagnostic::new(
           DiagnosticCode::Error(DiagnosticError::InvalidSelfInFreeFunction),
           "self is not allowed in free functions".to_string(),
           self.source_file.path.clone(),
         )
         .with_label(
-          token.span,
+          *span,
           Some("self is not allowed in free functions".to_string()),
           LabelStyle::Primary,
         )
         .with_help("self is not allowed in free functions".to_string());
         engine.add(diagnostic);
-        Err(())
-      },
+        return Err(());
+      }
     }
+
+    Ok(false)
   }
 
   fn parse_return_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Option<Type>, ()> {
