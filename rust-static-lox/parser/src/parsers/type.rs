@@ -59,7 +59,7 @@ impl Parser {
           name,
           generics: generics.map(Box::new),
         })
-      }
+      },
 
       // Primitive names and user defined paths
       TokenKind::Ident | TokenKind::KwCrate => match lexeme.as_str() {
@@ -92,18 +92,21 @@ impl Parser {
           // Reset position so parse_path can consume the ident or crate token
           self.current -= 1;
           Ok(Type::Path(self.parse_path(true, engine)?))
-        }
+        },
       },
 
-      // Tuple and parenthesized types are not implemented yet
+      // Tuple and parenthesized types: (T, U, V)
       TokenKind::OpenParen => {
-        // Debug stub for now; full tuple and grouped type support is still missing.
-        println!("debug tuple: {:?}", self.current_token().kind);
-        Err(())
-        // Planned shape:
-        // parse ( T ) as a grouped type
-        // parse ( T , U , .. ) as a tuple type
-      }
+        let mut types = vec![];
+
+        while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
+          types.push(self.parse_type(engine)?);
+          match_and_consume!(self, engine, TokenKind::Comma)?;
+        }
+
+        self.expect(TokenKind::CloseParen, engine)?;
+        Ok(Type::Tuple(types))
+      },
 
       // Array type: [ T ; expr ]
       TokenKind::OpenBracket => {
@@ -117,7 +120,7 @@ impl Parser {
           element: Box::new(element),
           size: Box::new(size),
         })
-      }
+      },
 
       // Raw pointer: *const T or *mut T
       TokenKind::Star => {
@@ -154,7 +157,7 @@ impl Parser {
           mutability,
           inner: Box::new(self.parse_type(engine)?),
         })
-      }
+      },
 
       // Reference types: &T, &'a T, &mut T, &'a mut T
       TokenKind::And => {
@@ -201,7 +204,7 @@ impl Parser {
           mutability,
           inner: Box::new(self.parse_type(engine)?),
         })
-      }
+      },
 
       TokenKind::KwSelfType => Ok(Type::SelfType),
 
@@ -228,7 +231,7 @@ impl Parser {
 
         engine.add(diagnostic);
         Err(())
-      }
+      },
 
       // Fallback for unknown type starts
       _ => {
@@ -255,7 +258,7 @@ impl Parser {
 
         engine.add(diagnostic);
         Err(())
-      }
+      },
     }
   }
 

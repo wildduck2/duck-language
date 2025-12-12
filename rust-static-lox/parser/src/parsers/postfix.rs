@@ -45,6 +45,7 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let expr = self.parse_primary(context, engine)?;
+
     self.parse_postfix_chain(expr, context, engine)
   }
 

@@ -61,7 +61,11 @@ impl Parser {
       // parse the right side with the same precedence level beneath comparison
       let rhs = self.parse_bitwise_or(context, engine)?;
 
-      if !self.current_token().kind.can_start_expression() && !self.is_eof() {
+      let _token = self.current_token().kind;
+      if !_token.can_start_expression()
+        && !_token.can_continue_expression_or(TokenKind::Semi)
+        && !self.is_eof()
+      {
         let bad = self.current_token();
         let lexeme = self.get_token_lexeme(&bad);
 

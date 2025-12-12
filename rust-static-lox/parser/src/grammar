@@ -295,7 +295,7 @@ constrainedTypeParam -> IDENTIFIER genericArgs? ":" typeParamBounds ;
 /* Visibility                                                                 */
 /* ------------------------------------------------------------------------- */
 
-visibility        -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) ")")? ;
+visibility        -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) ")")? ;  [-]
 
 /* ------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -309,11 +309,11 @@ typeNoBounds      -> parenthesizedType
                    | implTraitTypeOneBound
                    | traitObjectTypeOneBound
                    | typePath
-                   | tupleType
+                   | tupleType               [x]
                    | neverType
                    | rawPointerType
                    | referenceType
-                   | arrayType
+                   | arrayType               [x]
                    | sliceType
                    | inferredType
                    | qualifiedPathInType
@@ -377,7 +377,7 @@ patternWithoutRange
                    | pathPattern            [x]
                    | macroInvocation ;      [x]
 
-literalPattern    -> "true" | "false"      [x]
+literalPattern    -> "true" | "false"    [x]
                    | CHAR                [x]
                    | BYTE                [x]
                    | STRING              [x]
@@ -392,114 +392,113 @@ literalPattern    -> "true" | "false"      [x]
                    | "-" FLOAT ;         [x]
 
 identifierPattern -> "ref"? "mut"? IDENTIFIER ("@" patternNoTopAlt)? ; [x]
-wildcardPattern   -> "_" ; [x]
-restPattern       -> ".." ; [x]
+wildcardPattern   -> "_" ;     [x]
+restPattern       -> ".." ;    [x]  
 referencePattern  -> ("&" | "&&") "mut"? patternWithoutRange ; [x]
 
-structPattern     -> pathInExpression "{" structPatternElements? "}" ; [x]
-structPatternElements
-                  -> structPatternFields ("," structPatternEtCetera?)? [x]
-                   | structPatternEtCetera ; [x]
-structPatternFields -> structPatternField ("," structPatternField)* ; [x]
-structPatternField -> outerAttr* (tupleIndex ":" patternNoTopAlt [x]
-                                  | IDENTIFIER ":" patternNoTopAlt [x]
-                                  | "ref"? "mut"? IDENTIFIER) ; [x]
+structPattern         -> pathInExpression "{" structPatternElements? "}" ; [x]
+structPatternElements -> structPatternFields ("," structPatternEtCetera?)? [x]
+                       | structPatternEtCetera ;                           [x]
+structPatternFields   -> structPatternField ("," structPatternField)* ;    [x]
+structPatternField    -> outerAttr* (tupleIndex ":" patternNoTopAlt        [x]
+                                  | IDENTIFIER ":" patternNoTopAlt         [x]
+                                  | "ref"? "mut"? IDENTIFIER) ;            [x]
 structPatternEtCetera -> outerAttr* ".." ; [x]
 
-tupleStructPattern -> pathInExpression "(" tuplePatternItems? ")" ; [x]
-tuplePattern      -> "(" tuplePatternItems? ")" ; [x]
-tuplePatternItems -> pattern ("," pattern)* ","? [x]
-                   | restPattern ("," pattern)+ ","? [x]
-                   | pattern ("," pattern)* "," restPattern ("," pattern)* ","? ; [x]
+tupleStructPattern    -> pathInExpression "(" tuplePatternItems? ")" ; [x]
+tuplePattern          -> "(" tuplePatternItems? ")" ;    [x]
+tuplePatternItems     -> pattern ("," pattern)* ","?     [x]
+                       | restPattern ("," pattern)+ ","? [x]
+                       | pattern ("," pattern)* "," restPattern ("," pattern)* ","? ; [x]
 
-groupedPattern    -> "(" pattern ")" ; [x]
-slicePattern      -> "[" slicePatternItems? "]" ; [x]
-slicePatternItems -> pattern ("," pattern)* ","? ; [x]
+groupedPattern        -> "(" pattern ")" ; [x]
+slicePattern          -> "[" slicePatternItems? "]" ;  [x]
+slicePatternItems     -> pattern ("," pattern)* ","? ; [x]
 
-pathPattern       -> pathInExpression             [x]
-                   | qualifiedPathInExpression ;  [x]
+pathPattern           -> pathInExpression             [x]
+                       | qualifiedPathInExpression ;  [x]
 
-rangePattern      -> rangePatternBound ("..=" | "...") rangePatternBound [x]
-                   | rangeInclusiveStart [x]
-                   | obsoleteRangePattern ; [x]
+rangePattern          -> rangePatternBound ("..=" | "...") rangePatternBound [x]
+                       | rangeInclusiveStart [x]
+                       | obsoleteRangePattern ; [x]
 
-rangePatternBound -> CHAR | BYTE | "-"? INTEGER | "-"? FLOAT | pathInExpression ; [x]
-rangeInclusiveStart -> rangePatternBound "..=" ; [x]
-obsoleteRangePattern -> rangePatternBound "..." ; [x]
+rangePatternBound     -> CHAR | BYTE | "-"? INTEGER | "-"? FLOAT | pathInExpression ; [x]
+rangeInclusiveStart   -> rangePatternBound "..=" ;  [x]
+obsoleteRangePattern  -> rangePatternBound "..." ; [x]
 
 /* ------------------------------------------------------------------------- */
 /* Statements                                                                 */
 /* ------------------------------------------------------------------------- */
 
 statement         -> ";"
-                   | item
-                   | letStatement
-                   | expressionStatement
-                   | macroInvocationSemi ;
+                   | item                  [-]
+                   | letStatement          [x]
+                   | expressionStatement   [-]
+                   | macroInvocationSemi ; [-]
 
-letStatement      -> outerAttr* "let" patternNoTopAlt (":" type)? ("=" expression ("else" blockExpr)?)? ";" ;
-expressionStatement -> expressionWithoutBlock ";"
-                     | expressionWithBlock ";"? ;
+letStatement      -> outerAttr* "let" patternNoTopAlt (":" type)? ("=" expression ("else" blockExpr)?)? ";" ;  [x]
+expressionStatement -> expressionWithoutBlock ";"  [x]
+                     | expressionWithBlock ";"? ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Macro invocations in expr/stmt                                             */
 /* ------------------------------------------------------------------------- */
 
-macroInvocationSemi -> simplePath "!" delimTokenTree ";" ;
+macroInvocationSemi -> simplePath "!" delimTokenTree ";" ;  [-]
 
 /* ------------------------------------------------------------------------- */
 /* Expressions                                                                */
 /* ------------------------------------------------------------------------- */
 
-expression        -> assignment ;
-assignment        -> (rangeExpr assignOp)* rangeExpr ;
-assignOp          -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
+expression        -> assignment ;                                                                  [x]
+assignment        -> (rangeExpr assignOp)* rangeExpr ;                                             [x]
+assignOp          -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ; [x]
 
-rangeExpr         -> logicalOr (rangeOp logicalOr)? ;
-rangeOp           -> ".." | "..=" ;
+rangeExpr         -> logicalOr (rangeOp logicalOr)? ; [x]
+rangeOp           -> ".." | "..=" ;                   [x]
 
-logicalOr         -> logicalAnd ("||" logicalAnd)* ;
-logicalAnd        -> comparison ("&&" comparison)* ;
+logicalOr         -> logicalAnd ("||" logicalAnd)* ; [x]
+logicalAnd        -> comparison ("&&" comparison)* ; [x]
 
-comparison        -> bitwiseOr (comparisonOp bitwiseOr)* ;
-comparisonOp      -> "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+comparison        -> bitwiseOr (comparisonOp bitwiseOr)* ;   [x]
+comparisonOp      -> "==" | "!=" | "<" | "<=" | ">" | ">=" ; [x]
 
-bitwiseOr         -> bitwiseXor ("|" bitwiseXor)* ;
-bitwiseXor        -> bitwiseAnd ("^" bitwiseAnd)* ;
-bitwiseAnd        -> shift ("&" shift)* ;
+bitwiseOr         -> bitwiseXor ("|" bitwiseXor)* ; [x]
+bitwiseXor        -> bitwiseAnd ("^" bitwiseAnd)* ; [x]
+bitwiseAnd        -> shift ("&" shift)* ;           [x]
 
-shift             -> term (shiftOp term)* ;
-shiftOp           -> "<<" | ">>" ;
+shift             -> term (shiftOp term)* ; [x]
+shiftOp           -> "<<" | ">>" ;          [x]
 
-term              -> factor (termOp factor)* ;
-termOp            -> "+" | "-" ;
+term              -> factor (termOp factor)* ; [x]
+termOp            -> "+" | "-" ; [x]
 
-factor            -> cast (factorOp cast)* ;
-factorOp          -> "*" | "/" | "%" ;
+factor            -> cast (factorOp cast)* ; [x]
+factorOp          -> "*" | "/" | "%" ;       [x]
 
-cast              -> unary ("as" typeNoBounds)* ;
+cast              -> unary ("as" typeNoBounds)* ; [x]
 
-unary             -> unaryOp* postfix ;
-unaryOp           -> "-" | "!" | "*" | "&" "mut"? | "&&" "mut"? ;
+unary             -> unaryOp* postfix ;                           [x]   
+unaryOp           -> "-" | "!" | "*" | "&" "mut"? | "&&" "mut"? ; [x]
 
-postfix           -> primary postfixOp* ;
-postfixOp         -> callOp
-                   | methodCallOp
-                   | fieldAccessOp
-                   | tupleIndexOp
-                   | indexOp
-                   | awaitOp
-                   | tryOp ;
+postfix           -> primary postfixOp* ;  [x]
+postfixOp         -> callOp                [x]
+                   | methodCallOp          [x]
+                   | fieldAccessOp         [x]  
+                   | tupleIndexOp          [x]
+                   | indexOp               [x]
+                   | awaitOp               [x]
+                   | tryOp ;               [x]
 
-callOp            -> "(" callParams? ")" ;
-methodCallOp      -> "." pathExprSegment "(" callParams? ")" ;
-fieldAccessOp     -> "." IDENTIFIER ;
-tupleIndexOp      -> "." INTEGER ;
-indexOp           -> "[" expression "]" ;
-awaitOp           -> "." "await" ;
-tryOp             -> "?" ;
+callOp            -> "(" callParams? ")" ;                     [x]
+methodCallOp      -> "." pathExprSegment "(" callParams? ")" ; [x]
+fieldAccessOp     -> "." IDENTIFIER ;                          [x]
+tupleIndexOp      -> "." INTEGER ;                             [x]
+indexOp           -> "[" expression "]" ;                      [x]
+awaitOp           -> "." "await" ;                             [x]
+tryOp             -> "?" ;                                     [x]
 
-callParams        -> expression ("," expression)* ","? ;
+callParams        -> expression ("," expression)* ","? ;       [x]
 
 primary           -> literalExpr       [x]
                    | pathExpr          [x]
@@ -512,7 +511,7 @@ primary           -> literalExpr       [x]
                    | asyncBlockExpr    [x]
                    | unsafeBlockExpr   [x]
                    | tryBlockExpr      [x]
-                   | loopExpr          [-]
+                   | loopExpr          [x]
                    | ifExpr            [x]
                    | ifLetExpr         [x]
                    | matchExpr         [x]
@@ -534,8 +533,8 @@ literalExpr       -> CHAR            [x]
                    | "true"          [x]
                    | "false" ;       [x]
 
-pathExpr          -> pathInExpression
-                   | qualifiedPathInExpression ; [-]
+pathExpr          -> pathInExpression            [x]
+                   | qualifiedPathInExpression ; [x]
 
 groupedExpr       -> "(" expression ")" ; [x]
 
@@ -566,8 +565,8 @@ unsafeBlockExpr   -> outerAttr* "unsafe" blockExpr ;               [x]
 asyncBlockExpr    -> outerAttr* "async" "move"? blockExpr ;        [x]
 tryBlockExpr      -> outerAttr* "try" blockExpr ; // nightly only  [x]
 
-statements        -> statement+ expression?
-                   | expression ;
+statements        -> statement+ expression? ;                      [x]
+                   | expression ;                                  [x]
 
 loopExpr          -> infiniteLoopExpr                                         [x]
                    | predicateLoopExpr                                        [x]
@@ -579,10 +578,10 @@ infiniteLoopExpr  -> loopLabel? "loop" blockExpr ;                              
 predicateLoopExpr -> loopLabel? "while" expression blockExpr ;                          [x]
 predicatePatternLoopExpr -> loopLabel? "while" "let" pattern "=" scrutinee blockExpr ;  [x]
 iteratorLoopExpr  -> loopLabel? "for" pattern "in" expression blockExpr ;               [x]
-loopLabel         -> LIFETIME ":" ;  [x]
+loopLabel         -> LIFETIME ":" ;        [x]
 labelBlockExpr    -> loopLabel blockExpr ; [x]
 
-scrutinee         -> expression ; [x]
+scrutinee         -> expression ;          [x]
 
 ifExpr            -> "if" expression blockExpr ("else" (blockExpr | ifExpr | ifLetExpr))? ;                  [x]
 ifLetExpr         -> "if" "let" pattern "=" scrutinee blockExpr ("else" (blockExpr | ifExpr | ifLetExpr))? ; [x]
@@ -592,17 +591,17 @@ ifLetExpr         -> "if" "let" pattern "=" scrutinee blockExpr ("else" (blockEx
 /* ------------------------------------------------------------------------- */
 
 matchExpr         -> "match" scrutinee "{" matchArms? "}" ; [x]
-matchArms         -> matchArm "=>" matchArmBody ","?    [x]
-                   (matchArm "=>" matchArmBody ","?)* ; [x]
-                   (matchArm "=>" matchArmBody ","?)* ; [x]
-matchArmBody      -> expressionWithBlock                [x]
-                   | expressionWithoutBlock ;           [x]
-matchArm          -> outerAttr* pattern matchArmGuard? ; [x]
-matchArmGuard     -> "if" expression ;                  [x]
+matchArms         -> matchArm "=>" matchArmBody ","?        [x]
+                   (matchArm "=>" matchArmBody ","?)* ;     [x]
+                   (matchArm "=>" matchArmBody ","?)* ;     [x]
+matchArmBody      -> expressionWithBlock                    [x]
+                   | expressionWithoutBlock ;               [x]
+matchArm          -> outerAttr* pattern matchArmGuard? ;    [x]
+matchArmGuard     -> "if" expression ;                      [x]
 
-continueExpr      -> "continue" LIFETIME? ; [x]
-breakExpr         -> "break" LIFETIME? expression? ; [x]
-returnExpr        -> "return" expression? ; [x]
+continueExpr      -> "continue" LIFETIME? ;                 [x]
+breakExpr         -> "break" LIFETIME? expression? ;        [x]
+returnExpr        -> "return" expression? ;                 [x]
 
 /* ------------------------------------------------------------------------- */
 /* ExpressionWithoutBlock / ExpressionWithBlock                              */
@@ -615,73 +614,46 @@ returnExpr        -> "return" expression? ; [x]
  * (`asyncBlockExpr`) are included here.
  */
 
-expressionWithoutBlock
-                  -> outerAttr* assignmentWithoutBlock ;
+expressionWithoutBlock -> outerAttr* assignmentWithoutBlock ;                             [x]
+assignmentWithoutBlock -> (rangeExprWithoutBlock assignOp)* rangeExprWithoutBlock ;       [x]
+rangeExprWithoutBlock  -> logicalOrWithoutBlock (rangeOp logicalOrWithoutBlock?)? ;       [x]
+logicalOrWithoutBlock  -> logicalAndWithoutBlock ("||" logicalAndWithoutBlock)* ;         [x]
+logicalAndWithoutBlock -> comparisonWithoutBlock ("&&" comparisonWithoutBlock)* ;         [x]
+comparisonWithoutBlock -> bitwiseOrWithoutBlock (comparisonOp bitwiseOrWithoutBlock)* ;   [x]
+bitwiseOrWithoutBlock  -> bitwiseXorWithoutBlock ("^" bitwiseXorWithoutBlock)* ;          [x]
+bitwiseXorWithoutBlock -> bitwiseAndWithoutBlock ("&" bitwiseAndWithoutBlock)* ;          [x]
+bitwiseAndWithoutBlock -> shiftWithoutBlock ("&" shiftWithoutBlock)* ;                    [x]
+shiftWithoutBlock      -> termWithoutBlock (shiftOp termWithoutBlock)* ;                  [x]
+termWithoutBlock       -> factorWithoutBlock (termOp factorWithoutBlock)* ;               [x]
+factorWithoutBlock     -> castWithoutBlock (factorOp castWithoutBlock)* ;                 [x]
+castWithoutBlock       -> unaryWithoutBlock ("as" typeNoBounds)* ;                        [x]
+unaryWithoutBlock      -> unaryOp* postfixWithoutBlock ;                                  [x]
+postfixWithoutBlock    -> primaryWithoutBlock postfixOp* ;                                [x]
 
-assignmentWithoutBlock
-                  -> (rangeExprWithoutBlock assignOp)* rangeExprWithoutBlock ;
-
-rangeExprWithoutBlock
-                  -> logicalOrWithoutBlock (rangeOp logicalOrWithoutBlock?)? ;
-
-logicalOrWithoutBlock
-                  -> logicalAndWithoutBlock ("||" logicalAndWithoutBlock)* ;
-
-logicalAndWithoutBlock
-                  -> comparisonWithoutBlock ("&&" comparisonWithoutBlock)* ;
-
-comparisonWithoutBlock
-                  -> bitwiseOrWithoutBlock (comparisonOp bitwiseOrWithoutBlock)* ;
-
-bitwiseOrWithoutBlock
-                  -> bitwiseXorWithoutBlock ("^" bitwiseXorWithoutBlock)* ;
-
-bitwiseXorWithoutBlock
-                  -> bitwiseAndWithoutBlock ("&" bitwiseAndWithoutBlock)* ;
-
-bitwiseAndWithoutBlock
-                  -> shiftWithoutBlock ("&" shiftWithoutBlock)* ;
-
-shiftWithoutBlock -> termWithoutBlock (shiftOp termWithoutBlock)* ;
-termWithoutBlock  -> factorWithoutBlock (termOp factorWithoutBlock)* ;
-
-factorWithoutBlock
-                  -> castWithoutBlock (factorOp castWithoutBlock)* ;
-
-castWithoutBlock  -> unaryWithoutBlock ("as" typeNoBounds)* ;
-
-unaryWithoutBlock -> unaryOp* postfixWithoutBlock ;
-
-postfixWithoutBlock
-                  -> primaryWithoutBlock postfixOp* ;
-
-primaryWithoutBlock
-                  -> literalExpr
-                   | pathExpr
-                   | groupedExpr
-                   | arrayExpr
-                   | tupleExpr
-                   | structExpr
-                   | closureExpr
-                   | asyncBlockExpr
-                   | continueExpr
-                   | breakExpr
-                   | returnExpr
-                   | macroInvocation ;
+primaryWithoutBlock    -> literalExpr       [x]
+                        | pathExpr          [x]
+                        | groupedExpr       [x]  
+                        | arrayExpr         [x]
+                        | tupleExpr         [x]
+                        | structExpr        [x]
+                        | closureExpr       [x]
+                        | asyncBlockExpr    [x]
+                        | continueExpr      [x]
+                        | breakExpr         [x]
+                        | returnExpr        [x]
+                        | macroInvocation ; [x]
 
 /* With-block expressions at the outermost level */
 
-expressionWithBlock
-                  -> outerAttr* expressionKindWithBlock ;
+expressionWithBlock     -> outerAttr* expressionKindWithBlock ; [x]
 
-expressionKindWithBlock
-                  -> blockExpr
-                   | unsafeBlockExpr
-                   | tryBlockExpr
-                   | loopExpr
-                   | ifExpr
-                   | ifLetExpr
-                   | matchExpr ;
+expressionKindWithBlock -> blockExpr       [x]  
+                         | unsafeBlockExpr [x]
+                         | tryBlockExpr    [x]
+                         | loopExpr        [x]
+                         | ifExpr          [x]
+                         | ifLetExpr       [x]
+                         | matchExpr ;     [x]
 
 /* ------------------------------------------------------------------------- */
 /* Macro invocation (expr/stmt/type)                                         */

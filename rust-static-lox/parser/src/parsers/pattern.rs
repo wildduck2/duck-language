@@ -22,7 +22,7 @@ impl Parser {
     let mut token = self.current_token();
     let mut patterns = vec![self.parse_pattern(context, engine)?];
 
-    while matches!(self.current_token().kind, TokenKind::Or) {
+    while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Or) {
       self.advance(engine); // consume the '|'
       patterns.push(self.parse_pattern(context, engine)?);
     }
@@ -264,7 +264,7 @@ impl Parser {
   ) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     let mut depth = 0;
-    while matches!(self.current_token().kind, TokenKind::And) {
+    while !self.is_eof() && matches!(self.current_token().kind, TokenKind::And) {
       depth += 1;
       self.advance(engine);
     }

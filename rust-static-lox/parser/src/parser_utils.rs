@@ -14,9 +14,10 @@ pub(crate) enum ExprContext {
   Default,
   IfCondition,
   Match,
+  LetElse,
   Block,
   WhileCondition,
-  ForCondition,
+  LoopCondition,
   Function,
   Closure,
   Macro,
@@ -106,11 +107,13 @@ impl Parser {
 
       // Hnaldle macro invocation
       Ident if matches!(self.peek(1).kind, Bang) => self.parse_macro_invocation_statement(engine),
-      KwCrate | Lt => self.parse_macro_invocation_statement(engine),
+      Dollar | KwCrate | Lt if !matches!(self.peek(1).kind, ColonColon) => {
+        self.parse_macro_invocation_statement(engine)
+      },
 
       // expression statement
-      _ if self.current_token().kind.can_start_expr() => {
-        self.parse_expr_stmt(outer_attributes, engine)
+      _ if self.current_token().kind.can_start_expression() => {
+        self.parse_expr_stmt(outer_attributes, context, engine)
       },
 
       // item statement
@@ -125,9 +128,10 @@ impl Parser {
   fn parse_expr_stmt(
     &mut self,
     outer_attributes: Vec<Attribute>,
+    context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Stmt, ()> {
-    let expr = self.parse_expression(outer_attributes, ExprContext::Default, engine)?;
+    let expr = self.parse_expression(outer_attributes, context, engine)?;
 
     if self.current_token().kind == TokenKind::Semi {
       self.expect(TokenKind::Semi, engine)?; // check if followed by semicolon
@@ -155,9 +159,9 @@ impl Parser {
       KwMatch => self.parse_match_expression(ExprContext::Match, engine),
       Or => self.parse_closure(context, engine),
       KwMove | KwAsync if self.can_start_closure() => self.parse_closure(context, engine),
-      OpenBrace => self.parse_block(label, outer_attributes, engine),
+      OpenBrace => self.parse_block(label, ExprContext::Default, outer_attributes, engine),
       KwAsync | KwUnsafe | KwTry if self.can_start_block_expression() => {
-        self.parse_block(label, outer_attributes, engine)
+        self.parse_block(label, ExprContext::Default, outer_attributes, engine)
       },
       KwContinue => self.parse_continue_expression(context, engine),
       KwBreak => self.parse_break_expression(context, engine),
@@ -181,7 +185,6 @@ impl Parser {
 
     // FIX: this will use the context to determine whether to parse a struct expr or ident
     // if matches!(context, ExprContext::Default) {
-    //   println!("debug: {:?}", self.peek(1).kind);
     //   // return self.parse_struct_expr(&mut token, engine);
     // }
     match self.current_token().kind {
@@ -190,8 +193,11 @@ impl Parser {
       KwFalse | KwTrue => self.parser_bool(engine),
 
       // Path handling expr
+      Dollar if matches!(self.peek(1).kind, KwCrate) => {
+        Ok(Expr::Path(self.parse_path(true, engine)?))
+      },
       ColonColon => Ok(Expr::Path(self.parse_path(true, engine)?)),
-      Ident if matches!(self.peek(1).kind, TokenKind::ColonColon) => {
+      Ident | KwSelf | KwSuper | KwCrate if matches!(self.peek(1).kind, TokenKind::ColonColon) => {
         Ok(Expr::Path(self.parse_path(true, engine)?))
       },
       // Handling struct expr

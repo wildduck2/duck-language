@@ -64,7 +64,7 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<String>, ()> {
     let mut lifetimes = vec![];
-    while matches!(self.current_token().kind, TokenKind::Lifetime { .. }) {
+    while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Lifetime { .. }) {
       lifetimes.push(self.parse_lifetime(engine)?);
 
       if matches!(self.current_token().kind, TokenKind::Comma) {

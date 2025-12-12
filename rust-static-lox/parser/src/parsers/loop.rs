@@ -19,7 +19,7 @@ impl Parser {
     }
 
     self.advance(engine); // consume the "loop"
-    let body = self.parse_block(None, outer_attributes, engine)?;
+    let body = self.parse_block(None, ExprContext::LoopCondition, outer_attributes, engine)?;
 
     token.span.merge(self.current_token().span);
     Ok(Expr::Loop {
@@ -43,7 +43,8 @@ impl Parser {
     self.advance(engine); // consume the "while"
 
     let condition = self.parse_expression(vec![], ExprContext::Default, engine)?;
-    let body = self.parse_block(None, outer_attributes, engine)?;
+
+    let body = self.parse_block(None, ExprContext::Default, outer_attributes, engine)?;
 
     Ok(Expr::While {
       condition: Box::new(condition),
@@ -69,7 +70,7 @@ impl Parser {
     let pattern = self.parse_pattern(ExprContext::Default, engine)?;
     self.expect(TokenKind::KwIn, engine)?;
     let iterator = self.parse_expression(vec![], ExprContext::Default, engine)?;
-    let body = self.parse_block(None, outer_attributes, engine)?;
+    let body = self.parse_block(None, ExprContext::Default, outer_attributes, engine)?;
 
     Ok(Expr::For {
       pattern,
