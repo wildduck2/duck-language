@@ -1,8 +1,41 @@
 @duck-rust-full-compiler
 ============
 
+Parser Progress
+---------------
+- 70% complete: item/expr parsing, diagnostics, and variadic/struct coverage now match the current
+  regression corpus, keeping `duck.lox` green across the Rust subset we aim to support.
+- TODO: finish trait/impl/const/static items, wire macro expansion outputs back into later phases,
+  and land the remaining semantic passes (name resolution + type checking) before codegen work.
+
 Change Log
 ----------
+
+2025-12-13
+- Completed struct literal coverage by threading record/tuple/unit struct expressions
+  through the expression parser, introducing `Expr::TupleStruct`, tracking field spans,
+  and expanding `core/lox/duck.lox` so shorthand/base-initializers and tuple-style calls
+  are exercised alongside namespaced paths.
+- Rebuilt struct/enum field parsing around shared helpers (`parse_name`, record/tuple
+  visitors), which tightened comma recovery, preserved attributes/visibility on every
+  field shape, and removed the duplicate enum machinery while keeping the grammar notes
+  in sync.
+- Overhauled function parsing: qualifiers (`const`/`async`/`unsafe`/`extern`) now feed
+  a single entrypoint that collects attributes, contexts decide when `self` is legal,
+  the AST stores body expressions directly, and the type parser picked up slices, `!`,
+  `_`, and other Rust primitives needed by the richer signatures.
+- Added first-class variadic parameter support with a `ParamKind` enum, targeted
+  diagnostics for invalid ABI/variadic usage, and gating `...` to extern `"C"`
+  functions so future C interop has a faithful front-end contract.
+
+2025-12-12
+- Streamlined struct/enum parsing by collapsing the duplicate enum field readers into the shared
+  record/tuple helpers, so attributes/visibilities flow through exactly once across both item kinds.
+- Reworked the grammar notes and supporting helpers (`parse_name`) to reflect the tighter syntax, and
+  removed the temporary `duck.lox` scaffolding that no longer matched the parser's behavior.
+- Hardened tuple/record field parsing with consistent comma recovery and span tracking to keep
+  diagnostics actionable as additional syntax lands.
+
 2025-12-11
 - Expanded `core/lox/duck.lox` with every operator combo we currently support so regression runs
   stress every precedence layer before future semantic work kicks in.
