@@ -55,7 +55,10 @@ use diagnostic::{
 };
 use lexer::token::TokenKind;
 
-use crate::{ast::path::*, DiagnosticEngine, Parser};
+use crate::{
+  ast::{path::*, Expr},
+  DiagnosticEngine, Parser,
+};
 
 impl Parser {
   /// Parses a **path expression or type path**, e.g. `std::io::Read` or `crate::foo::<T>`.
@@ -139,6 +142,22 @@ impl Parser {
       leading_colon: leading_colon || has_dollar_crate,
       segments,
     })
+  }
+
+  pub(crate) fn parse_path_expr(
+    &mut self,
+    with_args: bool,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Expr, ()> {
+    let path = self.parse_path(with_args, engine)?;
+
+    if matches!(
+      self.current_token().kind,
+      TokenKind::OpenBrace | TokenKind::OpenParen
+    ) {
+      return self.parse_struct_expr(path, engine);
+    }
+    Ok(Expr::Path(path))
   }
 
   /// Parses a **single path segment**, optionally with generic arguments.

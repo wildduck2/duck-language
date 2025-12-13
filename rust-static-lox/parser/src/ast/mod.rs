@@ -757,6 +757,12 @@ pub(crate) enum Expr {
     span: Span,
   },
 
+  TupleStruct {
+    path: Path,
+    elements: Vec<Expr>,
+    span: Span,
+  },
+
   If {
     condition: Box<Expr>,
     then_branch: Box<Expr>,
@@ -1011,6 +1017,7 @@ pub(crate) struct FieldInit {
   pub attributes: Vec<Attribute>,
   pub name: String,
   pub value: Option<Expr>,
+  pub span: Span,
 }
 
 #[derive(Debug, Clone)]

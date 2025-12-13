@@ -205,7 +205,7 @@ impl Parser {
       // const generic: const N: usize = 3
       TokenKind::KwConst => {
         self.advance(engine); // consume "const"
-        let name = self.parse_name_identifier(engine)?;
+        let name = self.parse_name(false, engine)?;
 
         self.expect(TokenKind::Colon, engine)?; // must have ":"
         let ty = self.parse_type(engine)?;
@@ -246,7 +246,7 @@ impl Parser {
 
       // type generic: T, U: Bound, T = Default
       TokenKind::Ident => {
-        let name = self.parse_name_identifier(engine)?;
+        let name = self.parse_name(false, engine)?;
 
         let bounds = if matches!(self.current_token().kind, TokenKind::Colon) {
           self.advance(engine);

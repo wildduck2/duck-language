@@ -46,7 +46,7 @@ impl Parser {
       TokenKind::Lt => {
         // we unwrap here because we know we have a `<` token
         let QSelfHeader { self_ty, trait_ref } = self.parse_qself_header(engine)?.unwrap();
-        let name = self.parse_name_identifier(engine)?;
+        let name = self.parse_name(false, engine)?;
         let generics = if matches!(self.current_token().kind, TokenKind::Lt) {
           self.parse_path_generic_args(engine)?
         } else {
@@ -60,6 +60,8 @@ impl Parser {
           generics: generics.map(Box::new),
         })
       },
+
+      TokenKind::Bang => Ok(Type::Never),
 
       // Primitive names and user defined paths
       TokenKind::Ident | TokenKind::KwCrate => match lexeme.as_str() {
@@ -86,6 +88,7 @@ impl Parser {
         "String" => Ok(Type::String),
 
         "bool" => Ok(Type::Bool),
+        "_" => Ok(Type::Infer),
 
         // Fallback: treat as a path type, possibly with generic arguments
         _ => {
@@ -111,8 +114,12 @@ impl Parser {
       // Array type: [ T ; expr ]
       TokenKind::OpenBracket => {
         let element = self.parse_type(engine)?;
-        self.expect(TokenKind::Semi, engine)?; // consume ';'
+        if !matches!(self.current_token().kind, TokenKind::Semi) {
+          self.expect(TokenKind::CloseBracket, engine)?; // consume ']'
+          return Ok(Type::Slice(Box::new(element)));
+        }
 
+        self.expect(TokenKind::Semi, engine)?; // consume ';'
         let size = self.parse_expression(vec![], ExprContext::Default, engine)?;
         self.expect(TokenKind::CloseBracket, engine)?; // consume ']'
 

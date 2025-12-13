@@ -23,7 +23,7 @@ impl Parser {
     let (is_async, is_const, is_unsafe, is_extern, abi) = self.parse_function_flavors(engine)?;
     self.advance(engine); // consume the "fn"
 
-    let name = self.parse_name_identifier(engine)?;
+    let name = self.parse_name(false, engine)?;
     let generics = self.parse_generic_params(&mut token, engine)?;
     let params = self.parse_function_params(is_extern, ExprContext::Function, engine)?;
     let return_type = self.parse_return_type(engine)?;

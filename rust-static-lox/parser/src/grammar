@@ -16,9 +16,9 @@ item              -> outerAttr* visItem ;
 visItem           -> visibility? itemKind
                    | macroItem ;
 
-itemKind          -> functionItem
-                   | structItem
-                   | enumItem
+itemKind          -> functionItem [x]
+                   | structItem   [x]
+                   | enumItem     [-]
                    | traitItem
                    | implItem
                    | constItem
@@ -77,15 +77,15 @@ functionQualifiers   -> "const"? "async"? "unsafe"? ("extern" abi?)? ;  [x]
 
 abi                  -> STRING | RAW_STRING ;  [x]
 
-functionParams       -> selfParam ("," functionParam)* ","?  [x]
+functionParams       -> selfParam ("," functionParam)* ","?        [x]
                       | functionParam ("," functionParam)* ","? ;  [x]
 
-selfParam            -> outerAttr* (shorthandSelf | typedSelf) ;  [x]
-shorthandSelf        -> ("&" LIFETIME?)? "mut"? "self" ;  [x]
-typedSelf            -> "mut"? "self" ":" type ;  [x]
+selfParam            -> outerAttr* (shorthandSelf | typedSelf) ;   [x]
+shorthandSelf        -> ("&" LIFETIME?)? "mut"? "self" ;           [x]
+typedSelf            -> "mut"? "self" ":" type ;                   [x]
 
 functionParam        -> outerAttr* (functionParamPattern | "...") ;  [x]
-functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;   [x]
+functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;      [x]
 
 functionReturnType -> "->" type ;  [x]
 
@@ -248,6 +248,7 @@ typeParam         -> IDENTIFIER (":" typeParamBounds)? ("=" type)? ;
 constParam        -> "const" IDENTIFIER ":" type ("=" block | "=" IDENTIFIER | "=" literalExpr)? ;
 
 /* where clause */
+
 whereClause       -> "where" (whereClauseItem ("," whereClauseItem)* ","?)? ;
 whereClauseItem   -> lifetimeWhereClauseItem
                    | typeBoundWhereClauseItem ;
@@ -305,29 +306,29 @@ typeNoBounds      -> parenthesizedType
                    | traitObjectTypeOneBound
                    | typePath
                    | tupleType               [x]
-                   | neverType
-                   | rawPointerType
-                   | referenceType
+                   | neverType               [x]
+                   | rawPointerType          [x]
+                   | referenceType           [x]
                    | arrayType               [x]
-                   | sliceType
-                   | inferredType
+                   | sliceType               [x]
+                   | inferredType            [x]
                    | qualifiedPathInType
                    | bareFunctionType
                    | macroInvocation ;
 
 parenthesizedType -> "(" type ")" ;
 
-tupleType         -> "(" ")"
-                   | "(" (type ",")+ type? ")" ;
+tupleType         -> "(" ")"                     [x]
+                   | "(" (type ",")+ type? ")" ; [x]
 
-neverType         -> "!" ;
+neverType         -> "!" ;                       [x]
 
-rawPointerType    -> "*" ("mut" | "const") typeNoBounds ;
-referenceType     -> "&" LIFETIME? "mut"? typeNoBounds ;
+rawPointerType    -> "*" ("mut" | "const") typeNoBounds ;  [x]
+referenceType     -> "&" LIFETIME? "mut"? typeNoBounds ;   [x]
 
-arrayType         -> "[" type ";" expression "]" ;
-sliceType         -> "[" type "]" ;
-inferredType      -> "_" ;
+arrayType         -> "[" type ";" expression "]" ;    [x]
+sliceType         -> "[" type "]" ;                   [x]
+inferredType      -> "_" ;                            [x]
 
 qualifiedPathInType -> qualifiedPathType ("::" typePath)? ;
 qualifiedPathType  -> "<" type ("as" typePath)? ">" ;
@@ -539,17 +540,17 @@ arrayElements     -> expression (";" expression | ("," expression)* ","?) ; [x]
 tupleExpr         -> "(" tupleElements? ")" ;        [x]
 tupleElements     -> (expression ",")+ expression? ; [x]
 
-structExpr        -> structExprStruct
-                   | structExprTuple
-                   | structExprUnit ;
+structExpr        -> structExprStruct       [x]
+                   | structExprTuple        [x]
+                   | structExprUnit ;       [x]
 
-structExprStruct  -> pathInExpression "{" (structExprFields | structBase)? "}" ;
-structExprFields  -> structExprField ("," structExprField)* ("," structBase | ","?) ;
-structExprField   -> outerAttr* (IDENTIFIER | (IDENTIFIER | tupleIndex) ":" expression) ;
-structBase        -> ".." expression ;
+structExprStruct  -> pathInExpression "{" (structExprFields | structBase)? "}" ;          [x]
+structExprFields  -> structExprField ("," structExprField)* ("," structBase | ","?) ;     [x]
+structExprField   -> outerAttr* (IDENTIFIER | (IDENTIFIER | tupleIndex) ":" expression) ; [x]
+structBase        -> ".." expression ;                                                    [x]
 
-structExprTuple   -> pathInExpression "(" (expression ("," expression)* ","?)? ")" ;
-structExprUnit    -> pathInExpression ;
+structExprTuple   -> pathInExpression "(" (expression ("," expression)* ","?)? ")" ;      [x]
+structExprUnit    -> pathInExpression ;                                                   [x]
 
 closureExpr       -> "move"? "async"? ("||" | "|" closureParams? "|") (expression | "->" typeNoBounds blockExpr) ; [x]
 closureParams     -> closureParam ("," closureParam)* ","? ;                                                       [x]

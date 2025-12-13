@@ -481,7 +481,7 @@ impl Parser {
       });
     }
 
-    let name = self.parse_name_identifier(engine)?;
+    let name = self.parse_name(false, engine)?;
 
     let (pattern, is_shorthand) = if match_and_consume!(self, engine, TokenKind::Colon)? {
       (Some(self.parse_pattern(context, engine)?), false)

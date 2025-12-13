@@ -16,6 +16,7 @@ pub(crate) enum ExprContext {
   Match,
   LetElse,
   LoopCondition,
+  Struct,
   WhileCondition,
   Trait,
   Impl,
@@ -208,28 +209,25 @@ impl Parser {
 
       // Path handling expr
       TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
-        Ok(Expr::Path(self.parse_path(true, engine)?))
+        Ok(self.parse_path_expr(true, engine)?)
       },
-      TokenKind::ColonColon => Ok(Expr::Path(self.parse_path(true, engine)?)),
+      TokenKind::ColonColon => Ok(self.parse_path_expr(true, engine)?),
       TokenKind::Ident | TokenKind::KwSelf | TokenKind::KwSuper | TokenKind::KwCrate
-        if matches!(self.peek(1).kind, TokenKind::ColonColon) =>
+        if matches!(
+          self.peek(1).kind,
+          TokenKind::ColonColon | TokenKind::OpenBrace | TokenKind::OpenParen
+        ) =>
       {
-        Ok(Expr::Path(self.parse_path(true, engine)?))
+        Ok(self.parse_path_expr(true, engine)?)
       },
-      // Handling struct expr
-      // Ident
-      //   if matches!(
-      //     self.peek(1).kind,
-      //     TokenKind::OpenBrace | TokenKind::OpenParen
-      //   ) =>
-      // {
-      //   self.parse_struct_expr(&mut token, engine)
-      // }
+
       // Ident handling expr
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Bang) => {
         self.parser_macro_invocation_expression(engine)
       },
+
       TokenKind::Ident => self.parser_ident(engine),
+
       TokenKind::KwSelf | TokenKind::KwSuper | TokenKind::KwCrate | TokenKind::KwSelfType => {
         self.parse_keyword_ident(engine)
       },

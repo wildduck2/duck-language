@@ -1,16 +1,8 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-  DiagnosticEngine,
-};
+use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::{
-  ast::{
-    r#struct::{FieldDecl, TupleField},
-    Attribute, EnumDecl, EnumVariant, EnumVariantKind, Item, Visibility,
-  },
+  ast::{Attribute, EnumDecl, EnumVariant, EnumVariantKind, Item, Visibility},
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -28,7 +20,7 @@ impl Parser {
     let mut token = self.current_token();
     self.advance(engine); // consume the "enum"
 
-    let name = self.parse_name_identifier(engine)?;
+    let name = self.parse_name(false, engine)?;
     let generics = self.parse_generic_params(&mut token, engine)?;
     let where_clause = self.parse_where_clause(engine)?;
 
@@ -62,7 +54,7 @@ impl Parser {
     let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(engine)?;
     let visibility = self.parse_visibility(engine)?;
-    let name = self.parse_name_identifier(engine)?;
+    let name = self.parse_name(false, engine)?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::OpenBrace) {
       EnumVariantKind::Struct(self.parse_record_fields(engine)?)

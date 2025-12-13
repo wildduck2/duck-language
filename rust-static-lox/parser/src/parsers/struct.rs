@@ -1,4 +1,6 @@
+use crate::ast::path::Path;
 use crate::ast::{r#struct::*, *};
+use crate::parser_utils::ExprContext;
 use crate::{match_and_consume, Parser};
 use diagnostic::{
   code::DiagnosticCode,
@@ -30,7 +32,7 @@ impl Parser {
     let mut token = self.current_token();
     self.advance(engine); // consume 'struct'
 
-    let name = self.parse_name_identifier(engine)?;
+    let name = self.parse_name(false, engine)?;
     let generics = self.parse_generic_params(&mut token, engine)?;
     let where_clause = self.parse_where_clause(engine)?;
 
@@ -111,7 +113,7 @@ impl Parser {
     };
 
     let visibility = self.parse_visibility(engine)?;
-    let name = self.parse_name_identifier(engine)?;
+    let name = self.parse_name(false, engine)?;
 
     self.expect(TokenKind::Colon, engine)?; // consume ':'
     let ty = self.parse_type(engine)?;
@@ -125,20 +127,6 @@ impl Parser {
     })
   }
 
-  /// Parse tuple-style struct fields `( ... )`.
-  ///
-  /// Grammar:
-  ///   tupleStructFields → "(" tupleFields? ")"
-  ///   tupleField        → outerAttr* visibility? type
-  ///
-  /// This function consumes the opening `(` and closing `)` and parses each
-  /// field separated by commas. Diagnostics are produced for missing commas or
-  /// unexpected tokens.
-  ///
-  /// Example:
-  /// ```rust
-  /// struct Color(u8, u8, u8);
-  /// ```
   pub(crate) fn parse_tuple_fields(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -169,22 +157,14 @@ impl Parser {
     })
   }
 
-  /// Parse a name identifier and return its string value.
-  ///
-  /// Expects the current token to be an identifier (`TokenKind::Ident`). Emits
-  /// a diagnostic and returns `Err(())` if the next token is not a valid name.
-  ///
-  /// Used for struct names, field names, function names, and similar cases.
-  ///
-  /// Example:
-  /// ```rust
-  /// let name = self.parse_name_identifier(engine)?;
-  /// ```
-  pub(crate) fn parse_name_identifier(
+  pub(crate) fn parse_name(
     &mut self,
+    accept_digit: bool,
     engine: &mut DiagnosticEngine,
   ) -> Result<String, ()> {
-    if matches!(self.current_token().kind, TokenKind::Ident) {
+    if matches!(self.current_token().kind, TokenKind::Ident)
+      || (accept_digit && matches!(self.current_token().kind, TokenKind::Literal { .. }))
+    {
       let name = self.get_token_lexeme(&self.current_token());
       self.advance(engine); // consume the identifier
       return Ok(name);
@@ -209,5 +189,102 @@ impl Parser {
     engine.add(diagnostic);
 
     Err(())
+  }
+
+  pub(crate) fn parse_struct_expr(
+    &mut self,
+    path: Path,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Expr, ()> {
+    let mut token = self.current_token();
+
+    if matches!(self.current_token().kind, TokenKind::OpenBrace) {
+      let (fields, base) = self.parse_struct_record_init_fields(engine)?;
+      Ok(Expr::Struct {
+        path,
+        fields,
+        base,
+        span: *token.span.merge(self.current_token().span),
+      })
+    } else {
+      let elements = self.parse_struct_tuple_init_fields(engine)?;
+      Ok(Expr::TupleStruct {
+        path,
+        elements,
+        span: *token.span.merge(self.current_token().span),
+      })
+    }
+  }
+
+  fn parse_struct_record_init_fields(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<(Vec<FieldInit>, Option<Box<Expr>>), ()> {
+    self.expect(TokenKind::OpenBrace, engine)?; // consume '{'
+    let mut fields = vec![];
+
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
+      if matches!(self.current_token().kind, TokenKind::DotDot) {
+        self.advance(engine);
+        let base = self.parse_expression(vec![], ExprContext::Struct, engine)?;
+        self.expect(TokenKind::CloseBrace, engine)?;
+        return Ok((fields, Some(Box::new(base))));
+      }
+
+      fields.push(self.parse_struct_record_init_field(engine)?);
+      match_and_consume!(self, engine, TokenKind::Comma)?;
+    }
+    self.expect(TokenKind::CloseBrace, engine)?; // consume '}'
+    Ok((fields, None))
+  }
+
+  fn parse_struct_tuple_init_fields(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Vec<Expr>, ()> {
+    let mut elements = vec![];
+    self.expect(TokenKind::OpenParen, engine)?; // consume '('
+
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
+      elements.push(self.parse_struct_tuple_init_field(engine)?);
+      match_and_consume!(self, engine, TokenKind::Comma)?;
+    }
+    self.expect(TokenKind::CloseParen, engine)?; // consume ')'
+    Ok(elements)
+  }
+
+  fn parse_struct_tuple_init_field(&mut self, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
+    self.parse_expression(vec![], ExprContext::Struct, engine)
+  }
+
+  fn parse_struct_record_init_field(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<FieldInit, ()> {
+    let mut token = self.current_token();
+    let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
+      self.parse_attributes(engine)?
+    } else {
+      vec![]
+    };
+
+    let name = self.parse_name(true, engine)?;
+
+    let value = if matches!(self.current_token().kind, TokenKind::Colon) {
+      self.expect(TokenKind::Colon, engine)?; // consume ':'
+      Some(self.parse_expression(vec![], ExprContext::Struct, engine)?)
+    } else {
+      Some(Expr::Ident {
+        name: name.clone(),
+        span: token.span,
+      })
+    };
+
+    Ok(FieldInit {
+      attributes,
+      name,
+      value,
+      span: *token.span.merge(self.current_token().span),
+    })
   }
 }
