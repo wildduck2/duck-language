@@ -584,14 +584,7 @@ pub(crate) fn format_generic_arg(arg: &GenericArg) -> String {
     GenericArg::Type(ty) => format_type(ty),
     GenericArg::Const(expr) => format_expr(expr),
     GenericArg::Binding { name, ty, .. } => format!("{} = {}", name, format_type(ty)),
-    GenericArg::Constraint { name, bounds, .. } => {
-      let b = bounds
-        .iter()
-        .map(format_type_bound)
-        .collect::<Vec<_>>()
-        .join(" + ");
-      format!("{}: {}", name, b)
-    },
+    _ => "".into(),
   }
 }
 
@@ -613,21 +606,6 @@ pub(crate) fn format_type(ty: &Type) -> String {
     },
     Type::Array { element, size } => format!("[{}; {}]", format_type(element), format_expr(size)),
     Type::Slice(inner) => format!("[{}]", format_type(inner)),
-    Type::BareFn {
-      params,
-      return_type,
-      ..
-    } => {
-      let ps = params
-        .iter()
-        .map(|p| format_type(&p.ty))
-        .collect::<Vec<_>>()
-        .join(", ");
-      match return_type {
-        Some(ret) => format!("fn({}) -> {}", ps, format_type(ret)),
-        None => format!("fn({})", ps),
-      }
-    },
     Type::Infer => "_".into(),
     _ => format!("{:?}", ty),
   }

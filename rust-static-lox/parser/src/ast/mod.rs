@@ -76,6 +76,7 @@ pub(crate) struct StaticDecl {
 
 #[derive(Debug, Clone)]
 pub(crate) struct TypeAliasDecl {
+  pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
   pub name: String,
   pub generics: Option<GenericParams>,
@@ -542,7 +543,7 @@ pub(crate) enum Type {
     for_lifetimes: Option<Vec<String>>,
     safety: Safety,
     abi: Option<String>,
-    params: Vec<BareFnParam>,
+    params: Vec<Type>,
     return_type: Option<Box<Type>>,
     is_variadic: bool,
   },
@@ -568,13 +569,6 @@ pub(crate) enum Type {
   Paren(Box<Type>),
   Macro(Box<MacroInvocation>),
   Typeof(Box<Expr>),
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct BareFnParam {
-  pub attributes: Vec<Attribute>,
-  pub name: Option<String>,
-  pub ty: Type,
 }
 
 #[derive(Debug, Clone, PartialEq)]

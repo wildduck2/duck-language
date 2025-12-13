@@ -38,7 +38,7 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    let qself_header = self.parse_qself_header(engine)?;
+    let qself_header = self.parse_qself_type_header(engine)?;
     let mut path = self.parse_path(true, engine)?;
 
     let (qself, path) = match qself_header {

@@ -99,11 +99,11 @@ impl Parser {
           // Stop skipping once we hit a statement boundary.
           self.advance(engine);
           break;
-        }
+        },
         _ => {
           // Otherwise keep discarding tokens until we reach a safe point.
           self.advance(engine);
-        }
+        },
       }
     }
   }
@@ -184,38 +184,36 @@ impl Parser {
       (TokenKind::Semi, _) => "Statements must end with a semicolon".to_string(),
       (TokenKind::OpenParen, TokenKind::Semi) => {
         "Did you forget to close the parentheses before the semicolon?".to_string()
-      }
+      },
       (TokenKind::CloseBrace, TokenKind::Eof) => {
         "Did you forget to close a block with '}'?".to_string()
-      }
+      },
       (TokenKind::CloseParen, _) => {
         "Control flow statements require parentheses around conditions".to_string()
-      }
+      },
       (TokenKind::Colon, TokenKind::Semi) => {
         "Ternary expressions use ':' to separate the branches".to_string()
-      }
+      },
       (TokenKind::Eq, _) => "Use '=' for assignment".to_string(),
       _ => String::new(),
     }
   }
 
-  /// Raises an unexpected-token diagnostic when the parser runs out of input mid-production.
-  fn error_eof(&mut self, engine: &mut DiagnosticEngine) {
-    let token = self.current_token();
+  /// Returns the substring that corresponds to `token`.
+  pub(crate) fn get_token_lexeme(&mut self, token: &Token) -> String {
+    self
+      .source_file
+      .src
+      .get(token.span.start..token.span.end)
+      .unwrap()
+      .to_string()
+  }
 
-    // Highlight whichever token left the parser in a bad state.
-    let diagnostic = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-      "Unexpected token".to_string(),
-      // format!("Unexpected token {:?}", token.lexeme),
-      self.source_file.path.clone(),
-    )
-    .with_label(
-      token.span,
-      Some("parser ran out of input while this token was being processed".to_string()),
-      LabelStyle::Primary,
-    );
-
-    engine.add(diagnostic);
+  /// Consumes tokens until `kind` is encountered or EOF is reached.
+  /// Useful for resynchronizing after a diagnostic within delimited lists.
+  pub(crate) fn advance_till_match(&mut self, engine: &mut DiagnosticEngine, kind: TokenKind) {
+    while !self.is_eof() && self.current_token().kind != kind {
+      self.advance(engine);
+    }
   }
 }

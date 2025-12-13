@@ -118,7 +118,7 @@ impl Parser {
   ) -> Result<Pattern, ()> {
     let mut start = self.current_token();
 
-    let qself_header = self.parse_qself_header(engine)?;
+    let qself_header = self.parse_qself_type_header(engine)?;
     let path = self.parse_path(true, engine)?;
 
     // merge qself with path

@@ -4,9 +4,9 @@ use diagnostic::{
   types::error::DiagnosticError,
   DiagnosticEngine,
 };
-use lexer::token::{Token, TokenKind};
+use lexer::token::TokenKind;
 
-use crate::{ast::*, match_and_consume, Parser};
+use crate::{ast::*, Parser};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,9 +61,9 @@ impl Parser {
       | TokenKind::KwUnsafe
       | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, engine),
       TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, engine),
+      TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, engine),
       // TokenKind::KwConst => self.parse_const_decl(attributes, visibility, engine),
       // TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, engine),
-      // TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, engine),
       // TokenKind::KwMod => self.parse_module_decl(attributes, visibility, engine),
       // TokenKind::KwUse => self.parse_use_decl(attributes, visibility, engine),
       // TokenKind::KwExternCrate => self.parse_extern_crate_decl(attributes, visibility, engine),
@@ -261,24 +261,6 @@ impl Parser {
 
         Err(())
       },
-    }
-  }
-
-  /// Returns the substring that corresponds to `token`.
-  pub(crate) fn get_token_lexeme(&mut self, token: &Token) -> String {
-    self
-      .source_file
-      .src
-      .get(token.span.start..token.span.end)
-      .unwrap()
-      .to_string()
-  }
-
-  /// Consumes tokens until `kind` is encountered or EOF is reached.
-  /// Useful for resynchronizing after a diagnostic within delimited lists.
-  pub(crate) fn advance_till_match(&mut self, engine: &mut DiagnosticEngine, kind: TokenKind) {
-    while !self.is_eof() && self.current_token().kind != kind {
-      self.advance(engine);
     }
   }
 }

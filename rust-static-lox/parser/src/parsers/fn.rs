@@ -85,7 +85,7 @@ impl Parser {
     false
   }
 
-  fn parse_function_flavors(
+  pub(crate) fn parse_function_flavors(
     &mut self,
     engine: &mut DiagnosticEngine,
   ) -> Result<(bool, bool, bool, bool, Option<String>), ()> {

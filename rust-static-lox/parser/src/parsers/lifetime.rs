@@ -133,13 +133,17 @@ impl Parser {
   pub(crate) fn parse_for_lifetimes(
     &mut self,
     engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<String>, ()> {
-    self.expect(TokenKind::KwFor, engine)?; // consume 'for'
-    self.expect(TokenKind::Lt, engine)?; // consume '<'
+  ) -> Result<Option<Vec<String>>, ()> {
+    if matches!(self.current_token().kind, TokenKind::KwFor) {
+      self.expect(TokenKind::KwFor, engine)?; // consume 'for'
+      self.expect(TokenKind::Lt, engine)?; // consume '<'
 
-    let lifetimes = self.parse_lifetimes(engine)?;
-    self.expect(TokenKind::Gt, engine)?; // consume '>'
-    Ok(lifetimes)
+      let lifetimes = self.parse_lifetimes(engine)?;
+      self.expect(TokenKind::Gt, engine)?; // consume '>'
+      Ok(Some(lifetimes))
+    } else {
+      Ok(None)
+    }
   }
 
   /// Parse a lifetime bound list such as `: 'a + 'b`.

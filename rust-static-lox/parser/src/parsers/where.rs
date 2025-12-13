@@ -120,11 +120,7 @@ impl Parser {
     }
 
     // Optional for<'a, 'b> prefix (applies only to type predicates)
-    let for_lifetimes = if matches!(self.current_token().kind, TokenKind::KwFor) {
-      Some(self.parse_for_lifetimes(engine)?)
-    } else {
-      None
-    };
+    let for_lifetimes = self.parse_for_lifetimes(engine)?;
 
     // Parse the left-hand type (e.g. T, <T as Trait>::Item, etc.)
     let ty = self.parse_type(engine)?;
@@ -133,7 +129,7 @@ impl Parser {
     match self.current_token().kind {
       TokenKind::Colon => {
         self.advance(engine); // consume ':'
-        let bounds = Some(self.parse_type_bounds(engine)?);
+        let bounds = self.parse_type_bounds(engine)?;
         Ok(WherePredicate::Type {
           for_lifetimes,
           ty,

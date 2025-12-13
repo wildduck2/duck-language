@@ -1,5 +1,5 @@
 use crate::{
-  ast::{CaptureKind, ClosureParam, Expr},
+  ast::{CaptureKind, ClosureParam, Expr, Type},
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -75,13 +75,18 @@ impl Parser {
   ) -> Result<ClosureParam, ()> {
     let attributes = self.parse_outer_attributes(engine)?;
     let pattern = self.parse_pattern(context, engine)?;
-    self.expect(TokenKind::Colon, engine)?;
-    let ty = self.parse_type(engine)?;
+
+    let ty = if matches!(self.current_token().kind, TokenKind::Colon) {
+      self.advance(engine); // consume ':'
+      Some(self.parse_type(engine)?)
+    } else {
+      Some(Type::Infer)
+    };
 
     Ok(ClosureParam {
       attributes,
       pattern,
-      ty: Some(ty),
+      ty,
     })
   }
 
@@ -89,11 +94,10 @@ impl Parser {
     let mut is_move = false;
     let mut is_async = false;
 
-    // We only allow: async? move?
-    // So if move appears, async must not appear after it
+    // We only allow `move` and `async`, in any order, but at most once each.
     loop {
       match self.current_token().kind {
-        TokenKind::KwAsync if !is_async && !is_move => {
+        TokenKind::KwAsync if !is_async => {
           is_async = true;
           self.advance(engine);
         },
@@ -108,37 +112,38 @@ impl Parser {
     Ok((is_move, is_async))
   }
 
+  /// Look ahead to verify a closure head can start at the current token.
+  /// Accepts `move`, `async`, or both (any order, single occurrence each)
+  /// followed by `|`. Stops at first unexpected token.
   pub(crate) fn can_start_closure(&self) -> bool {
-    let tok = self.current_token().kind;
+    let mut offset = 0;
+    let mut saw_async = false;
+    let mut saw_move = false;
 
-    match tok {
-      TokenKind::KwAsync => {
-        // async must be followed by either:
-        //   move |
-        //   |
-        //   otherwise it is an async block, not a closure
-        let next = self.peek(1).kind;
-        match next {
-          TokenKind::KwMove => {
-            // async move must be followed by |
-            matches!(self.peek(2).kind, TokenKind::Or)
-          },
-          TokenKind::Or => true,
-          _ => false,
-        }
-      },
-
-      TokenKind::KwMove => {
-        // move |  and only that
-        matches!(self.peek(1).kind, TokenKind::Or)
-      },
-
-      TokenKind::Or => {
-        // plain closure start
-        true
-      },
-
-      _ => false,
+    loop {
+      match self.peek(offset).kind {
+        TokenKind::KwAsync => {
+          // async can only appear once
+          if saw_async {
+            return false;
+          }
+          saw_async = true;
+          offset += 1;
+        },
+        TokenKind::KwMove => {
+          // move can only appear once
+          if saw_move {
+            return false;
+          }
+          saw_move = true;
+          offset += 1;
+        },
+        TokenKind::Or => {
+          // we reached the closure head delimiter
+          return true;
+        },
+        _ => return false,
+      }
     }
   }
 }

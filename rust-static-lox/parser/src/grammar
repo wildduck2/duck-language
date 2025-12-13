@@ -313,7 +313,7 @@ typeNoBounds      -> parenthesizedType
                    | sliceType               [x]
                    | inferredType            [x]
                    | qualifiedPathInType
-                   | bareFunctionType
+                   | bareFunctionType        [x]
                    | macroInvocation ;
 
 parenthesizedType -> "(" type ")" ;
@@ -330,8 +330,12 @@ arrayType         -> "[" type ";" expression "]" ;    [x]
 sliceType         -> "[" type "]" ;                   [x]
 inferredType      -> "_" ;                            [x]
 
+bareFunctionType  -> forLifetimes? unsafe? externAbi? "fn"
+                     "(" (type ("," type)* ("," "...")? | "...")? ","? ")"
+                     ("->" typeNoBounds)?                                  [x]
+
 qualifiedPathInType -> qualifiedPathType ("::" typePath)? ;
-qualifiedPathType  -> "<" type ("as" typePath)? ">" ;
+qualifiedPathType   -> "<" type ("as" typePath)? ">" ;
 
 /* Note: no turbofish '::<' in type paths */
 typePath          -> "::"? typePathSegment ("::" typePathSegment)* ;
@@ -501,7 +505,7 @@ primary           -> literalExpr       [x]
                    | groupedExpr       [x]
                    | arrayExpr         [x]
                    | tupleExpr         [x]
-                   | structExpr 
+                   | structExpr        [x]
                    | closureExpr       [x]
                    | blockExpr         [x]
                    | asyncBlockExpr    [x]
@@ -552,7 +556,7 @@ structBase        -> ".." expression ;                                          
 structExprTuple   -> pathInExpression "(" (expression ("," expression)* ","?)? ")" ;      [x]
 structExprUnit    -> pathInExpression ;                                                   [x]
 
-closureExpr       -> "move"? "async"? ("||" | "|" closureParams? "|") (expression | "->" typeNoBounds blockExpr) ; [x]
+closureExpr       -> "move"? "async"? ("||" | "|" closureParams? "|") (expression | "->" typeNoBounds blockExpr) ; [x] 
 closureParams     -> closureParam ("," closureParam)* ","? ;                                                       [x]
 closureParam      -> outerAttr* patternNoTopAlt (":" type)? ;                                                      [x]
 

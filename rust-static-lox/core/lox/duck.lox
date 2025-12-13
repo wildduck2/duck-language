@@ -1,37 +1,31 @@
-let a = Point { x: 1, y: 2 };
-let x = 10;
-let y = 20;
-let b = Point { x, y };
-let c = Point { x, y: 30 };
-let d = Point { x: 1, y: 2, };
-let e = Point {
-  #[cfg(feature = "x")]
-  x: 1,
-  y: 2,
-};
-let base = Point { x: 0, y: 0 };
-let f = Point { x: 5, ..base };
-let g = Point { ..base };
-let h = Point {
-  x: 1,
-  y: 2,
-  ..base
-};
-let t1 = Color(255, 128, 64);
-let t2 = Wrapper(42);
-let t3 = Color(1, 2, 3,);
-let t4 = Pair(foo(), bar + 1);
-let t5 = Empty();
-let u1 = Marker;
-let u2 = crate::marker::Marker;
-let tup = TupleStruct { 0: 10, 1: 20 };
-let p1 = crate::module::Point { x: 1, y: 2 };
-let p2 = super::Color(1, 2, 3);
-let p3 = self::Marker;
-struct Point { x: i32, y: i32 }
-struct Color(i32, i32, i32);
-struct Wrapper(i32);
-struct Empty();
-struct Marker;
-struct TupleStruct(i32, i32);
+//type T1 = <A>::B;
+//
+//type T2 = <A as Trait>::B;
+//
+//type T3 = <Vec<i32>>::Item;
+//
+//type T4 = <Vec<i32> as IntoIterator>::Item;
+//
+//type T5 = <A as Trait>::B::C;
+//
+//type T6 = <A as crate::module::Trait>::Assoc;
+//
+//type T7 = <A as Trait>::Assoc<u32>;
+//
+type T8 = Option<<A as Trait>::Item>;
+//
+//type T9 = <&'a T as Trait>::Item;
+//
+//type T10 = <crate::module::Type as Trait>::Output;
+//
+//type T11 = <A as Trait>::B::C::D;
+//
+///fn f<T>() -> <T as Iterator>::Item
+///where
+///  T: Iterator,
+///{
+///  loop {}
+///}
+//
+//type T12 = <Wrapper<i32> as Trait<i64>>::Out;
 

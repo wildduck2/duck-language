@@ -248,12 +248,7 @@ impl Parser {
       TokenKind::Ident => {
         let name = self.parse_name(false, engine)?;
 
-        let bounds = if matches!(self.current_token().kind, TokenKind::Colon) {
-          self.advance(engine);
-          Some(self.parse_type_bounds(engine)?)
-        } else {
-          None
-        };
+        let bounds = self.parse_type_bounds(engine)?;
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance(engine);
@@ -293,12 +288,19 @@ impl Parser {
   pub(crate) fn parse_type_bounds(
     &mut self,
     engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<TypeBound>, ()> {
-    if matches!(self.current_token().kind, TokenKind::Lifetime { .. }) {
-      self.parse_type_lifetime_bounds(engine)
+  ) -> Result<Option<Vec<TypeBound>>, ()> {
+    if !matches!(self.current_token().kind, TokenKind::Colon) {
+      return Ok(None);
+    };
+
+    let x = if matches!(self.current_token().kind, TokenKind::Lifetime { .. }) {
+      self.parse_type_lifetime_bounds(engine)?
     } else {
-      self.parse_type_path_bounds(engine)
-    }
+      self.parse_type_path_bounds(engine)?
+    };
+
+    self.advance(engine);
+    Ok(Some(x))
   }
 
   /// Parses the `+ 'a + 'b` lifetime bounds chain.

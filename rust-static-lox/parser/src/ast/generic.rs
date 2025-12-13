@@ -243,6 +243,6 @@ pub(crate) enum GenericArg {
     /// Example: `Item<T>` in `Trait<Item<T>: Bound>`.
     generics: Option<GenericParams>,
     /// A list of bounds applied to the associated type.
-    bounds: Vec<TypeBound>,
+    bounds: Option<Vec<TypeBound>>,
   },
 }
