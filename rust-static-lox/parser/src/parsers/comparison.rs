@@ -44,8 +44,11 @@ impl Parser {
   ) -> Result<Expr, ()> {
     // first parse the next higher precedence level
     let mut lhs = self.parse_bitwise_or(context, engine)?;
-
     loop {
+      if matches!(self.peek(1).kind, TokenKind::Colon) {
+        break;
+      }
+
       let token = self.current_token();
       let op = match token.kind {
         TokenKind::EqEq => BinaryOp::Eq,

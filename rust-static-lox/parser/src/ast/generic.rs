@@ -37,7 +37,7 @@ pub(crate) enum GenericParam {
     /// The parameter name.
     name: String,
     /// Optional bounds after `:`.
-    bounds: Option<Vec<TypeBound>>,
+    bounds: Vec<TypeBound>,
     /// Optional default type after `=`.
     default: Option<Type>,
   },
@@ -49,7 +49,7 @@ pub(crate) enum GenericParam {
     /// The lifetime name (e.g., `'a`).
     name: String,
     /// Optional lifetime bounds.
-    bounds: Option<Vec<TypeBound>>,
+    bounds: Vec<TypeBound>,
   },
 
   /// A const parameter such as `const N: usize = 3`.
@@ -61,7 +61,7 @@ pub(crate) enum GenericParam {
     /// The type of the const parameter (e.g., `usize`).
     ty: Type,
     /// Optional default constant value.
-    default: Option<Type>,
+    default: Option<Expr>,
   },
 }
 
@@ -73,28 +73,25 @@ pub(crate) enum GenericParam {
 /// for<'a> F: Fn(&'a str)
 /// ```
 #[derive(Debug, Clone)]
-pub(crate) struct TypeBound {
-  /// An optional modifier like `?`, `const`, or `?const`.
-  pub modifier: TraitBoundModifier,
-  /// The trait or lifetime path being bound.
-  pub path: Path,
-  /// Optional generic arguments applied to the bound.
-  pub generics: Option<Vec<GenericArg>>,
-  /// Optional `for<'a>` lifetimes preceding the bound.
-  pub for_lifetimes: Option<Vec<String>>,
+pub(crate) enum TypeBound {
+  Lifetime {
+    name: String, // 'a
+  },
+  Trait {
+    modifier: TraitBoundModifier,
+    path: Path,
+    generics: Option<GenericArgs>,
+    for_lifetimes: Option<Vec<String>>,
+  },
 }
 
 /// Possible modifiers that alter a trait bound’s semantics.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TraitBoundModifier {
-  /// A regular bound, e.g. `T: Clone`.
-  None,
-  /// An optional bound, e.g. `T: ?Clone`.
-  Maybe,
-  /// A `?const` bound.
-  MaybeConst,
-  /// A `const` bound.
-  Const,
+  None,       // Trait
+  Maybe,      // ?Trait
+  Const,      // ~const Trait
+  MaybeConst, // ?~const Trait
 }
 
 /// A `where` clause listing additional type and lifetime constraints.
@@ -129,7 +126,7 @@ pub(crate) enum WherePredicate {
     /// The subject type on the left-hand side of the `:`.
     ty: Type,
     /// The list of trait or lifetime bounds applied.
-    bounds: Option<Vec<TypeBound>>,
+    bounds: Vec<TypeBound>,
   },
 
   /// A lifetime outlives predicate, e.g. `'a: 'b + 'c`.
@@ -243,6 +240,6 @@ pub(crate) enum GenericArg {
     /// Example: `Item<T>` in `Trait<Item<T>: Bound>`.
     generics: Option<GenericParams>,
     /// A list of bounds applied to the associated type.
-    bounds: Option<Vec<TypeBound>>,
+    bounds: Vec<TypeBound>,
   },
 }

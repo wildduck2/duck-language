@@ -16,14 +16,14 @@ item              -> outerAttr* visItem ;
 visItem           -> visibility? itemKind
                    | macroItem ;
 
-itemKind          -> functionItem [x]
-                   | structItem   [x]
-                   | enumItem     [-]
+itemKind          -> functionItem       [x]
+                   | structItem         [x]
+                   | enumItem           [-]
                    | traitItem
                    | implItem
                    | constItem
                    | staticItem
-                   | typeAliasItem
+                   | typeAliasItem      [x]
                    | moduleItem
                    | useItem
                    | externCrateItem
@@ -142,12 +142,12 @@ staticItem        -> "static" "mut"? IDENTIFIER ":" type
                      ("=" expression)? ";" ;
 
 /* Free-standing type alias must have '=' type */
-typeAliasItem     -> "type" IDENTIFIER genericParams?
-                     (":" typeParamBounds)?
-                     whereClause? "=" type ";" ;
+typeAliasItem     -> "type" IDENTIFIER genericParams? 
+                     (":" typeParamBounds)? 
+                     whereClause? "=" type ";" ;      [-]
 
 /* ------------------------------------------------------------------------- */
-/* Traits and Impl                                                            */
+/* Traits and Impl                                                           */
 /* ------------------------------------------------------------------------- */
 
 traitItem         -> "unsafe"? "auto"? "trait" IDENTIFIER
@@ -236,56 +236,60 @@ macroParams       -> IDENTIFIER ("," IDENTIFIER)* ","? ;
 /* Generics                                                                   */
 /* ------------------------------------------------------------------------- */
 
-genericParams     -> "<" (genericParam ("," genericParam)* ","?)? ">" ; 
-genericParam      -> outerAttr* (lifetimeParam | typeParam | constParam) ;
+genericParams     -> "<" (genericParam ("," genericParam)* ","?)? ">" ;    [x]
+genericParam      -> outerAttr* (lifetimeParam | typeParam | constParam) ; [x]
 
-lifetimeParam     -> LIFETIME (":" lifetimeBounds)? ;
+lifetimeParam     -> LIFETIME (":" lifetimeBounds)? ; [x]
 
 /* type param: optional bounds, optional default */
-typeParam         -> IDENTIFIER (":" typeParamBounds)? ("=" type)? ;
+typeParam         -> IDENTIFIER (":" typeParamBounds)? ("=" type)? ; [x]
 
 /* const param: allow const-evaluable defaults */
-constParam        -> "const" IDENTIFIER ":" type ("=" block | "=" IDENTIFIER | "=" literalExpr)? ;
+constParam        -> "const" IDENTIFIER ":" type ("=" block | "=" IDENTIFIER | "=" literalExpr)? ; [x]
 
 /* where clause */
 
-whereClause       -> "where" (whereClauseItem ("," whereClauseItem)* ","?)? ;
-whereClauseItem   -> lifetimeWhereClauseItem
-                   | typeBoundWhereClauseItem ;
+whereClause       -> "where" (whereClauseItem ("," whereClauseItem)* ","?)? ; [x]
+whereClauseItem   -> lifetimeWhereClauseItem     [x]
+                   | typeBoundWhereClauseItem ;  [x]
 
-lifetimeWhereClauseItem -> LIFETIME ":" lifetimeBounds ;
-typeBoundWhereClauseItem -> forLifetimes? type ":" typeParamBounds? ;
+lifetimeWhereClauseItem -> LIFETIME ":" lifetimeBounds ;  [x]
+typeBoundWhereClauseItem -> forLifetimes? type ":" typeParamBounds? ;  [x]
 
 /* bounds */
-lifetimeBounds    -> (LIFETIME ("+" LIFETIME)*)? "+"? ;
-typeParamBounds   -> typeParamBound ("+" typeParamBound)* "+"? ;
-typeParamBound    -> LIFETIME
-                   | traitBound ;
+lifetimeBounds    -> (LIFETIME ("+" LIFETIME)*)? ; [x]
+typeParamBounds   -> typeParamBound ("+" typeParamBound)* ; [x]
+typeParamBound    -> LIFETIME | traitBound ; [x]
 
 /* trait bounds */
-traitBound        -> "?"? "const"? forLifetimes? typePath ;
+traitBound          -> traitBoundModifier? forLifetimes? typePath [x]
+
+traitBoundModifier  -> "?"                      [x]
+                     | "~const"                 [x]
+                     | "?~const"                [x]
+
 
 /* HRTB: only lifetimes may appear inside for<...> */
-forLifetimes      -> "for" "<" LIFETIME ("," LIFETIME)* ","? ">" ;
+forLifetimes      -> "for" "<" LIFETIME ("," LIFETIME)* ","? ">" ; [x]
 
 /* generic args on paths: lifetimes, types, consts, bindings, and (contextually) constraints */
-genericArgs       -> "<" genericArg ("," genericArg)* ","?
-                   | "::" "<" genericArg ("," genericArg)* ","? ">" ;
+genericArgs       -> "<" genericArg ("," genericArg)* ","?            [x]
+                   | "::" "<" genericArg ("," genericArg)* ","? ">" ; [x]
 
-genericArg        -> LIFETIME
-                   | type
-                   | genericArgsConst
-                   | genericArgsBinding
-                   | constrainedTypeParam ;
+genericArg        -> LIFETIME                                    [x]
+                   | type                                        [x]
+                   | genericArgsConst                            [x]
+                   | genericArgsBinding                          [x]
+                   | constrainedTypeParam ;                      [x]
 
 /* const args: grammar-level expression; evaluator enforces const-evaluable */
-genericArgsConst  -> expression ;
+genericArgsConst  -> expression ; [x]
 
 /* equality binding: e.g., Item<'a> = T */
-genericArgsBinding -> IDENTIFIER genericArgs? "=" type ;
+genericArgsBinding -> IDENTIFIER genericArgs? "=" type ; [x]
 
 /* constrained type param (allowed contextually in bounds, like Item: Trait) */
-constrainedTypeParam -> IDENTIFIER genericArgs? ":" typeParamBounds ;
+constrainedTypeParam -> IDENTIFIER genericArgs? ":" typeParamBounds ; [x]
 
 /* ------------------------------------------------------------------------- */
 /* Visibility                                                                 */
@@ -297,14 +301,14 @@ visibility        -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) "
 /* Types                                                                      */
 /* ------------------------------------------------------------------------- */
 
-type              -> typeNoBounds
+type              -> typeNoBounds            [-]
                    | implTraitType
                    | traitObjectType ;
 
-typeNoBounds      -> parenthesizedType
+typeNoBounds      -> parenthesizedType       [-]
                    | implTraitTypeOneBound
                    | traitObjectTypeOneBound
-                   | typePath
+                   | typePath                [-]
                    | tupleType               [x]
                    | neverType               [x]
                    | rawPointerType          [x]
@@ -312,7 +316,7 @@ typeNoBounds      -> parenthesizedType
                    | arrayType               [x]
                    | sliceType               [x]
                    | inferredType            [x]
-                   | qualifiedPathInType
+                   | qualifiedPathInType     [-]
                    | bareFunctionType        [x]
                    | macroInvocation ;
 
@@ -334,12 +338,12 @@ bareFunctionType  -> forLifetimes? unsafe? externAbi? "fn"
                      "(" (type ("," type)* ("," "...")? | "...")? ","? ")"
                      ("->" typeNoBounds)?                                  [x]
 
-qualifiedPathInType -> qualifiedPathType ("::" typePath)? ;
-qualifiedPathType   -> "<" type ("as" typePath)? ">" ;
+qualifiedPathInType -> qualifiedPathType ("::" typePath)? ;     [-]
+qualifiedPathType   -> "<" type ("as" typePath)? ">" ;          [-]
 
 /* Note: no turbofish '::<' in type paths */
-typePath          -> "::"? typePathSegment ("::" typePathSegment)* ;
-typePathSegment   -> pathIdentSegment genericArgs? ;
+typePath          -> "::"? typePathSegment ("::" typePathSegment)* ; [-]
+typePathSegment   -> pathIdentSegment genericArgs? ;                 [-]
 
 /* ------------------------------------------------------------------------- */
 /* Paths in expressions                                                       */
