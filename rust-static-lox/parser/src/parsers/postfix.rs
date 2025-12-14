@@ -94,15 +94,13 @@ impl Parser {
     expr: Expr,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let mut span = expr.span();
     self.expect(TokenKind::Dot, engine)?;
-    let token = self.current_token();
+    let mut token = self.current_token();
     self.advance(engine); // consume `await`
-    span.merge(token.span);
 
     Ok(Expr::Await {
       expr: Box::new(expr),
-      span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -115,13 +113,12 @@ impl Parser {
   ///
   /// Lowers into an `Expr::Try` AST node.
   fn parse_try(&mut self, expr: Expr, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
-    let mut span = expr.span();
+    let mut token = self.current_token();
     self.expect(TokenKind::Question, engine)?;
-    span.merge(self.current_token().span);
 
     Ok(Expr::Try {
       expr: Box::new(expr),
-      span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -142,17 +139,15 @@ impl Parser {
     object: Expr,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let mut span = object.span();
+    let mut token = self.current_token();
     self.expect(TokenKind::OpenBracket, engine)?;
     let index = self.parse_expression(vec![], context, engine)?;
-    let close = self.current_token();
     self.expect(TokenKind::CloseBracket, engine)?;
-    span.merge(close.span);
 
     Ok(Expr::Index {
       object: Box::new(object),
       index: Box::new(index),
-      span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -177,10 +172,8 @@ impl Parser {
     object: Expr,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let mut span = object.span();
     self.expect(TokenKind::Dot, engine)?;
-
-    let token = self.current_token();
+    let mut token = self.current_token();
 
     match &token.kind {
       // Named field or method access
@@ -192,25 +185,22 @@ impl Parser {
         if self.current_token().kind == TokenKind::OpenParen {
           self.expect(TokenKind::OpenParen, engine)?;
           let args = self.parse_call_params(context, engine)?;
-          let close = self.current_token();
           self.expect(TokenKind::CloseParen, engine)?;
-          span.merge(close.span);
 
           return Ok(Expr::MethodCall {
             receiver: Box::new(object),
             method: name,
             turbofish: None,
             args,
-            span,
+            span: *token.span.merge(self.current_token().span),
           });
         }
 
         // `.field`
-        span.merge(token.span);
         Ok(Expr::Field {
           object: Box::new(object),
           field: FieldAccess::Named(name),
-          span,
+          span: *token.span.merge(self.current_token().span),
         })
       },
 
@@ -221,12 +211,11 @@ impl Parser {
         let value_str = self.get_token_lexeme(&token);
         let index = value_str.parse::<usize>().unwrap_or(0);
         self.advance(engine);
-        span.merge(token.span);
 
         Ok(Expr::Field {
           object: Box::new(object),
           field: FieldAccess::Unnamed(index),
-          span,
+          span: *token.span.merge(self.current_token().span),
         })
       },
 
@@ -267,17 +256,15 @@ impl Parser {
     callee: Expr,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let mut span = callee.span();
+    let mut token = self.current_token();
     self.expect(TokenKind::OpenParen, engine)?;
     let args = self.parse_call_params(context, engine)?;
-    let close = self.current_token();
     self.expect(TokenKind::CloseParen, engine)?;
-    span.merge(close.span);
 
     Ok(Expr::Call {
       callee: Box::new(callee),
       args,
-      span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 

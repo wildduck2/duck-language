@@ -139,6 +139,7 @@ use crate::{
     path::{Path, PathSegment, PathSegmentKind},
     Type,
   },
+  match_and_consume,
   parser_utils::ExprContext,
   DiagnosticEngine, Parser,
 };
@@ -150,14 +151,6 @@ use diagnostic::{
 use lexer::token::{Token, TokenKind};
 
 impl Parser {
-  /// Function that parses `<...>` generic parameter lists and returns `None` when absent.
-  ///
-  /// for example:
-  /// ```rust
-  /// let generics = self.parse_generic_params(engine)?;
-  /// ```
-  /// You will use this to get the generics of a struct declaration
-  /// like `struct User<T, U> { name: String, age: u8 } where T: Clone + PartialEq`
   pub(crate) fn parse_generic_params(
     &mut self,
     token: &mut Token,
@@ -173,10 +166,7 @@ impl Parser {
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::Gt) {
       params.push(self.parse_generic_param(engine)?);
-
-      if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(engine); // consume the comma
-      }
+      match_and_consume!(self, engine, TokenKind::Comma)?;
     }
 
     self.expect(TokenKind::Gt, engine)?; // consume the ">"
@@ -193,12 +183,7 @@ impl Parser {
     &mut self,
     engine: &mut DiagnosticEngine,
   ) -> Result<GenericParam, ()> {
-    let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_attributes(engine)?
-    } else {
-      vec![]
-    };
-
+    let attributes = self.parse_outer_attributes(engine)?;
     let token = self.current_token();
 
     match token.kind {
@@ -212,7 +197,7 @@ impl Parser {
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance(engine);
-          Some(self.parse_type(engine)?)
+          Some(self.parse_expression(vec![], ExprContext::Default, engine)?)
         } else {
           None
         };
@@ -227,15 +212,24 @@ impl Parser {
 
       // lifetime generic: 'a or 'a: 'b + 'c
       TokenKind::Lifetime { .. } => {
-        let name = self.get_token_lexeme(&token);
-        self.advance(engine);
+        let mut bounds = vec![];
+        let name = self.get_token_lexeme(&self.current_token());
+        self.advance(engine); // consume the lifetime
 
-        let bounds = if matches!(self.current_token().kind, TokenKind::Colon) {
-          self.advance(engine);
-          Some(self.parse_type_lifetime_bounds(engine)?)
-        } else {
-          None
-        };
+        if matches!(self.current_token().kind, TokenKind::Colon) {
+          self.advance(engine); // consume the colon
+          while !self.is_eof()
+            && !matches!(
+              self.current_token().kind,
+              TokenKind::OpenBrace | TokenKind::Comma | TokenKind::Gt
+            )
+          {
+            let name = self.get_token_lexeme(&self.current_token());
+            self.advance(engine); // consume the lifetime
+            bounds.push(TypeBound::Lifetime { name });
+            match_and_consume!(self, engine, TokenKind::Plus)?;
+          }
+        }
 
         Ok(GenericParam::Lifetime {
           attributes,
@@ -247,8 +241,7 @@ impl Parser {
       // type generic: T, U: Bound, T = Default
       TokenKind::Ident => {
         let name = self.parse_name(false, engine)?;
-
-        let bounds = self.parse_type_bounds(engine)?;
+        let bounds = self.parse_trait_bounds(engine)?;
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance(engine);
@@ -285,116 +278,108 @@ impl Parser {
   }
 
   /// Parses either lifetime or trait bounds that follow a colon.
-  pub(crate) fn parse_type_bounds(
+  pub(crate) fn parse_trait_bounds(
     &mut self,
     engine: &mut DiagnosticEngine,
-  ) -> Result<Option<Vec<TypeBound>>, ()> {
+  ) -> Result<Vec<TypeBound>, ()> {
+    let mut bounds = vec![];
     if !matches!(self.current_token().kind, TokenKind::Colon) {
-      return Ok(None);
-    };
+      return Ok(bounds);
+    }
 
-    let x = if matches!(self.current_token().kind, TokenKind::Lifetime { .. }) {
-      self.parse_type_lifetime_bounds(engine)?
-    } else {
-      self.parse_type_path_bounds(engine)?
-    };
-
-    self.advance(engine);
-    Ok(Some(x))
-  }
-
-  /// Parses the `+ 'a + 'b` lifetime bounds chain.
-  pub(crate) fn parse_type_lifetime_bounds(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<TypeBound>, ()> {
-    let mut lifetime_bounds = vec![];
+    self.expect(TokenKind::Colon, engine)?;
 
     while !self.is_eof()
       && !matches!(
         self.current_token().kind,
-        TokenKind::OpenBrace | TokenKind::Comma | TokenKind::KwWhere | TokenKind::Gt
+        TokenKind::OpenBrace
+          | TokenKind::Comma
+          | TokenKind::Gt
+          | TokenKind::Eq
+          | TokenKind::CloseParen
+          | TokenKind::Semi
       )
     {
-      let lifetime = self.get_token_lexeme(&self.current_token());
-      self.advance(engine); // consume the lifetime
-      lifetime_bounds.push(TypeBound {
-        modifier: TraitBoundModifier::None,
-        path: Path {
-          leading_colon: false,
-          segments: vec![PathSegment {
-            kind: PathSegmentKind::Ident(lifetime),
-            args: None,
-          }],
+      match self.current_token().kind {
+        TokenKind::Lifetime { .. } => {
+          let name = self.get_token_lexeme(&self.current_token());
+          self.advance(engine); // consume the lifetime
+          bounds.push(TypeBound::Lifetime { name });
         },
-        generics: None,
-        for_lifetimes: None,
-      });
-    }
+        _ => {
+          let modifier = match self.current_token().kind {
+            TokenKind::Tilde => {
+              self.advance(engine); // consume the "~"
 
-    Ok(lifetime_bounds)
-  }
+              if matches!(self.current_token().kind, TokenKind::KwConst) {
+                // (e.g., `~const Clone`)
+                self.advance(engine); // consume the "const"
+                TraitBoundModifier::Const
+              } else {
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
+                  "invalid trait bound modifier".to_string(),
+                  self.source_file.path.clone(),
+                )
+                .with_label(
+                  self.current_token().span,
+                  Some("expected `~` or `?`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("trait bounds may only be prefixed with `~` or `?`".to_string());
+                engine.add(diagnostic);
+                return Err(());
+              }
+            },
+            TokenKind::Question => {
+              self.advance(engine); // consume the "?"
 
-  /// Parses trait bounds (`T: Trait + ?Sized`) and their modifiers.
-  pub(crate) fn parse_type_path_bounds(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<TypeBound>, ()> {
-    let mut bounds: Vec<TypeBound> = vec![];
+              if matches!(self.current_token().kind, TokenKind::Tilde) {
+                self.advance(engine); // consume the "~"
 
-    while !self.is_eof()
-      && !matches!(
-        self.current_token().kind,
-        TokenKind::Comma | TokenKind::Gt | TokenKind::Eq | TokenKind::CloseParen | TokenKind::Semi
-      )
-    {
-      let modifier = if matches!(self.current_token().kind, TokenKind::Question) {
-        // (e.g., `?Clone`)
-        self.advance(engine); // consume the "?"
-        TraitBoundModifier::Maybe
-      } else if matches!(self.current_token().kind, TokenKind::KwConst) {
-        // (e.g., `const Clone`)
-        self.advance(engine); // consume the "const"
-        TraitBoundModifier::Const
-      } else if matches!(self.current_token().kind, TokenKind::KwConst)
-        && matches!(self.peek(1).kind, TokenKind::Question)
-      {
-        self.advance(engine); // consume the "const"
-        self.advance(engine); // consume the "?"
-                              // (e.g., `const ?Clone`)
-        TraitBoundModifier::MaybeConst
-      } else {
-        TraitBoundModifier::None
-      };
+                if matches!(self.current_token().kind, TokenKind::KwConst) {
+                  // (e.g., `~const Clone`)
+                  self.advance(engine); // consume the "const"
+                  TraitBoundModifier::MaybeConst
+                } else {
+                  let diagnostic = Diagnostic::new(
+                    DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
+                    "invalid trait bound modifier".to_string(),
+                    self.source_file.path.clone(),
+                  )
+                  .with_label(
+                    self.current_token().span,
+                    Some("expected `~` or `?`".to_string()),
+                    LabelStyle::Primary,
+                  )
+                  .with_note("trait bounds may only be prefixed with `~` or `?`".to_string());
+                  engine.add(diagnostic);
+                  return Err(());
+                }
+              } else {
+                // (e.g., `?Clone`)
+                TraitBoundModifier::Maybe
+              }
+            },
+            _ => TraitBoundModifier::None,
+          };
 
-      let path = self.parse_path(false, engine)?;
+          let for_lifetimes = self.parse_for_lifetimes(engine)?;
+          let path = self.parse_path(false, engine)?;
+          let generics = self.parse_generic_args(engine)?;
 
-      let (generics, for_lifetimes) = if matches!(self.current_token().kind, TokenKind::Lt) {
-        self.advance(engine); // consume the "<"
-
-        let value = match self.current_token().kind {
-          TokenKind::Lifetime { .. } => (None, Some(self.parse_generic_lifetime_args(engine)?)),
-          TokenKind::Ident => (Some(self.parse_generic_args(engine)?), None),
-          _ => (None, None),
-        };
-
-        self.expect(TokenKind::Gt, engine)?; // consume the ">"
-        value
-      } else {
-        (None, None)
-      };
-
-      bounds.push(TypeBound {
-        modifier,
-        path,
-        generics,
-        for_lifetimes,
-      });
-
-      if matches!(self.current_token().kind, TokenKind::Plus) {
-        self.advance(engine); // consume the plus
+          bounds.push(TypeBound::Trait {
+            modifier,
+            path,
+            generics,
+            for_lifetimes,
+          });
+        },
       }
+
+      match_and_consume!(self, engine, TokenKind::Plus)?;
     }
+
     Ok(bounds)
   }
 
@@ -412,46 +397,46 @@ impl Parser {
     Ok(lifetime)
   }
 
-  /// Function that parses generic arguments following `<...>`.
-  /// It returns a vector of `GenericArg` structs that represents a list of generic arguments
-  ///
-  /// for example:
-  /// ```rust
-  /// let args = self.parse_generic_args(engine)?;
-  /// ```
-  ///
-  /// You will use this to get the generic arguments of a path
-  /// like `Path { segments, args }`
-  fn parse_generic_args(&mut self, engine: &mut DiagnosticEngine) -> Result<Vec<GenericArg>, ()> {
-    let mut args = Vec::<GenericArg>::new();
-
-    while !self.is_eof() && self.current_token().kind != TokenKind::Gt {
-      args.push(self.parse_generic_arg(engine)?);
-      println!(
-        "--debug: {:#?}",
-        self.get_token_lexeme(&self.current_token())
-      );
-
-      if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(engine); // consume the comma
-      }
-    }
-
-    Ok(args)
-  }
-
   // TODO: fix this later on we are still missing some () handling in the generic args
-  pub(crate) fn parse_path_generic_args(
+  pub(crate) fn parse_generic_args(
     &mut self,
     engine: &mut DiagnosticEngine,
   ) -> Result<Option<GenericArgs>, ()> {
-    self.expect(TokenKind::Lt, engine)?; // consume the "<"
+    match self.current_token().kind {
+      TokenKind::OpenParen => {
+        let mut inputs = Vec::<Type>::new();
+        self.advance(engine); // consume the "("
 
-    let args = self.parse_generic_args(engine)?;
+        while !self.is_eof() && self.current_token().kind != TokenKind::CloseParen {
+          inputs.push(self.parse_type(engine)?);
+          match_and_consume!(self, engine, TokenKind::Comma)?;
+        }
 
-    self.expect(TokenKind::Gt, engine)?; // consume the ">"
+        self.expect(TokenKind::CloseParen, engine)?; // consume the ")"
+        self.expect(TokenKind::ThinArrow, engine)?; // consume the "->"
 
-    Ok(Some(GenericArgs::AngleBracketed { args }))
+        let output = self.parse_type(engine)?;
+
+        Ok(Some(GenericArgs::Parenthesized {
+          inputs,
+          output: Some(output),
+        }))
+      },
+      TokenKind::Lt | TokenKind::ColonColon => {
+        let mut args = Vec::<GenericArg>::new();
+        self.expect(TokenKind::Lt, engine)?; // consume the "<"
+
+        while !self.is_eof() && self.current_token().kind != TokenKind::Gt {
+          args.push(self.parse_generic_arg(engine)?);
+          match_and_consume!(self, engine, TokenKind::Comma)?;
+        }
+
+        self.expect(TokenKind::Gt, engine)?; // consume the ">"
+
+        Ok(Some(GenericArgs::AngleBracketed { args }))
+      },
+      _ => Ok(None),
+    }
   }
 
   /// Parses a single generic argument (type, lifetime, const, binding, …).
@@ -467,6 +452,29 @@ impl Parser {
         self.advance(engine); // consume the lifetime
         Ok(GenericArg::Lifetime(name))
       },
+      TokenKind::Literal { .. } | TokenKind::OpenBrace => {
+        let expr = self.parse_expression(vec![], ExprContext::Default, engine)?;
+        Ok(GenericArg::Const(expr))
+      },
+
+      TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Colon) => {
+        self.advance(engine); // consume the identifier
+
+        let generics = self.parse_generic_params(&mut token, engine)?;
+
+        if self.current_token().kind == TokenKind::Colon {
+          let bounds = self.parse_trait_bounds(engine)?;
+          return Ok(GenericArg::Constraint {
+            name,
+            generics,
+            bounds,
+          });
+        }
+
+        self.expect(TokenKind::Colon, engine)?;
+        let ty = self.parse_type(engine)?;
+        Ok(GenericArg::Binding { name, generics, ty })
+      },
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Eq | TokenKind::Lt) => {
         self.advance(engine); // consume the identifier
 
@@ -474,7 +482,8 @@ impl Parser {
 
         if self.current_token().kind == TokenKind::Colon {
           self.advance(engine); // consume the ':'
-          let bounds = self.parse_type_bounds(engine)?;
+
+          let bounds = self.parse_trait_bounds(engine)?;
           return Ok(GenericArg::Constraint {
             name,
             generics,
@@ -488,85 +497,7 @@ impl Parser {
         Ok(GenericArg::Binding { name, generics, ty })
       },
 
-      TokenKind::Ident => {
-        match self.peek(1).kind {
-          TokenKind::Eq | TokenKind::Lt => {
-            // Associated type binding or constraint
-            self.advance(engine);
-            let generics = self.parse_generic_params(&mut token, engine)?;
-            if self.current_token().kind == TokenKind::Colon {
-              self.advance(engine);
-              let bounds = self.parse_type_bounds(engine)?;
-              return Ok(GenericArg::Constraint {
-                name,
-                generics,
-                bounds,
-              });
-            }
-            self.expect(TokenKind::Eq, engine)?;
-            let ty = self.parse_type(engine)?;
-            Ok(GenericArg::Binding { name, generics, ty })
-          },
-
-          TokenKind::Comma
-          // FIX: this doe snot work with the <Vec<T> as SliceExt>::slice_pattern
-          // in the struct pattern
-          // | TokenKind::Gt
-          | TokenKind::CloseParen
-          | TokenKind::Plus
-          | TokenKind::Minus
-          | TokenKind::Star
-          | TokenKind::Slash
-          | TokenKind::OpenBrace => {
-            let expr = self.parse_expression(vec![],ExprContext::Default, engine)?;
-            println!(
-              "--debug: {:#?}",
-              self.get_token_lexeme(&self.current_token())
-            );
-            Ok(GenericArg::Const(expr))
-          },
-
-          // Otherwise, assume it's a type argument
-          _ => Ok(GenericArg::Type(self.parse_type(engine)?)),
-        }
-      },
-
-      TokenKind::KwSelfType => {
-        self.advance(engine); // consume the 'Self'
-        Ok(GenericArg::Type(Type::SelfType))
-      },
-
-      TokenKind::OpenParen => {
-        self.advance(engine); // consume the '('
-        let mut params = vec![];
-        while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-          params.push(self.parse_type(engine)?);
-          if matches!(self.current_token().kind, TokenKind::Comma) {
-            self.advance(engine); // consume the comma
-          }
-        }
-        self.expect(TokenKind::CloseParen, engine)?; // consume ')'
-
-        Ok(GenericArg::Type(Type::Tuple(params)))
-      },
-      _ => {
-        // TODO: enhance the diagnostic later on when we have a full clousure
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          format!("unexpected token `{name}` in generic argument list"),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some(format!("Expected a primary expression, found \"{}\"", name)),
-          LabelStyle::Primary,
-        )
-        .with_help(Parser::get_token_help(&token.kind, &token));
-
-        engine.add(diagnostic);
-
-        Err(())
-      },
+      _ => Ok(GenericArg::Type(self.parse_type(engine)?)),
     }
   }
 }

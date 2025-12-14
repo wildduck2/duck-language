@@ -1,31 +1,15 @@
-//type T1 = <A>::B;
-//
-//type T2 = <A as Trait>::B;
-//
-//type T3 = <Vec<i32>>::Item;
-//
-//type T4 = <Vec<i32> as IntoIterator>::Item;
-//
-//type T5 = <A as Trait>::B::C;
-//
-//type T6 = <A as crate::module::Trait>::Assoc;
-//
-//type T7 = <A as Trait>::Assoc<u32>;
-//
-type T8 = Option<<A as Trait>::Item>;
-//
-//type T9 = <&'a T as Trait>::Item;
-//
-//type T10 = <crate::module::Type as Trait>::Output;
-//
-//type T11 = <A as Trait>::B::C::D;
-//
-///fn f<T>() -> <T as Iterator>::Item
-///where
-///  T: Iterator,
-///{
-///  loop {}
-///}
-//
-//type T12 = <Wrapper<i32> as Trait<i64>>::Out;
+struct Test0 
+where
+  T:
+{}
 
+struct Test1 
+where
+  <T as Trait>::Item: Bound
+  {}
+
+struct Test2 
+where
+  T: TraitA,
+  T: TraitB
+{}

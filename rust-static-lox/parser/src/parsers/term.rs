@@ -60,7 +60,7 @@ impl Parser {
             right: Box::new(rhs),
             span: token.span,
           };
-        }
+        },
         _ => break 'term_find,
       }
     }

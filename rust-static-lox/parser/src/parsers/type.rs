@@ -33,7 +33,7 @@ impl Parser {
     self.expect(TokenKind::KwType, engine)?; // consume the "type"
     let name = self.parse_name(false, engine)?;
     let generics = self.parse_generic_params(&mut token, engine)?;
-    let bounds = self.parse_type_bounds(engine)?;
+    let bounds = self.parse_trait_bounds(engine)?;
     let where_clause = self.parse_where_clause(engine)?;
     self.expect(TokenKind::Eq, engine)?; // consume '='
     let ty = self.parse_type(engine)?;
@@ -351,9 +351,10 @@ impl Parser {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
     let QSelfHeader { self_ty, trait_ref } = self.parse_qself_type_header(engine)?.unwrap();
-    let name = self.parse_name(false, engine)?;
+
+    let path = self.parse_path(false, engine)?;
     let generics = if matches!(self.current_token().kind, TokenKind::Lt) {
-      self.parse_path_generic_args(engine)?
+      self.parse_generic_args(engine)?
     } else {
       None
     };
@@ -361,7 +362,7 @@ impl Parser {
     Ok(Type::QPath {
       self_ty,
       trait_ref,
-      name,
+      path,
       generics: generics.map(Box::new),
     })
   }

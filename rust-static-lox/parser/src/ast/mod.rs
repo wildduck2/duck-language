@@ -80,7 +80,7 @@ pub(crate) struct TypeAliasDecl {
   pub visibility: Visibility,
   pub name: String,
   pub generics: Option<GenericParams>,
-  pub bounds: Option<Vec<TypeBound>>,
+  pub bounds: Vec<TypeBound>,
   pub where_clause: Option<WhereClause>,
   // grammar requires "=" type for free type alias
   pub ty: Type,
@@ -386,7 +386,7 @@ pub(crate) struct TraitDecl {
   pub is_auto: bool,
   pub is_unsafe: bool,
   pub generics: Option<GenericParams>,
-  pub supertraits: Option<Vec<TypeBound>>,
+  pub supertraits: Vec<TypeBound>,
   pub items: Vec<TraitItem>,
   pub where_clause: Option<WhereClause>,
   pub span: Span,
@@ -399,7 +399,7 @@ pub(crate) enum TraitItem {
     attributes: Vec<Attribute>,
     name: String,
     generics: Option<GenericParams>,
-    bounds: Option<Vec<TypeBound>>,
+    bounds: Vec<TypeBound>,
     default: Option<Type>,
   },
   Const {
@@ -553,7 +553,7 @@ pub(crate) enum Type {
   QPath {
     self_ty: Box<Type>,
     trait_ref: Option<Path>,
-    name: String,
+    path: Path,
     generics: Option<Box<GenericArgs>>,
   },
 

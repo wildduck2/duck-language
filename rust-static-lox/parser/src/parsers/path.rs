@@ -185,13 +185,12 @@ impl Parser {
 
     // Optional generic arguments
     let args = if with_args && matches!(self.current_token().kind, TokenKind::Lt) {
-      println!("--{:#?}", self.get_token_lexeme(&self.current_token()));
-      self.parse_path_generic_args(engine)?
+      self.parse_generic_args(engine)?
     } else if matches!(self.current_token().kind, TokenKind::ColonColon)
       && matches!(self.peek(1).kind, TokenKind::Lt)
     {
       self.advance(engine);
-      self.parse_path_generic_args(engine)?
+      self.parse_generic_args(engine)?
     } else {
       None
     };

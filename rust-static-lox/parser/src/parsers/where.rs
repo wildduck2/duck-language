@@ -17,84 +17,33 @@ use diagnostic::{
 };
 use lexer::token::TokenKind;
 
-use crate::{ast::generic::*, Parser};
+use crate::{ast::generic::*, match_and_consume, Parser};
 
 impl Parser {
-  /// Parse a `where` clause attached to a type, function, or struct.
-  ///
-  /// Grammar:
-  /// ```
-  /// whereClause -> "where" (whereClauseItem ("," whereClauseItem)* ","?)?
-  /// ```
-  ///
-  /// Each `where` predicate is parsed using [`parse_type_predicate`].
-  /// Parsing stops when encountering one of `{`, `(`, or `;`, matching
-  /// struct, tuple, or function item contexts.
-  ///
-  /// Returns `Ok(Some(WhereClause))` if a `where` clause is present,
-  /// or `Ok(None)` if not found.
-  ///
-  /// Example:
-  /// ```rust
-  /// struct Container<T, U> where T: Clone, U: Copy;
-  /// ```
   pub(crate) fn parse_where_clause(
     &mut self,
     engine: &mut DiagnosticEngine,
   ) -> Result<Option<WhereClause>, ()> {
-    if matches!(self.current_token().kind, TokenKind::KwWhere) {
-      self.advance(engine); // consume 'where'
-
-      let mut predicates = vec![];
-
-      while !self.is_eof()
-        && !matches!(
-          self.current_token().kind,
-          TokenKind::OpenBrace | TokenKind::OpenParen | TokenKind::Semi
-        )
-      {
-        predicates.push(self.parse_type_predicate(engine)?);
-
-        if matches!(self.current_token().kind, TokenKind::Comma) {
-          self.advance(engine); // consume ','
-        }
-      }
-
-      return Ok(Some(WhereClause { predicates }));
+    if !matches!(self.current_token().kind, TokenKind::KwWhere) {
+      return Ok(None);
     }
 
-    Ok(None)
+    self.advance(engine); // consume 'where'
+
+    let mut predicates = vec![];
+
+    while !self.is_eof()
+      && !matches!(
+        self.current_token().kind,
+        TokenKind::OpenBrace | TokenKind::Semi
+      )
+    {
+      predicates.push(self.parse_type_predicate(engine)?);
+      match_and_consume!(self, engine, TokenKind::Comma)?;
+    }
+    Ok(Some(WhereClause { predicates }))
   }
 
-  /// Parse a single `where`-clause predicate.
-  ///
-  /// Supported predicate forms:
-  /// - **Type bound**         -> `T: Clone + Send`
-  /// - **Lifetime bound**     ->`'a: 'b + 'c`
-  /// - **Higher-ranked trait bound (HRTB)** -> `for<'a> F: Fn(&'a str)`
-  /// - **Equality predicate** ->`T::Item = i32`
-  ///
-  /// Grammar:
-  /// ```
-  /// whereClauseItem
-  ///   -> lifetimeWhereClauseItem
-  ///    | typeBoundWhereClauseItem
-  ///
-  /// typeBoundWhereClauseItem
-  ///   -> forLifetimes? type ":" typeParamBounds?
-  ///    | forLifetimes? type "=" type
-  ///
-  /// lifetimeWhereClauseItem
-  ///   → LIFETIME ":" lifetimeBounds
-  /// ```
-  ///
-  /// Example:
-  /// ```rust
-  /// where
-  ///   'a: 'b + 'c,
-  ///   for<'x> F: Fn(&'x T),
-  ///   T::Item = U
-  /// ```
   pub(crate) fn parse_type_predicate(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -103,20 +52,7 @@ impl Parser {
 
     // Lifetime predicate: `'a: 'b + 'c`
     if matches!(token.kind, TokenKind::Lifetime { .. }) {
-      let lifetime = self.get_token_lexeme(&token);
-      self.advance(engine); // consume lifetime
-
-      let lifetime_bounds = if matches!(self.current_token().kind, TokenKind::Colon) {
-        self.advance(engine); // consume ':'
-        self.parse_lifetime_bounds(engine)?
-      } else {
-        vec![]
-      };
-
-      return Ok(WherePredicate::Lifetime {
-        lifetime,
-        bounds: lifetime_bounds,
-      });
+      return self.parse_lifetime_predicate(engine);
     }
 
     // Optional for<'a, 'b> prefix (applies only to type predicates)
@@ -128,8 +64,8 @@ impl Parser {
     // Handle either `:` (bounds) or `=` (equality)
     match self.current_token().kind {
       TokenKind::Colon => {
-        self.advance(engine); // consume ':'
-        let bounds = self.parse_type_bounds(engine)?;
+        let bounds = self.parse_trait_bounds(engine)?;
+
         Ok(WherePredicate::Type {
           for_lifetimes,
           ty,
@@ -164,5 +100,26 @@ impl Parser {
         Err(())
       },
     }
+  }
+
+  pub(crate) fn parse_lifetime_predicate(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<WherePredicate, ()> {
+    let token = self.current_token();
+    let lifetime = self.get_token_lexeme(&token);
+    self.advance(engine); // consume lifetime
+
+    let lifetime_bounds = if matches!(self.current_token().kind, TokenKind::Colon) {
+      self.advance(engine); // consume ':'
+      self.parse_lifetime_bounds(engine)?
+    } else {
+      vec![]
+    };
+
+    return Ok(WherePredicate::Lifetime {
+      lifetime,
+      bounds: lifetime_bounds,
+    });
   }
 }
