@@ -35,12 +35,13 @@ impl Parser {
     while !self.is_eof()
       && !matches!(
         self.current_token().kind,
-        TokenKind::OpenBrace | TokenKind::Semi
+        TokenKind::OpenBrace | TokenKind::Semi | TokenKind::Eq
       )
     {
       predicates.push(self.parse_type_predicate(engine)?);
       match_and_consume!(self, engine, TokenKind::Comma)?;
     }
+
     Ok(Some(WhereClause { predicates }))
   }
 
@@ -65,7 +66,6 @@ impl Parser {
     match self.current_token().kind {
       TokenKind::Colon => {
         let bounds = self.parse_trait_bounds(engine)?;
-
         Ok(WherePredicate::Type {
           for_lifetimes,
           ty,

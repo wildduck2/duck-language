@@ -12,17 +12,6 @@ use diagnostic::{
 use lexer::token::TokenKind;
 
 impl Parser {
-  //! TODO:
-  //! extend type parsing to cover the full Rust type grammar:
-  //! - tuple types (T, U) and grouped types (T)
-  //! - slice types [T]
-  //! - never type !
-  //! - impl Trait and dyn Trait forms
-  //! - function pointer types fn(..) -> ..
-  //! - qualified paths in types like <T as Trait>::Item
-  //! - inferred type _
-  //! - parenthesized types inside more complex forms
-
   pub(crate) fn parse_type_alias_decl(
     &mut self,
     attributes: Vec<Attribute>,

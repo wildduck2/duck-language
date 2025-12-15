@@ -144,7 +144,7 @@ staticItem        -> "static" "mut"? IDENTIFIER ":" type
 /* Free-standing type alias must have '=' type */
 typeAliasItem     -> "type" IDENTIFIER genericParams? 
                      (":" typeParamBounds)? 
-                     whereClause? "=" type ";" ;      [-]
+                     whereClause? "=" type ";" ;      [x]
 
 /* ------------------------------------------------------------------------- */
 /* Traits and Impl                                                           */

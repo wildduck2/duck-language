@@ -1,144 +1,5 @@
-//! TODO: Generic parameter & argument parsing is incomplete compared to Rust’s full grammar.
-//!
-//! Missing features & known limitations:
-//!
-//! -----------------------------------------------
-//! GENERIC PARAMETERS (`<T, 'a, const N: usize>`)
-//! -----------------------------------------------
-//!
-//! - **Full const-generic expression support**  
-//!   Currently only `const NAME: Type = <type>` is supported.  
-//!   Rust allows arbitrary expressions on the RHS (`const N: usize = 1 + 2`).
-//!
-//! - **Trait object auto traits (`?Trait`) and modifiers**  
-//!   The modifier handling (`?`, `const`, `const ?`) is incomplete and incorrect.
-//!   Rust uses:  
-//!     - `?Trait` only for auto traits (e.g., `?Send`)  
-//!     - `~const Trait` (but not `const Trait`).  
-//!       Current grammar mismatches Rust.
-//!
-//! - **Lifetime bounds require better delimiter detection**  
-//!   Stop conditions are incomplete.  
-//!   Rust allows:  
-//!   `'a: 'b + 'c` and `'a: 'static`  
-//!   but must stop on: `{`, `(`, `=`, `+`, `,`, `>`, `where`.
-//!
-//! - **Attributes inside generic parameter lists**  
-//!   You allow `#[attr] T`, but Rust also supports `#[attr] const N: usize` etc.  
-//!   Alignment is not fully verified.
-//!
-//! - **Where-clause bounds inside generics (unstable RFC)**  
-//!   Rust supports `T: Trait<Assoc = impl Trait>` in generic params.  
-//!   This parser does not support associated type equality in bounds.
-//!
-//!
-//! -----------------------------------------------
-//! GENERIC ARGUMENTS (`::<T, 'a, 3, Item = U>`)
-//! -----------------------------------------------
-//!
-//! - **Missing support for type applications in arguments**  
-//!   e.g. `Iterator<Item = <T as Trait>::Assoc>`
-//!
-//! - **Const generics use expression grammar, not type grammar**  
-//!   Currently you use `parse_expression` but bracketed expressions,
-//!   unary negation, block expressions, and path expressions are still incomplete.
-//!
-//! - **Misclassification between TypeArg, ConstArg, ConstExpr, Binding**  
-//!   The lookahead `Eq | Lt` heuristic is insufficient.  
-//!   Rust uses this grammar:
-//!   ```text
-//!   generic_arg
-//!       : lifetime
-//!       | type
-//!       | const_expr
-//!       | type_binding   // `Assoc = Ty`
-//!       | const_arg      // const NAME = expr
-//!   ```
-//!   Your implementation merges several cases and mis-parses edge cases like:
-//!   `<T = U,>`
-//!   `<Item<'a> = T,>`
-//!
-//! - **No support for qualified path arguments (`<T as Trait>::Assoc`)**  
-//!   These must appear within generic args for many advanced Rust features.
-//!
-//! - **Missing support for implicit elided lifetimes in args (`<'_>`)**  
-//!   Rust allows anonymous lifetimes in generics; parser must accept `'_'`.
-//!
-//! - **No support for `impl Trait` in generic args**  
-//!   e.g. `<impl Iterator<Item = T>>` inside function return types.
-//!
-//!
-//! -----------------------------------------------
-//! PATH GENERIC ARGUMENTS (`foo::<T, U>`)
-//! -----------------------------------------------
-//!
-//! - **Missing turbofish precedence handling**  
-//!   Rust has special rules allowing:  
-//!   `foo::<T>()`  
-//!   `(foo::<T>)()`  
-//!   `bar::<T>::baz`  
-//!   The parser currently merges `<` incorrectly with comparison parsing.
-//!
-//! - **Angle-bracket vs. less-than operator ambiguity**  
-//!   Rust uses complex disambiguation rules ("type ascription fallback") to decide whether
-//!   `<` begins a generic-argument list or a `<` binary operator.  
-//!   Your parser uses simple token matching and may misparse expressions like:  
-//!   `x < y, z > w`  
-//!   `(a<b>::c)`  
-//!
-//!
-//! -----------------------------------------------
-//! ERRORS & DIAGNOSTICS
-//! -----------------------------------------------
-//!
-//! - **Need improved diagnostics on malformed generic params**  
-//!   Cases like:  
-//!   `<T U>`  
-//!   `<T, , U>`  
-//!   `<,T>`  
-//!   `<T:>`  
-//!   should produce structured, helpful errors and attempt recovery until `>`.
-//!
-//! - **Span merging improvements**  
-//!   Begin/end spans of generic arguments should correctly include `<` and `>`
-//!   and nested spans for bounds, defaults, and constraints.
-//!
-//! - **Better recovery strategy after syntax errors inside `<...>`**  
-//!   Incorrect tokens currently cause full abort instead of resynchronizing at `>` or `,`.
-//!
-//!
-//! -----------------------------------------------
-//! PARSER ARCHITECTURE
-//! -----------------------------------------------
-//!
-//! - **`parse_generic_params` incorrectly merges span with next token**  
-//!   You `merge` the next token’s span, but generics should end at `>`,
-//!   not the next unrelated token.
-//!
-//! - **Separation of generic params vs generic args should be stricter**  
-//!   Rust differentiates:  
-//!   struct Foo<T>` (params)  
-//!   `Foo::<T>` (args)  
-//!   They follow different grammars; current code mixes them heavily.
-//!
-//! - **Requires implementation of full generic argument recursion**  
-//!   Nested generics:  
-//!   `Foo<Bar<Baz<T, U>, X>, Y>`  
-//!   should recurse correctly.
-//!
-//! - **Support for default generic argument values**  
-//!   e.g. `Vec<T = u8>`  
-//!   Not yet supported.
-//!
-//! This module handles **basic Rust-like generics**, but lacks advanced type theory,
-//! ambiguity resolution, and the richer grammar rules needed for complete Rust compatibility.
-
 use crate::{
-  ast::{
-    generic::*,
-    path::{Path, PathSegment, PathSegmentKind},
-    Type,
-  },
+  ast::{generic::*, Type},
   match_and_consume,
   parser_utils::ExprContext,
   DiagnosticEngine, Parser,
@@ -307,62 +168,7 @@ impl Parser {
           bounds.push(TypeBound::Lifetime { name });
         },
         _ => {
-          let modifier = match self.current_token().kind {
-            TokenKind::Tilde => {
-              self.advance(engine); // consume the "~"
-
-              if matches!(self.current_token().kind, TokenKind::KwConst) {
-                // (e.g., `~const Clone`)
-                self.advance(engine); // consume the "const"
-                TraitBoundModifier::Const
-              } else {
-                let diagnostic = Diagnostic::new(
-                  DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
-                  "invalid trait bound modifier".to_string(),
-                  self.source_file.path.clone(),
-                )
-                .with_label(
-                  self.current_token().span,
-                  Some("expected `~` or `?`".to_string()),
-                  LabelStyle::Primary,
-                )
-                .with_note("trait bounds may only be prefixed with `~` or `?`".to_string());
-                engine.add(diagnostic);
-                return Err(());
-              }
-            },
-            TokenKind::Question => {
-              self.advance(engine); // consume the "?"
-
-              if matches!(self.current_token().kind, TokenKind::Tilde) {
-                self.advance(engine); // consume the "~"
-
-                if matches!(self.current_token().kind, TokenKind::KwConst) {
-                  // (e.g., `~const Clone`)
-                  self.advance(engine); // consume the "const"
-                  TraitBoundModifier::MaybeConst
-                } else {
-                  let diagnostic = Diagnostic::new(
-                    DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
-                    "invalid trait bound modifier".to_string(),
-                    self.source_file.path.clone(),
-                  )
-                  .with_label(
-                    self.current_token().span,
-                    Some("expected `~` or `?`".to_string()),
-                    LabelStyle::Primary,
-                  )
-                  .with_note("trait bounds may only be prefixed with `~` or `?`".to_string());
-                  engine.add(diagnostic);
-                  return Err(());
-                }
-              } else {
-                // (e.g., `?Clone`)
-                TraitBoundModifier::Maybe
-              }
-            },
-            _ => TraitBoundModifier::None,
-          };
+          let modifier = self.parse_trait_bound_modifier(engine)?;
 
           let for_lifetimes = self.parse_for_lifetimes(engine)?;
           let path = self.parse_path(false, engine)?;
@@ -383,21 +189,68 @@ impl Parser {
     Ok(bounds)
   }
 
-  fn parse_generic_lifetime_args(
+  fn parse_trait_bound_modifier(
     &mut self,
     engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<String>, ()> {
-    let mut lifetime = vec![];
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::Gt) {
-      lifetime.extend(self.parse_lifetime_bounds(engine)?);
-      if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(engine); // consume the comma
-      }
+  ) -> Result<TraitBoundModifier, ()> {
+    match self.current_token().kind {
+      TokenKind::Tilde => {
+        self.advance(engine); // consume the "~"
+
+        if matches!(self.current_token().kind, TokenKind::KwConst) {
+          // (e.g., `~const Clone`)
+          self.advance(engine); // consume the "const"
+          Ok(TraitBoundModifier::Const)
+        } else {
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
+            "invalid trait bound modifier".to_string(),
+            self.source_file.path.clone(),
+          )
+          .with_label(
+            self.current_token().span,
+            Some("expected `~` or `?`".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note("trait bounds may only be prefixed with `~` or `?`".to_string());
+          engine.add(diagnostic);
+          Err(())
+        }
+      },
+      TokenKind::Question => {
+        self.advance(engine); // consume the "?"
+
+        if matches!(self.current_token().kind, TokenKind::Tilde) {
+          self.advance(engine); // consume the "~"
+
+          if matches!(self.current_token().kind, TokenKind::KwConst) {
+            // (e.g., `~const Clone`)
+            self.advance(engine); // consume the "const"
+            Ok(TraitBoundModifier::MaybeConst)
+          } else {
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
+              "invalid trait bound modifier".to_string(),
+              self.source_file.path.clone(),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `~` or `?`".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note("trait bounds may only be prefixed with `~` or `?`".to_string());
+            engine.add(diagnostic);
+            Err(())
+          }
+        } else {
+          // (e.g., `?Clone`)
+          Ok(TraitBoundModifier::Maybe)
+        }
+      },
+      _ => Ok(TraitBoundModifier::None),
     }
-    Ok(lifetime)
   }
 
-  // TODO: fix this later on we are still missing some () handling in the generic args
   pub(crate) fn parse_generic_args(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -464,6 +317,7 @@ impl Parser {
 
         if self.current_token().kind == TokenKind::Colon {
           let bounds = self.parse_trait_bounds(engine)?;
+
           return Ok(GenericArg::Constraint {
             name,
             generics,
