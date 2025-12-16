@@ -1,3 +1,4 @@
+// Valid path expressions
 foo;
 foo::bar;
 ::foo::bar;
@@ -34,7 +35,6 @@ crate::Type;
 $crate::Type;
 self::Type::<T>;
 super::Type::<T>::Assoc;
-crate::Type::<T>::Assoc::<U>;
 Self::Assoc;
 Self::Assoc::<T>;
 <T>::Item;
@@ -44,7 +44,6 @@ Self::Assoc::<T>;
 <crate::Type as Trait>::Item;
 <crate::Type as Trait>::Item::<U>;
 <super::Type as Trait>::Item::Sub;
-
 <Self as Trait>::Item::Assoc::Deep;
 <crate::Type as Trait>::Item::Assoc::Deep::<U>;
 <::foo as Trait>::Item;
@@ -55,9 +54,32 @@ Self::Assoc::<T>;
 <T>::Item::Assoc::Deep::<U>;
 <Self>::Assoc::Deep::Deeper;
 <crate::Type as Trait>::Item::Assoc::Deep::Deeper::<U>;
-foo::<>::bar;
-foo::<> <T as>::Item <T Trait>::Item;
-<>::Item <T>::;
 
-//<T as Trait>::Item::Assoc < <T as Trait>::Item::Assoc::<U>;
-//<T as Trait>::Item::Assoc::Deep <T as Trait>::Item::Assoc::Deep::<U>
+// Invalid/Error cases - should produce parse errors
+// These are commented out so they can be tested later
+//foo::<>::bar;
+//foo::<> <T as>::Item <T Trait>::Item;
+//<>::Item <T>::;
+//<T as>::Item;
+//<T>::;
+//foo::<T>::;
+//::;
+//foo:bar;
+//foo:::bar;
+//<T as Trait>::;
+//< as Trait>::Item;
+//<T as >::Item;
+//foo::<T,>::bar;
+//foo::<,T>::bar;
+//foo::<T U>::bar;
+//Self::<>;
+//<Self as>::Assoc;
+//<::>::Item;
+//foo::bar::<T>::;
+//<T>::Item::;
+//<T>::Item::<U>::;
+//<T>::Item::<U>::<V>;
+//foo::<T>::<U>::bar;
+//<T>::Item::Assoc::<U>::<V>;
+//<T as Trait>::Item::<U>::<V>;
+//<T as Trait>::Item::Assoc::<U>::<V>::<W>;

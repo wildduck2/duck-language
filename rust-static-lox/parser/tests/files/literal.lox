@@ -1,25 +1,129 @@
+// Character literals
 'a'
 '\n'
+'\t'
+'\r'
+'\\'
+'\''
+'\0'
+'\x41'
+'\u{1F600}'
+
+// String literals
 "hello"
 "escaped \" quote"
+"multi\nline\nstring"
+"with\ttab"
+"with\\backslash"
 r"raw string \n not escaped"
-b'a'
-b"byte string"
-b"\"" 
+r#"raw string with "quotes""#
+r##"raw string with #"nested"# quotes"##
 
+// Byte literals
+b'a'
+b'\n'
+b'\t'
+b'\\'
+b'\''
+b'\0'
+b'\x41'
+
+// Byte string literals
+b"byte string"
+b"escaped \" quote"
+b"multi\nline"
+b"\"" 
 br"raw byte string \n not escaped"
+br#"raw byte string with "quotes""#
+
+// C string literals
 c"c string"
+c"escaped \" quote"
 cr"raw c string \n not escaped"
+cr#"raw c string with "quotes""#
+
+// Integer literals
 0
 42
 1_000_000
+1_000_000_000
 0xff
+0xFF
+0Xff
 0b101010
+0B101010
 0o755
+0O755
+
+// Float literals
 3.14
 0.5
+.5
+5.
 1e10
+1E10
+1e+10
+1e-10
 2.5e-3
+2.5E-3
+2.5e+3
+1_000.5
+1_000.5e10
+.5e10
+5.e10
+
+// Boolean literals
 true
 false
 
+// Invalid/Error cases - should produce parse errors
+// These are commented out so they can be tested later
+//''
+//'ab'
+//'\x'
+//'\u'
+//'\u{'
+//'\u{1F600'
+//'\u{1F600}'
+//'\u{110000}'
+//'\u{FFFFFF}'
+//"
+//"unclosed string
+//"string with \x invalid escape"
+//"string with \u invalid escape"
+//r"raw string
+//b''
+//b'ab'
+//b'\x'
+//b'\u{1F600}'
+//b"unclosed byte string
+//c"unclosed c string
+//0x
+//0b
+//0o
+//0xG
+//0b2
+//0o9
+//1_000_000_
+//_1_000_000
+//1__000
+//3.14.
+//.5.
+//5..5
+//1e
+//1e+
+//1e-
+//1.5e
+//1.5e+
+//1.5e-
+//.e10
+//e10
+//1_000_.5
+//1_000.5_
+//1_000._5
+//tru
+//fals
+//True
+//False
+//TRUE
+//FALSE
