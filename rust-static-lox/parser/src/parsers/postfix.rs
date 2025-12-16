@@ -55,14 +55,6 @@ impl Parser {
     Ok(expr)
   }
 
-  /// Parses `.await` as a postfix operator.
-  ///
-  /// Example:
-  /// ```rust
-  /// future.await
-  /// ```
-  ///
-  /// This lowers into an `Expr::Await` node.
   pub(crate) fn parse_await(
     &mut self,
     expr: Expr,

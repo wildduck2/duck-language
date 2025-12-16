@@ -15,7 +15,7 @@ pub(crate) enum RepeatKind {
   ZeroOrOne,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenTree {
   Token(String),
   Delimited {

@@ -2,13 +2,14 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine, SourceFile,
+  DiagnosticEngine, SourceFile, Span,
 };
 use lexer::token::{Token, TokenKind};
 
 use crate::ast::Item;
 
 pub mod ast;
+mod decoder;
 mod parser_utils;
 mod parsers;
 
@@ -52,6 +53,12 @@ impl Parser {
 
   /// Peeks one token ahead without advancing.
   fn peek(&self, n: usize) -> Token {
+    if self.is_eof() {
+      return Token {
+        kind: TokenKind::Eof,
+        span: Span::new(0, 0),
+      };
+    }
     self.tokens[self.current + n].clone()
   }
 
@@ -217,3 +224,6 @@ impl Parser {
     }
   }
 }
+
+#[cfg(test)]
+mod tests;

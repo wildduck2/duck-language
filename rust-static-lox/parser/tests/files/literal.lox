@@ -1,0 +1,25 @@
+'a'
+'\n'
+"hello"
+"escaped \" quote"
+r"raw string \n not escaped"
+b'a'
+b"byte string"
+b"\"" 
+
+br"raw byte string \n not escaped"
+c"c string"
+cr"raw c string \n not escaped"
+0
+42
+1_000_000
+0xff
+0b101010
+0o755
+3.14
+0.5
+1e10
+2.5e-3
+true
+false
+

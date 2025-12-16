@@ -5,25 +5,25 @@ use diagnostic::Span;
 
 use crate::ast::{Expr, GenericArgs, Path, TypeBound};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Mutability {
   Mutable,
   Immutable,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Safety {
   Safe,
   Unsafe,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct QSelf {
   pub self_ty: Box<Type>,
   pub as_trait: Option<Path>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Type {
   // Primitive types
   I8,

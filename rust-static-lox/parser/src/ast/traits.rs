@@ -5,7 +5,7 @@ use diagnostic::Span;
 
 use crate::ast::{Attribute, FnDecl, GenericParams, Type, TypeBound, Visibility, WhereClause};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct TraitDecl {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
@@ -22,7 +22,7 @@ pub(crate) struct TraitDecl {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TraitItem {
   Method(FnDecl),
 

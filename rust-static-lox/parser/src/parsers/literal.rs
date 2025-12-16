@@ -8,6 +8,7 @@ use lexer::token::{LiteralKind, Token};
 
 use crate::{
   ast::{Expr, ExprKind, Lit},
+  decoder::Decoder,
   Parser,
 };
 
@@ -33,15 +34,15 @@ impl Parser {
 
       LiteralKind::Str => self.parser_string(engine, &mut token),
 
-      LiteralKind::ByteStr => self.parser_byte_string(engine, &mut token),
-
-      LiteralKind::CStr => self.parser_c_string(engine, &mut token),
-
       LiteralKind::RawStr { n_hashes } => self.parser_raw_string(engine, &mut token, n_hashes),
+
+      LiteralKind::ByteStr => self.parser_byte_string(engine, &mut token),
 
       LiteralKind::RawByteStr { n_hashes } => {
         self.parser_raw_byte_string(engine, &mut token, n_hashes)
       },
+
+      LiteralKind::CStr => self.parser_c_string(engine, &mut token),
 
       LiteralKind::RawCStr { n_hashes } => self.parser_raw_c_string(engine, &mut token, n_hashes),
 
@@ -77,7 +78,11 @@ impl Parser {
     // Extract suffix + numeric portion
     let src = &self.source_file.src;
 
-    let suffix = Some(src[suffix_start..token.span.end].to_string());
+    let suffix = if suffix_start == token.span.end {
+      None
+    } else {
+      Some(src[suffix_start..token.span.end].to_string())
+    };
     let value_str = &src[token.span.start..suffix_start].replace('_', "");
 
     let parsed = match base {
@@ -120,7 +125,12 @@ impl Parser {
     base: lexer::token::Base,
   ) -> Result<Expr, ()> {
     let src = &self.source_file.src;
-    let suffix = Some(src[suffix_start..token.span.end].to_string());
+    let suffix = if suffix_start == token.span.end {
+      None
+    } else {
+      Some(src[suffix_start..token.span.end].to_string())
+    };
+
     let value_str = &src[token.span.start..suffix_start];
 
     let parsed = match base {
@@ -155,15 +165,16 @@ impl Parser {
 
   fn parser_string(
     &mut self,
-    _engine: &mut DiagnosticEngine,
+    engine: &mut DiagnosticEngine,
     token: &mut Token,
   ) -> Result<Expr, ()> {
-    let raw = &self.source_file.src[token.span.start..token.span.end];
+    let value = self.get_token_lexeme(token);
+    let value = Decoder::decode_string(&value, &self.source_file.path.clone(), token.span, engine)?;
 
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::String {
-        value: raw.into(),
+        value,
         raw_hashes: None,
       }),
       span: *token.span.merge(self.current_token().span),
@@ -172,15 +183,17 @@ impl Parser {
 
   fn parser_byte_string(
     &mut self,
-    _engine: &mut DiagnosticEngine,
+    engine: &mut DiagnosticEngine,
     token: &mut Token,
   ) -> Result<Expr, ()> {
-    let raw = &self.source_file.src[token.span.start..token.span.end];
+    let value = self.get_token_lexeme(token);
+    let value =
+      Decoder::decode_byte_string(&value, &self.source_file.path.clone(), token.span, engine)?;
 
     Ok(Expr {
       attributes: vec![],
-      kind: ExprKind::Literal(Lit::String {
-        value: raw.into(),
+      kind: ExprKind::Literal(Lit::ByteString {
+        value,
         raw_hashes: None,
       }),
       span: *token.span.merge(self.current_token().span),
@@ -189,14 +202,16 @@ impl Parser {
 
   fn parser_c_string(
     &mut self,
-    _engine: &mut DiagnosticEngine,
+    engine: &mut DiagnosticEngine,
     token: &mut Token,
   ) -> Result<Expr, ()> {
-    let raw = &self.source_file.src[token.span.start..token.span.end];
+    let value = self.get_token_lexeme(token);
+    let value = Decoder::decode_string(&value, &self.source_file.path.clone(), token.span, engine)?;
+
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::String {
-        value: raw.into(),
+        value,
         raw_hashes: None,
       }),
       span: *token.span.merge(self.current_token().span),
@@ -209,11 +224,11 @@ impl Parser {
     token: &mut Token,
     n_hashes: usize,
   ) -> Result<Expr, ()> {
-    let raw = &self.source_file.src[token.span.start..token.span.end];
+    let value = self.get_token_lexeme(token);
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::String {
-        value: raw.into(),
+        value,
         raw_hashes: Some(n_hashes),
       }),
       span: *token.span.merge(self.current_token().span),
@@ -226,12 +241,12 @@ impl Parser {
     token: &mut Token,
     n_hashes: usize,
   ) -> Result<Expr, ()> {
-    let raw = &self.source_file.src[token.span.start..token.span.end];
+    let value = self.get_token_lexeme(token);
 
     Ok(Expr {
       attributes: vec![],
-      kind: ExprKind::Literal(Lit::String {
-        value: raw.into(),
+      kind: ExprKind::Literal(Lit::ByteString {
+        value: value.bytes().collect(),
         raw_hashes: Some(n_hashes),
       }),
       span: *token.span.merge(self.current_token().span),
@@ -244,52 +259,32 @@ impl Parser {
     token: &mut Token,
     n_hashes: usize,
   ) -> Result<Expr, ()> {
-    let raw = &self.source_file.src[token.span.start..token.span.end];
+    let value = self.get_token_lexeme(token);
+
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::String {
-        value: raw.into(),
+        value,
         raw_hashes: Some(n_hashes),
       }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  fn parser_char(&mut self, _engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
-    let ch = self.source_file.src[token.span.start + 1..token.span.end]
-      .chars()
-      .next()
-      .unwrap();
+  fn parser_char(&mut self, engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
+    let char = self.get_token_lexeme(token);
+    let char = Decoder::decode_char(&char, &self.source_file.path.clone(), token.span, engine)?;
 
     Ok(Expr {
       attributes: vec![],
-      kind: ExprKind::Literal(Lit::Char(ch)),
+      kind: ExprKind::Literal(Lit::Char(char)),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
   fn parser_byte(&mut self, engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
-    if token.span.start == token.span.end - 1 {
-      let diag = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::EmptyChar),
-        "Invalid byte literal".into(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("Byte literal is malformed".into()),
-        LabelStyle::Primary,
-      );
-      engine.add(diag);
-      return Err(());
-    }
-
-    let byte = self.source_file.src[token.span.start + 2..token.span.end]
-      .chars()
-      .next()
-      .unwrap()
-      .to_string()
-      .as_bytes()[0];
+    let byte = self.get_token_lexeme(token);
+    let byte = Decoder::decode_byte(&byte, &self.source_file.path.clone(), token.span, engine)?;
 
     Ok(Expr {
       attributes: vec![],

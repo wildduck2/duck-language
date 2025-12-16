@@ -2,7 +2,7 @@
 
 use crate::ast::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Visibility {
   Public,
   PublicCrate,
