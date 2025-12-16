@@ -23,11 +23,11 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Shebang)` if valid, `None` otherwise
-  pub fn lex_shebang(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Shebang)` if valid, `None` otherwise
+  pub fn lex_shebang(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // Only valid at very beginning of the file (before any other text)
     if self.start != 0 {
-      return None;
+      return Err(());
     }
 
     // Look ahead to decide what kind of shebang it is
@@ -42,11 +42,11 @@ impl Lexer {
           self.advance();
         }
 
-        Some(TokenKind::Shebang)
-      }
+        Ok(TokenKind::Shebang)
+      },
 
       // Compiler attribute shebang, e.g. "#![allow(dead_code)]"
-      Some('[') => None,
+      Some('[') => Err(()),
 
       // Anything else is invalid for a shebang
       _ => {
@@ -63,8 +63,8 @@ impl Lexer {
 
         engine.add(diagnostic);
 
-        Some(TokenKind::Unknown)
-      }
+        return Err(());
+      },
     }
   }
 }

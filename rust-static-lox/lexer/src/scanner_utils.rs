@@ -33,7 +33,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Some(TokenKind)` if a token was successfully lexed, `None` otherwise
-  pub fn lex_tokens(&mut self, c: char, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  pub fn lex_tokens(&mut self, c: char, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     match c {
       // punctuation and delimiters
       ';' => self.lex_semicolon(),
@@ -74,8 +74,8 @@ impl Lexer {
       '\n' => {
         self.line += 1;
         self.column = 0;
-        Some(TokenKind::Whitespace)
-      }
+        Ok(TokenKind::Whitespace)
+      },
       '\r' | '\t' | ' ' => self.lex_whitespace(),
 
       // String and character literals
@@ -96,7 +96,7 @@ impl Lexer {
       // Numbers
       '0'..='9' => self.lex_number(engine),
       // Keywords
-      'A'..='Z' | 'a'..='z' | '_' => self.lex_keywords(),
+      'A'..='Z' | 'a'..='z' | '_' => self.lex_keywords(engine),
 
       _ => {
         let diagnostic = Diagnostic::new(
@@ -111,8 +111,8 @@ impl Lexer {
         );
 
         engine.add(diagnostic);
-        Some(TokenKind::Unknown)
-      }
+        return Err(());
+      },
     }
   }
 
@@ -124,7 +124,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Some(TokenKind::Whitespace)` after consuming all whitespace
-  fn lex_whitespace(&mut self) -> Option<TokenKind> {
+  fn lex_whitespace(&mut self) -> Result<TokenKind, ()> {
     while let Some(c) = self.peek() {
       if c.is_whitespace() {
         self.advance();
@@ -132,6 +132,6 @@ impl Lexer {
         break;
       }
     }
-    Some(TokenKind::Whitespace)
+    Ok(TokenKind::Whitespace)
   }
 }

@@ -7,14 +7,14 @@ use diagnostic::Span;
 
 use crate::ast::{Attribute, GenericArgs, MacroInvocation, Mutability, Path, Pattern, Stmt, Type};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Expr {
   pub attributes: Vec<Attribute>,
   pub kind: ExprKind,
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ExprKind {
   Literal(Lit),
   Path {
@@ -186,7 +186,7 @@ pub(crate) enum ExprKind {
   },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Lit {
   Integer {
     value: i128,
@@ -209,7 +209,7 @@ pub(crate) enum Lit {
   Bool(bool),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum BlockFlavor {
   Normal,
   Async,
@@ -218,7 +218,7 @@ pub(crate) enum BlockFlavor {
   Try, // nightly if you support it
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct FieldInit {
   pub attributes: Vec<Attribute>,
   pub name: FieldName,
@@ -226,19 +226,19 @@ pub(crate) struct FieldInit {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum FieldName {
   Ident(String),
   TupleIndex(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum FieldAccess {
   Named(String),
   Unnamed(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ClosureParam {
   pub attributes: Vec<Attribute>,
   pub pattern: Pattern,
@@ -246,7 +246,7 @@ pub(crate) struct ClosureParam {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct MatchArm {
   pub attributes: Vec<Attribute>, // outerAttr* on the arm
   pub pattern: Pattern,
@@ -255,7 +255,7 @@ pub(crate) struct MatchArm {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum RangeExprKind {
   Full,
   From,
@@ -266,7 +266,7 @@ pub(crate) enum RangeExprKind {
   Inclusive,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum BinaryOp {
   Add,
   Sub,
@@ -288,7 +288,7 @@ pub(crate) enum BinaryOp {
   Or,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum UnaryOp {
   Neg,
   Not,

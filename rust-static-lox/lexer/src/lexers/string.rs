@@ -94,7 +94,7 @@ impl Lexer {
   /// For prefixes like `f`, `cf`, `rf`, we emit “reserved / unknown prefix”
   /// diagnostics (this is a language extension; Rust itself would just lex
   /// identifiers in those cases).
-  pub fn lex_string(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  pub fn lex_string(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     let first = self.get_current_lexeme(); // e.g. "b", "c", "r", "\"", or "'"
     let second = self.peek(); // next char, e.g. 'r', '"', etc.
 
@@ -130,7 +130,7 @@ impl Lexer {
         )
         .with_help("This prefix is reserved for future use.".to_string());
         engine.add(diag);
-        return Some(TokenKind::ReservedPrefix);
+        return Err(());
       }
 
       if !VALID_PREFIXES.contains(&prefix.as_str()) {
@@ -146,7 +146,7 @@ impl Lexer {
         )
         .with_help("Valid prefixes: b, br, c, cr, r.".to_string());
         engine.add(diag);
-        return Some(TokenKind::UnknownPrefix);
+        return Err(());
       }
     }
 
@@ -161,7 +161,7 @@ impl Lexer {
       ("c", Some('r')) => self.lex_craw_str(engine), // cr"..."
       ("r", Some('"')) | ("r", Some('#')) => self.lex_raw_str(engine), // r"..." or r#"..."#
       ("\"", _) => self.lex_str(engine),             // "..."
-      _ => Some(TokenKind::Unknown),
+      _ => Err(()),
     }
   }
 
@@ -169,7 +169,7 @@ impl Lexer {
   ///
   /// Counts `#` fences, requires an opening `"`, then scans until a matching
   /// closing `"###…###`. No escapes are processed.
-  fn lex_craw_str(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_craw_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // The 'c' prefix has been consumed; we're currently at 'r'.
     self.advance(); // consume 'r'
 
@@ -218,9 +218,7 @@ impl Lexer {
       .with_help("Raw C strings must start with cr\"...\", cr#\"...\"#, etc.".to_string());
       engine.add(diag);
 
-      return Some(TokenKind::Literal {
-        kind: LiteralKind::RawCStr { n_hashes },
-      });
+      return Err(());
     }
 
     // Consume opening quote.
@@ -272,7 +270,7 @@ impl Lexer {
       engine.add(diag);
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::RawCStr { n_hashes },
     })
   }
@@ -281,7 +279,7 @@ impl Lexer {
   ///
   /// Counts `#` fences, requires an opening `"`, then scans until a matching
   /// closing `"###…###`. Escapes are not processed.
-  fn lex_raw_str(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_raw_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     const MAX_HASHES: usize = 255;
 
     // We're just after the 'r' and at zero or more '#'.
@@ -329,9 +327,7 @@ impl Lexer {
       );
       engine.add(diag);
 
-      return Some(TokenKind::Literal {
-        kind: LiteralKind::RawStr { n_hashes },
-      });
+      return Err(());
     }
 
     // Consume opening quote.
@@ -411,13 +407,10 @@ impl Lexer {
       ));
       engine.add(diag);
 
-      // Basic recovery.
-      if self.peek() == Some('\n') {
-        self.advance();
-      }
+      return Err(());
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::RawStr { n_hashes },
     })
   }
@@ -428,7 +421,7 @@ impl Lexer {
   /// - Supports `\\`, `\"`, `\n`, `\r`, `\t`, `\0`, `\xNN` (ASCII), `\u{...}`.
   /// - Supports line-continuation escapes: `\` + LF + following whitespace.
   /// - Allows LF inside the literal, but rejects bare CR outside continuation.
-  fn lex_cstr(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_cstr(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // The 'c' prefix has been consumed; we're at the opening '"'.
     self.advance(); // consume '"'
 
@@ -447,9 +440,10 @@ impl Lexer {
       )
       .with_help("C strings must end with a closing '\"'.".to_string());
       engine.add(diagnostic);
+      return Err(());
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::CStr,
     })
   }
@@ -463,7 +457,7 @@ impl Lexer {
   ///
   /// For `br...`:
   /// - Acts like a raw string; bytes are taken verbatim.
-  fn lex_bstr(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_bstr(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // The 'b' prefix has already been consumed.
     if self.peek() == Some('r') {
       // --- RAW BYTE STRING: br"..." or br#"..."# ---
@@ -491,7 +485,7 @@ impl Lexer {
         )
         .with_help("Raw byte strings must start with br\"...\", br#\"...\"#, etc.".to_string());
         engine.add(diag);
-        return Some(TokenKind::Literal {
+        return Ok(TokenKind::Literal {
           kind: LiteralKind::RawByteStr { n_hashes },
         });
       }
@@ -540,7 +534,7 @@ impl Lexer {
         engine.add(diag);
       }
 
-      return Some(TokenKind::Literal {
+      return Ok(TokenKind::Literal {
         kind: LiteralKind::RawByteStr { n_hashes },
       });
     }
@@ -559,7 +553,7 @@ impl Lexer {
       )
       .with_help("Byte strings must start with b\"...\" or br\"...\".".to_string());
       engine.add(diag);
-      return Some(TokenKind::Unknown);
+      return Err(());
     }
 
     self.advance(); // consume opening quote
@@ -601,6 +595,7 @@ impl Lexer {
                   self.source.path.to_string(),
                 );
                 engine.add(diag);
+                return Err(());
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
@@ -611,15 +606,7 @@ impl Lexer {
                 self.source.path.to_string(),
               );
               engine.add(diag);
-              // Best-effort recovery: consume up to the closing '}' if present.
-              self.advance(); // 'u'
-              self.advance(); // '{'
-              while let Some(ch) = self.peek() {
-                self.advance();
-                if ch == '}' {
-                  break;
-                }
-              }
+              return Err(());
             },
             _ => {
               // Invalid escape.
@@ -637,6 +624,7 @@ impl Lexer {
               if self.peek().is_some() {
                 self.advance();
               }
+              return Err(());
             },
           }
         },
@@ -657,6 +645,7 @@ impl Lexer {
             LabelStyle::Primary,
           );
           engine.add(diag);
+          return Err(());
         },
         _ => {
           // Plain content must be ASCII.
@@ -668,6 +657,7 @@ impl Lexer {
               self.source.path.to_string(),
             );
             engine.add(diag);
+            return Err(());
           }
         },
       }
@@ -689,10 +679,10 @@ impl Lexer {
       )
       .with_help("Byte strings must end with a closing '\"'.".to_string());
       engine.add(diag);
-      return Some(TokenKind::Unknown);
+      return Err(());
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::ByteStr,
     })
   }
@@ -702,7 +692,7 @@ impl Lexer {
   /// - Must encode exactly one byte.
   /// - Content must be ASCII.
   /// - Allowed escapes: `\\`, `\'`, `\n`, `\r`, `\t`, `\0`, `\xNN`.
-  fn lex_bchar(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_bchar(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // We are just after 'b'; expect opening `'`.
     if self.peek() != Some('\'') {
       let diagnostic = Diagnostic::new(
@@ -716,7 +706,7 @@ impl Lexer {
         LabelStyle::Primary,
       );
       engine.add(diagnostic);
-      return Some(TokenKind::Unknown);
+      return Err(());
     }
 
     self.advance(); // consume opening '\''
@@ -843,7 +833,7 @@ impl Lexer {
       .with_help("Byte char literals must look like b'X' or b'\\xNN'.".to_string());
       engine.add(diagnostic);
 
-      return Some(TokenKind::Unknown);
+      return Err(());
     }
 
     if produced_bytes == 0 {
@@ -860,7 +850,7 @@ impl Lexer {
       .with_help("Byte char literals must encode exactly one ASCII byte.".to_string());
       engine.add(diagnostic);
 
-      return Some(TokenKind::Unknown);
+      return Err(());
     }
 
     if produced_bytes > 1 {
@@ -880,10 +870,10 @@ impl Lexer {
       .with_help("Byte char literals may only encode a single byte.".to_string());
       engine.add(diagnostic);
 
-      return Some(TokenKind::Unknown);
+      return Err(());
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::Byte,
     })
   }
@@ -893,7 +883,7 @@ impl Lexer {
   /// - Validates escapes and reports errors for unterminated forms or bad escapes.
   /// - If no closing `'` is found, falls back to `lex_lifetime` (`'a`, `'static`, etc.).
   /// - Ensures there is at most one Unicode scalar value (or a single escape).
-  fn lex_char(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_char(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     let mut terminated = false;
 
     // The opening `'` has already been consumed by the caller (`lex_string`),
@@ -959,7 +949,7 @@ impl Lexer {
                     );
                     engine.add(diag);
                     self.advance();
-                    break;
+                    return Err(());
                   },
                 }
               }
@@ -976,6 +966,7 @@ impl Lexer {
                     self.source.path.to_string(),
                   );
                   engine.add(diag);
+                  return Err(());
                 }
               } else {
                 let diag = Diagnostic::new(
@@ -984,6 +975,7 @@ impl Lexer {
                   self.source.path.to_string(),
                 );
                 engine.add(diag);
+                return Err(());
               }
             },
             _ => {
@@ -996,6 +988,7 @@ impl Lexer {
               if self.peek().is_some() {
                 self.advance();
               }
+              return Err(());
             },
           }
         },
@@ -1027,9 +1020,7 @@ impl Lexer {
       .with_help("Character literals must be a single Unicode scalar value.".to_string());
       engine.add(diagnostic);
 
-      return Some(TokenKind::Literal {
-        kind: LiteralKind::Char,
-      });
+      return Err(());
     }
 
     if !terminated {
@@ -1055,10 +1046,11 @@ impl Lexer {
           "Character literals must be a single Unicode scalar or a single escape.".to_string(),
         );
         engine.add(diagnostic);
+        return Err(());
       }
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::Char,
     })
   }
@@ -1069,7 +1061,7 @@ impl Lexer {
   /// - Supports the usual escapes plus `\xNN` (ASCII) and `\u{...}`.
   /// - Supports line-continuation escapes (`\` + LF + following whitespace).
   /// - Allows LF, forbids bare CR.
-  fn lex_str(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  fn lex_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     let terminated = self.scan_string_body(engine, "string");
 
     if !terminated {
@@ -1085,9 +1077,10 @@ impl Lexer {
       )
       .with_help("String literals must end with a closing '\"'.".to_string());
       engine.add(diagnostic);
+      return Err(());
     }
 
-    Some(TokenKind::Literal {
+    Ok(TokenKind::Literal {
       kind: LiteralKind::Str,
     })
   }

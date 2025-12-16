@@ -18,7 +18,7 @@ impl Lexer {
   /// Emits diagnostics for invalid or malformed lifetimes.
   ///
   /// Returns `TokenKind::Lifetime { starts_with_number }` or `TokenKind::Unknown` on error.
-  pub fn lex_lifetime(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
+  pub fn lex_lifetime(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     let chars: Vec<char> = self.get_current_lexeme().chars().collect();
 
     // INFO: We’re iterating over the lexeme in reverse to handle potentially malformed lifetime
@@ -84,10 +84,10 @@ impl Lexer {
       .with_help("Lifetimes must not start with a number.".to_string());
 
       engine.add(diagnostic);
-      Some(TokenKind::Unknown)
+      return Err(());
     } else {
       // Return lifetime token directly no diagnostics at this stage
-      Some(TokenKind::Lifetime { starts_with_number })
+      Ok(TokenKind::Lifetime { starts_with_number })
     }
   }
 }

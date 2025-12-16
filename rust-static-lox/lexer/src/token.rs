@@ -304,11 +304,6 @@ pub enum TokenKind {
   /// ```
   Ident,
 
-  /// Invalid identifier (used for error recovery)
-  ///
-  /// Typically identifiers with invalid characters or starting with digits.
-  InvalidIdent,
-
   /// Raw identifier (allows using keywords as identifiers)
   ///
   /// # Examples
@@ -357,31 +352,6 @@ pub enum TokenKind {
     /// The specific kind of literal
     kind: LiteralKind,
   },
-
-  // =========================================================================
-  // PREFIX ERRORS
-  // =========================================================================
-  /// Unknown prefix on a literal
-  ///
-  /// # Example
-  /// ```rust
-  /// q"invalid"  // 'q' is not a valid string prefix
-  /// ```
-  UnknownPrefix,
-
-  /// NOTE: this is a placeholder for future compatibility
-  /// Unknown prefix on a lifetime
-  ///
-  /// # Example
-  /// ```rust
-  /// x'invalid   // only 'r' is valid before lifetimes
-  /// ```
-  UnknownPrefixLifetime,
-
-  /// Reserved prefix that's not yet used
-  ///
-  /// Rust reserves some prefixes for future use.
-  ReservedPrefix,
 
   // =========================================================================
   // KEYWORDS
@@ -519,12 +489,6 @@ pub enum TokenKind {
   FatArrow,   // => (match arm)
   DotDot,     // .. (range, struct update)
   DotDotEq,   // ..= (inclusive range)
-
-  // =========================================================================
-  // SPECIAL TOKENS
-  // =========================================================================
-  /// Unknown or invalid token (error recovery)
-  Unknown,
 
   /// End of file
   Eof,
@@ -694,23 +658,6 @@ impl TokenKind {
   /// ```
   pub fn is_literal(&self) -> bool {
     matches!(self, Literal { .. })
-  }
-
-  /// Returns true if this token represents an error
-  ///
-  /// Error tokens are used for recovery and diagnostics.
-  ///
-  /// # Examples
-  /// ```rust
-  /// assert!(Unknown.is_error());
-  /// assert!(InvalidIdent.is_error());
-  /// assert!(!Ident.is_error());
-  /// ```
-  pub fn is_error(&self) -> bool {
-    matches!(
-      self,
-      Unknown | InvalidIdent | UnknownPrefix | UnknownPrefixLifetime | ReservedPrefix
-    )
   }
 
   /// Returns true if this token is a keyword

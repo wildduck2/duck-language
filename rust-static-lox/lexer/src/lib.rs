@@ -15,7 +15,7 @@
 
 use diagnostic::{DiagnosticEngine, SourceFile, Span};
 
-use crate::token::{Token, TokenKind};
+use crate::token::{LiteralKind, Token, TokenKind};
 
 mod lexers;
 mod scanner_utils;
@@ -85,7 +85,7 @@ impl Lexer {
 
       let token = self.lex_tokens(c, engine);
 
-      if let Some(token_type) = token {
+      if let Ok(token_type) = token {
         self.emit(token_type);
       };
     }
@@ -142,17 +142,48 @@ impl Lexer {
   /// ```
   fn emit(&mut self, kind: TokenKind) {
     // ignore comments
-    if kind.is_trivia() || kind.is_error() {
+    if kind.is_trivia() {
       return;
     }
 
-    self.tokens.push(Token {
-      kind,
-      span: Span {
+    let span = match &kind {
+      TokenKind::Literal { kind } => match &kind {
+        LiteralKind::Char => Span {
+          start: self.start + 1,
+          end: self.current - 1,
+        },
+        LiteralKind::Str => Span {
+          start: self.start + 1,
+          end: self.current - 1,
+        },
+        LiteralKind::CStr => Span {
+          start: self.start + 2,
+          end: self.current - 1,
+        },
+        LiteralKind::RawStr { n_hashes } => Span {
+          start: self.start + 2 + n_hashes,
+          end: self.current - 1 - n_hashes,
+        },
+        LiteralKind::RawByteStr { n_hashes } => Span {
+          start: self.start + 3 + n_hashes,
+          end: self.current - 1 - n_hashes,
+        },
+        LiteralKind::RawCStr { n_hashes } => Span {
+          start: self.start + 3 + n_hashes,
+          end: self.current - 1 - n_hashes,
+        },
+        _ => Span {
+          start: self.start,
+          end: self.current,
+        },
+      },
+      _ => Span {
         start: self.start,
         end: self.current,
       },
-    });
+    };
+
+    self.tokens.push(Token { kind, span });
     self.start = self.current;
   }
 
