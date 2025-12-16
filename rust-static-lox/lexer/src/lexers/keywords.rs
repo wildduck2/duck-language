@@ -3,6 +3,13 @@
 //! Recognizes Rust keywords and distinguishes them from regular identifiers.
 //! Also handles raw identifiers (`r#type`) and invalid identifiers.
 
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  DiagnosticEngine, Span,
+};
+
 use crate::{token::TokenKind, Lexer};
 
 impl Lexer {
@@ -15,7 +22,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Some(TokenKind)` - Keyword token, `Ident`, `RawIdent`, or `InvalidIdent`
-  pub fn lex_keywords(&mut self) -> Option<TokenKind> {
+  pub fn lex_keywords(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // Consume valid identifier characters
     while let Some(ch) = self.peek() {
       if !ch.is_ascii_alphanumeric() && ch != '_' {
@@ -26,71 +33,71 @@ impl Lexer {
 
     match self.get_current_lexeme() {
       // Control Flow Keywords
-      "if" => Some(TokenKind::KwIf),
-      "else" => Some(TokenKind::KwElse),
-      "match" => Some(TokenKind::KwMatch),
-      "loop" => Some(TokenKind::KwLoop),
-      "while" => Some(TokenKind::KwWhile),
-      "for" => Some(TokenKind::KwFor),
-      "break" => Some(TokenKind::KwBreak),
-      "continue" => Some(TokenKind::KwContinue),
-      "return" => Some(TokenKind::KwReturn),
+      "if" => Ok(TokenKind::KwIf),
+      "else" => Ok(TokenKind::KwElse),
+      "match" => Ok(TokenKind::KwMatch),
+      "loop" => Ok(TokenKind::KwLoop),
+      "while" => Ok(TokenKind::KwWhile),
+      "for" => Ok(TokenKind::KwFor),
+      "break" => Ok(TokenKind::KwBreak),
+      "continue" => Ok(TokenKind::KwContinue),
+      "return" => Ok(TokenKind::KwReturn),
 
       // Declaration Keywords
-      "let" => Some(TokenKind::KwLet),
-      "fn" => Some(TokenKind::KwFn),
-      "struct" => Some(TokenKind::KwStruct),
-      "enum" => Some(TokenKind::KwEnum),
-      "union" => Some(TokenKind::KwUnion),
-      "trait" => Some(TokenKind::KwTrait),
-      "impl" => Some(TokenKind::KwImpl),
-      "type" => Some(TokenKind::KwType),
-      "mod" => Some(TokenKind::KwMod),
-      "use" => Some(TokenKind::KwUse),
-      "const" => Some(TokenKind::KwConst),
-      "static" => Some(TokenKind::KwStatic),
-      "extern" => Some(TokenKind::KwExtern),
-      "macro" => Some(TokenKind::KwMacro),
-      "auto" => Some(TokenKind::KwAuto),
-      "default" => Some(TokenKind::KwDefault),
+      "let" => Ok(TokenKind::KwLet),
+      "fn" => Ok(TokenKind::KwFn),
+      "struct" => Ok(TokenKind::KwStruct),
+      "enum" => Ok(TokenKind::KwEnum),
+      "union" => Ok(TokenKind::KwUnion),
+      "trait" => Ok(TokenKind::KwTrait),
+      "impl" => Ok(TokenKind::KwImpl),
+      "type" => Ok(TokenKind::KwType),
+      "mod" => Ok(TokenKind::KwMod),
+      "use" => Ok(TokenKind::KwUse),
+      "const" => Ok(TokenKind::KwConst),
+      "static" => Ok(TokenKind::KwStatic),
+      "extern" => Ok(TokenKind::KwExtern),
+      "macro" => Ok(TokenKind::KwMacro),
+      "auto" => Ok(TokenKind::KwAuto),
+      "default" => Ok(TokenKind::KwDefault),
 
       // Modifier Keywords
-      "pub" => Some(TokenKind::KwPub),
-      "mut" => Some(TokenKind::KwMut),
-      "ref" => Some(TokenKind::KwRef),
-      "move" => Some(TokenKind::KwMove),
-      "unsafe" => Some(TokenKind::KwUnsafe),
-      "async" => Some(TokenKind::KwAsync),
-      "await" => Some(TokenKind::KwAwait),
-      "dyn" => Some(TokenKind::KwDyn),
+      "pub" => Ok(TokenKind::KwPub),
+      "mut" => Ok(TokenKind::KwMut),
+      "ref" => Ok(TokenKind::KwRef),
+      "move" => Ok(TokenKind::KwMove),
+      "unsafe" => Ok(TokenKind::KwUnsafe),
+      "async" => Ok(TokenKind::KwAsync),
+      "await" => Ok(TokenKind::KwAwait),
+      "dyn" => Ok(TokenKind::KwDyn),
 
       // Special Identifiers
-      "self" => Some(TokenKind::KwSelf),
-      "Self" => Some(TokenKind::KwSelfType),
-      "super" => Some(TokenKind::KwSuper),
-      "crate" => Some(TokenKind::KwCrate),
+      "self" => Ok(TokenKind::KwSelf),
+      "Self" => Ok(TokenKind::KwSelfType),
+      "super" => Ok(TokenKind::KwSuper),
+      "crate" => Ok(TokenKind::KwCrate),
 
       // Literal Keywords
-      "true" => Some(TokenKind::KwTrue),
-      "false" => Some(TokenKind::KwFalse),
+      "true" => Ok(TokenKind::KwTrue),
+      "false" => Ok(TokenKind::KwFalse),
 
       // Other Keywords
-      "as" => Some(TokenKind::KwAs),
-      "in" => Some(TokenKind::KwIn),
-      "where" => Some(TokenKind::KwWhere),
+      "as" => Ok(TokenKind::KwAs),
+      "in" => Ok(TokenKind::KwIn),
+      "where" => Ok(TokenKind::KwWhere),
 
       // Reserved Keywords (not yet used, but reserved for future use)
-      "abstract" => Some(TokenKind::KwAbstract),
-      "become" => Some(TokenKind::KwBecome),
-      "box" => Some(TokenKind::KwBox),
-      "do" => Some(TokenKind::KwDo),
-      "final" => Some(TokenKind::KwFinal),
-      "override" => Some(TokenKind::KwOverride),
-      "try" => Some(TokenKind::KwTry),
-      "typeof" => Some(TokenKind::KwTypeof),
-      "unsized" => Some(TokenKind::KwUnsized),
-      "virtual" => Some(TokenKind::KwVirtual),
-      "yield" => Some(TokenKind::KwYield),
+      "abstract" => Ok(TokenKind::KwAbstract),
+      "become" => Ok(TokenKind::KwBecome),
+      "box" => Ok(TokenKind::KwBox),
+      "do" => Ok(TokenKind::KwDo),
+      "final" => Ok(TokenKind::KwFinal),
+      "override" => Ok(TokenKind::KwOverride),
+      "try" => Ok(TokenKind::KwTry),
+      "typeof" => Ok(TokenKind::KwTypeof),
+      "unsized" => Ok(TokenKind::KwUnsized),
+      "virtual" => Ok(TokenKind::KwVirtual),
+      "yield" => Ok(TokenKind::KwYield),
 
       _ => {
         // Handles regular identifiers (foo, _bar, Baz) and raw identifiers (r#type, r#match)
@@ -100,7 +107,7 @@ impl Lexer {
 
         if lexeme.starts_with("r#") && lexeme.len() > 2 {
           // r# followed by a valid identifier
-          Some(TokenKind::RawIdent)
+          Ok(TokenKind::RawIdent)
         } else if lexeme
           .chars()
           .next()
@@ -108,12 +115,27 @@ impl Lexer {
           .unwrap_or(false)
         {
           // Invalid identifier (starts with a digit)
-          Some(TokenKind::InvalidIdent)
+
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidIdentifier),
+            format!("Invalid identifier: {}", lexeme),
+            self.source.path.to_string(),
+          )
+          .with_label(
+            Span::new(self.start, self.current),
+            Some("Invalid identifier".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("Identifiers must start with a letter.".to_string());
+
+          engine.add(diagnostic);
+
+          return Err(());
         } else {
           // Normal identifier
-          Some(TokenKind::Ident)
+          Ok(TokenKind::Ident)
         }
-      }
+      },
     }
   }
 }

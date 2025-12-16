@@ -9,13 +9,13 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Plus)` or `Some(TokenKind::PlusEq)`
-  pub(crate) fn lex_plus(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Plus)` or `Ok(TokenKind::PlusEq)`
+  pub(crate) fn lex_plus(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::PlusEq);
+      return Ok(TokenKind::PlusEq);
     }
 
-    Some(TokenKind::Plus)
+    Ok(TokenKind::Plus)
   }
 
   /// Lexes a minus sign (`-`), compound assignment (`-=`), or thin arrow (`->`).
@@ -27,15 +27,15 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Minus)`, `Some(TokenKind::MinusEq)`, or `Some(TokenKind::ThinArrow)`
-  pub(crate) fn lex_minus(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Minus)`, `Ok(TokenKind::MinusEq)`, or `Ok(TokenKind::ThinArrow)`
+  pub(crate) fn lex_minus(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::MinusEq);
+      return Ok(TokenKind::MinusEq);
     } else if self.match_char('>') {
-      return Some(TokenKind::ThinArrow);
+      return Ok(TokenKind::ThinArrow);
     }
 
-    Some(TokenKind::Minus)
+    Ok(TokenKind::Minus)
   }
 
   /// Lexes a star (`*`) or compound assignment (`*=`).
@@ -44,13 +44,13 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Star)` or `Some(TokenKind::StarEq)`
-  pub(crate) fn lex_star(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Star)` or `Ok(TokenKind::StarEq)`
+  pub(crate) fn lex_star(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::StarEq);
+      return Ok(TokenKind::StarEq);
     }
 
-    Some(TokenKind::Star)
+    Ok(TokenKind::Star)
   }
 
   /// Lexes a slash (`/`), compound assignment (`/=`), or comment (`//`, `/*`).
@@ -63,17 +63,17 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Slash)`, `Some(TokenKind::SlashEq)`, or comment token
-  pub(crate) fn lex_slash(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Slash)`, `Ok(TokenKind::SlashEq)`, or comment token
+  pub(crate) fn lex_slash(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::SlashEq);
+      return Ok(TokenKind::SlashEq);
     } else if self.match_char('/') {
       return self.lex_line_comment();
     } else if self.match_char('*') {
       return self.lex_multi_line_comment();
     }
 
-    Some(TokenKind::Slash)
+    Ok(TokenKind::Slash)
   }
 
   /// Lexes a percent sign (`%`) or compound assignment (`%=`).
@@ -82,12 +82,12 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Percent)` or `Some(TokenKind::PercentEq)`
-  pub(crate) fn lex_percent(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Percent)` or `Ok(TokenKind::PercentEq)`
+  pub(crate) fn lex_percent(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::PercentEq);
+      return Ok(TokenKind::PercentEq);
     }
 
-    Some(TokenKind::Percent)
+    Ok(TokenKind::Percent)
   }
 }

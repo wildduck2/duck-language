@@ -4,7 +4,7 @@ use diagnostic::Span;
 
 use crate::ast::{Attribute, GenericParams, Type, Visibility, WhereClause};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StructDecl {
   pub name: String,
   pub generics: Option<GenericParams>,
@@ -12,14 +12,14 @@ pub(crate) struct StructDecl {
   pub where_clause: Option<WhereClause>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum StructKind {
   Named { fields: Vec<FieldDecl> },
   Tuple { fields: Vec<TupleField> },
   Unit,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct FieldDecl {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
@@ -28,7 +28,7 @@ pub(crate) struct FieldDecl {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct TupleField {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,

@@ -6,13 +6,13 @@ use diagnostic::Span;
 
 use crate::ast::{Attribute, Expr, Path, Type};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BindingMode {
   ByValue(crate::ast::Mutability),
   ByRef(crate::ast::Mutability),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Pattern {
   Wildcard {
     span: Span,
@@ -96,7 +96,7 @@ pub(crate) enum Pattern {
   },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct FieldPattern {
   pub attributes: Vec<Attribute>,
   pub name: String,
@@ -105,7 +105,7 @@ pub(crate) struct FieldPattern {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum RangeKind {
   Exclusive,         // a..b
   Inclusive,         // a..=b

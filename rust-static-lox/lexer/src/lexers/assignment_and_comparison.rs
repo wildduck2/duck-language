@@ -14,15 +14,15 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Eq)`, `Some(TokenKind::EqEq)`, or `Some(TokenKind::FatArrow)`
-  pub(crate) fn lex_equal(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Eq)`, `Ok(TokenKind::EqEq)`, or `Ok(TokenKind::FatArrow)`
+  pub(crate) fn lex_equal(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::EqEq);
+      return Ok(TokenKind::EqEq);
     } else if self.match_char('>') {
-      return Some(TokenKind::FatArrow);
+      return Ok(TokenKind::FatArrow);
     }
 
-    Some(TokenKind::Eq)
+    Ok(TokenKind::Eq)
   }
 
   /// Lexes an exclamation mark (`!`) or inequality (`!=`).
@@ -33,13 +33,13 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Bang)` or `Some(TokenKind::Ne)`
-  pub(crate) fn lex_bang(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Bang)` or `Ok(TokenKind::Ne)`
+  pub(crate) fn lex_bang(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::Ne);
+      return Ok(TokenKind::Ne);
     }
 
-    Some(TokenKind::Bang)
+    Ok(TokenKind::Bang)
   }
 
   /// Lexes a less-than sign (`<`), less-or-equal (`<=`), or left shift assignment (`<<=`).
@@ -51,18 +51,18 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Lt)`, `Some(TokenKind::Le)`, or `Some(TokenKind::ShiftLeftEq)`
-  pub(crate) fn lex_less(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Lt)`, `Ok(TokenKind::Le)`, or `Ok(TokenKind::ShiftLeftEq)`
+  pub(crate) fn lex_less(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::Le);
+      return Ok(TokenKind::Le);
     } else if self.match_char('<') {
       if self.match_char('=') {
-        return Some(TokenKind::ShiftLeftEq);
+        return Ok(TokenKind::ShiftLeftEq);
       }
       self.current -= 1; // put back the '<' when it's just `<<`
     }
 
-    Some(TokenKind::Lt)
+    Ok(TokenKind::Lt)
   }
 
   /// Lexes a greater-than sign (`>`), greater-or-equal (`>=`), or right shift (`>>`, `>>=`).
@@ -74,17 +74,17 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Gt)`, `Some(TokenKind::Ge)`, `Some(TokenKind::ShiftRight)`, or `Some(TokenKind::ShiftRightEq)`
-  pub(crate) fn lex_greater(&mut self) -> Option<TokenKind> {
+  /// `Ok(TokenKind::Gt)`, `Ok(TokenKind::Ge)`, `Ok(TokenKind::ShiftRight)`, or `Ok(TokenKind::ShiftRightEq)`
+  pub(crate) fn lex_greater(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
-      return Some(TokenKind::Ge);
+      return Ok(TokenKind::Ge);
     } else if self.match_char('>') {
       if self.match_char('=') {
-        return Some(TokenKind::ShiftRightEq);
+        return Ok(TokenKind::ShiftRightEq);
       }
       self.current -= 1; // revert the '>' char
     }
 
-    Some(TokenKind::Gt)
+    Ok(TokenKind::Gt)
   }
 }

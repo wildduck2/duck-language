@@ -18,6 +18,7 @@ pub enum DiagnosticError {
   ReservedPrefix,
   InvalidLifetime,
   InvalidInteger,
+  InvalidIdentifier,
 
   // parser
   UnexpectedToken,
@@ -66,6 +67,7 @@ impl DiagnosticError {
       Self::ReservedPrefix => "E0010",
       Self::InvalidLifetime => "E0011",
       Self::InvalidInteger => "E0012",
+      Self::InvalidIdentifier => "E0018",
 
       Self::UnexpectedToken => "E0013",
       Self::InvalidLiteral => "E0014",

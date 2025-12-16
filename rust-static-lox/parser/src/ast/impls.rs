@@ -5,13 +5,13 @@ use diagnostic::Span;
 
 use crate::ast::{Attribute, FnDecl, GenericParams, Ident, Path, Type, Visibility, WhereClause};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ImplPolarity {
   Positive,
   Negative,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ImplBlock {
   pub attributes: Vec<Attribute>,
   pub is_unsafe: bool,
@@ -27,7 +27,7 @@ pub(crate) struct ImplBlock {
   pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ImplItem {
   Method(FnDecl),
 

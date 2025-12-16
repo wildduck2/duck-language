@@ -3,19 +3,19 @@
 
 use crate::ast::generic::GenericArgs;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Path {
   pub leading_colon: bool,
   pub segments: Vec<PathSegment>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PathSegment {
   pub kind: PathSegmentKind,
   pub args: Option<GenericArgs>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PathSegmentKind {
   Ident(String),
   Super,

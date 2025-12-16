@@ -19,7 +19,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Some(TokenKind::LineComment { doc_style })`
-  pub fn lex_line_comment(&mut self) -> Option<TokenKind> {
+  pub fn lex_line_comment(&mut self) -> Result<TokenKind, ()> {
     let doc_style = if self.match_char('/') {
       Some(DocStyle::Inner)
     } else if self.match_char('!') {
@@ -34,7 +34,7 @@ impl Lexer {
       }
       self.advance(); // consume the current char
     }
-    Some(TokenKind::LineComment { doc_style })
+    Ok(TokenKind::LineComment { doc_style })
   }
 
   /// Lexes a block comment (`/* */` or `/** */` or `/*! */`).
@@ -50,17 +50,17 @@ impl Lexer {
   /// `Some(TokenKind::BlockComment { doc_style, terminated })`
   ///
   /// The `terminated` field is `false` if the closing `*/` is missing.
-  pub fn lex_multi_line_comment(&mut self) -> Option<TokenKind> {
+  pub fn lex_multi_line_comment(&mut self) -> Result<TokenKind, ()> {
     // Detect Rust-style doc comments: /*! ... */ (Outer) or /** ... */ (Inner)
     let doc_style = match self.peek() {
       Some('!') => {
         self.advance(); // consume '!'
         Some(DocStyle::Outer)
-      }
+      },
       Some('*') => {
         self.advance(); // consume second '*'
         Some(DocStyle::Inner)
-      }
+      },
       _ => None,
     };
 
@@ -100,7 +100,7 @@ impl Lexer {
       self.advance(); // consume any other char
     }
 
-    Some(TokenKind::BlockComment {
+    Ok(TokenKind::BlockComment {
       doc_style,
       terminated,
     })

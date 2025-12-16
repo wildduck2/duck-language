@@ -1,6 +1,6 @@
 // Small shared name types that show up everywhere.
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Ident {
   Name(String),
   Underscore,
