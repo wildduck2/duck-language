@@ -9,29 +9,31 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.advance(engine); // consume the "match"
+    self.advance(engine); // consume "match"
+
     let scrutinee = self.parse_expression(vec![], context, engine)?;
 
-    let mut arms = vec![];
     self.expect(TokenKind::OpenBrace, engine)?;
+
+    let mut arms = Vec::new();
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
       arms.push(self.parse_match_arm(context, engine)?);
 
-      // Here if the arm is the last one, we don't need to consume the comma
-      if !matches!(self.current_token().kind, TokenKind::CloseBrace)
-        || matches!(self.current_token().kind, TokenKind::Comma)
-      {
-        self.advance(engine); // consume the comma
+      if matches!(self.current_token().kind, TokenKind::Comma) {
+        self.advance(engine);
       }
     }
+
     self.expect(TokenKind::CloseBrace, engine)?;
 
-    token.span.merge(self.current_token().span);
-    Ok(Expr::Match {
-      scrutinee: Box::new(scrutinee),
-      arms,
-      span: token.span,
+    Ok(Expr {
+      attributes: Vec::new(),
+      kind: ExprKind::Match {
+        scrutinee: Box::new(scrutinee),
+        arms,
+      },
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -41,16 +43,18 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<MatchArm, ()> {
     let mut token = self.current_token();
+
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_attributes(engine)?
+      self.parse_outer_attributes(engine)?
     } else {
-      vec![]
+      Vec::new()
     };
 
     let pattern = self.parse_pattern_with_or(context, engine)?;
 
     let guard = if matches!(self.current_token().kind, TokenKind::KwIf) {
-      Some(self.parse_match_guard(context, engine)?)
+      self.advance(engine); // consume "if"
+      Some(self.parse_expression(vec![], context, engine)?)
     } else {
       None
     };
@@ -58,39 +62,12 @@ impl Parser {
     self.expect(TokenKind::FatArrow, engine)?;
     let body = self.parse_expression(vec![], ExprContext::Default, engine)?;
 
-    token.span.merge(self.current_token().span);
-
     Ok(MatchArm {
       attributes,
       pattern,
       guard,
       body,
-      span: token.span,
-    })
-  }
-
-  fn parse_match_guard(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut token = self.current_token();
-    self.advance(engine); // consume the "if"
-    let condition = self.parse_expression(vec![], context, engine)?;
-
-    token.span.merge(self.current_token().span);
-    Ok(Expr::If {
-      condition: Box::new(condition),
-      then_branch: Box::new(Expr::Block {
-        inner_attributes: vec![],
-        outer_attributes: vec![],
-        stmts: vec![],
-        label: None,
-        flavor: BlockFlavor::Normal,
-        span: token.span,
-      }),
-      else_branch: None,
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 }

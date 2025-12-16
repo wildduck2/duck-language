@@ -24,6 +24,7 @@ mod pattern;
 mod postfix;
 mod range;
 mod shift;
+mod r#static;
 mod r#struct;
 mod term;
 mod r#type;

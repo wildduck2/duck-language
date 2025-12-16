@@ -30,20 +30,25 @@ impl Parser {
     let where_clause = self.parse_where_clause(engine)?;
     let body = Some(self.parse_block(None, ExprContext::Default, vec![], engine)?);
 
-    Ok(Item::Function(FnDecl {
+    Ok(Item::Vis(VisItem {
       attributes,
       visibility,
-      name,
-      generics,
-      params,
-      return_type,
-      where_clause,
-      body,
-      is_async,
-      is_const,
-      is_unsafe,
-      is_extern,
-      abi,
+      kind: VisItemKind::Function(FnDecl {
+        sig: FnSig {
+          name,
+          generics,
+          params,
+          return_type,
+          where_clause,
+          span: *token.span.merge(self.current_token().span),
+        },
+        body,
+        is_async,
+        is_const,
+        is_unsafe,
+        is_extern,
+        abi,
+      }),
       span: *token.span.merge(self.current_token().span),
     }))
   }
@@ -190,22 +195,28 @@ impl Parser {
         return Err(());
       }
 
-      self.expect(TokenKind::DotDot, engine)?; // consume '..'
-      self.expect(TokenKind::Dot, engine)?; // consume '.'
+      self.expect(TokenKind::DotDot, engine)?;
+      self.expect(TokenKind::Dot, engine)?;
       ParamKind::Variadic
     } else {
       let pattern = self.parse_pattern(context, engine)?;
-      let is_self = self.check_self_param(&pattern, context, engine)?;
 
-      ParamKind::Normal {
-        pattern,
-        type_annotation: if matches!(self.current_token().kind, TokenKind::Colon) {
-          self.advance(engine); // consume ':'
-          Some(self.parse_type(engine)?)
-        } else {
-          None
-        },
-        is_self,
+      let type_annotation = if matches!(self.current_token().kind, TokenKind::Colon) {
+        self.advance(engine);
+        Some(self.parse_type(engine)?)
+      } else {
+        None
+      };
+
+      if let Some(self_param) =
+        self.lower_self_param(&pattern, type_annotation.as_ref(), context, engine)?
+      {
+        ParamKind::SelfParam(self_param)
+      } else {
+        ParamKind::Normal {
+          pattern,
+          type_annotation,
+        }
       }
     };
 
@@ -216,35 +227,98 @@ impl Parser {
     })
   }
 
-  fn check_self_param(
+  fn lower_self_param(
     &mut self,
     pattern: &Pattern,
-    context: ExprContext,
+    type_annotation: Option<&Type>,
+    _context: ExprContext,
     engine: &mut DiagnosticEngine,
-  ) -> Result<bool, ()> {
-    if let Pattern::Ident { name, span, .. } = pattern {
-      if name == "self" {
-        if matches!(context, ExprContext::Impl | ExprContext::Trait) {
-          return Ok(true);
+  ) -> Result<Option<SelfParam>, ()> {
+    use crate::ast::{Mutability, Pattern};
+
+    match pattern {
+      // --------------------------------------------
+      // `self`
+      // --------------------------------------------
+      Pattern::Ident {
+        binding,
+        name,
+        subpattern: None,
+        ..
+      } if name == "self" => {
+        let mutability = match binding {
+          BindingMode::ByValue(m) => m.clone(),
+          BindingMode::ByRef(_) => {
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidSelfParam),
+              "invalid self parameter".to_string(),
+              self.source_file.path.clone(),
+            )
+            .with_help("use `&self` or `&mut self`, not `ref self`".to_string());
+            engine.add(diagnostic);
+            return Err(());
+          },
+        };
+
+        if let Some(ty) = type_annotation {
+          return Ok(Some(SelfParam::Typed {
+            mutability,
+            ty: ty.clone(),
+          }));
         }
 
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidSelfInFreeFunction),
-          "self is not allowed in free functions".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          *span,
-          Some("self is not allowed in free functions".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("self is not allowed in free functions".to_string());
-        engine.add(diagnostic);
-        return Err(());
-      }
+        return Ok(Some(SelfParam::Shorthand {
+          reference: None,
+          mutability,
+        }));
+      },
+
+      // --------------------------------------------
+      // `&self` or `&mut self` or `&'a self`
+      // --------------------------------------------
+      Pattern::Reference {
+        depth: 1,
+        pattern: inner,
+        ..
+      } => match &**inner {
+        Pattern::Ident {
+          binding,
+          name,
+          subpattern: None,
+          ..
+        } if name == "self" => {
+          let (mutability, lifetime) = match binding {
+            BindingMode::ByValue(_) => (Mutability::Immutable, None),
+            BindingMode::ByRef(m) => (m.clone(), None),
+          };
+
+          if type_annotation.is_some() {
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidSelfParam),
+              "typed self parameters cannot be references".to_string(),
+              self.source_file.path.clone(),
+            )
+            .with_help("use `self: Type` or `&self` syntax, not both".to_string());
+            engine.add(diagnostic);
+            return Err(());
+          }
+
+          return Ok(Some(SelfParam::Shorthand {
+            reference: Some(SelfRef { lifetime }),
+            mutability,
+          }));
+        },
+
+        _ => {},
+      },
+
+      // --------------------------------------------
+      // not a self parameter
+      // --------------------------------------------
+      _ => {},
     }
 
-    Ok(false)
+    Ok(None)
   }
 
   fn parse_return_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Option<Type>, ()> {

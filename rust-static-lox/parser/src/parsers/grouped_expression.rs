@@ -1,36 +1,13 @@
 use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
-use crate::{ast::Expr, parser_utils::ExprContext, Parser};
+use crate::{
+  ast::{Expr, ExprKind},
+  parser_utils::ExprContext,
+  Parser,
+};
 
 impl Parser {
-  /// Parses parenthesized expressions and determines whether the result is:
-  ///
-  /// - a unit expression: "()"
-  /// - a grouped expression: "(expr)"
-  /// - a tuple expression: "(a, b, c)" or "(expr,)" for a one-element tuple
-  ///
-  /// Grammar (simplified):
-  ///
-  ///   groupedExpr ::= "(" ")"
-  ///                 | "(" inner ")"
-  ///
-  ///   inner ::= expr
-  ///           | expr ","
-  ///           | expr "," exprList
-  ///
-  ///   exprList ::= expr ("," expr)* (",")?
-  ///
-  /// Rules:
-  /// - A trailing comma after a single element creates a tuple: (x,)
-  /// - No trailing comma means it is a grouped expression: (x)
-  /// - Multiple elements always form a tuple.
-  ///
-  /// Notes:
-  /// - Attributes inside parentheses (#[] ...) are supported only in this
-  ///   implementation and are not in standard Rust.
-  /// - Unit expressions are recognized early: the parser checks for ")" after "(".
-  ///
   pub(crate) fn parse_grouped_and_tuple_expr(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -42,7 +19,12 @@ impl Parser {
     // Handle the unit expression "()"
     if matches!(self.current_token().kind, TokenKind::CloseParen) {
       self.advance(engine); // consume ")"
-      return Ok(Expr::Unit(*token.span.merge(self.current_token().span)));
+
+      return Ok(Expr {
+        attributes: vec![], // TODO: implement attributes
+        kind: ExprKind::Tuple { elements: vec![] },
+        span: token.span,
+      });
     }
 
     let mut elements = vec![];
@@ -75,26 +57,34 @@ impl Parser {
       1 => {
         if trailing_comma {
           // (x,) is a tuple
-          Ok(Expr::Tuple {
-            elements,
+
+          Ok(Expr {
+            attributes: vec![],
+            kind: ExprKind::Tuple { elements },
             span: token.span,
           })
         } else {
           // (x) is a grouping expression
-          Ok(Expr::Group {
-            expr: Box::new(elements[0].clone()),
+
+          Ok(Expr {
+            attributes: vec![],
+            kind: ExprKind::Group {
+              expr: Box::new(elements[0].clone()),
+            },
             span: token.span,
           })
         }
-      }
+      },
 
       _ => {
         // Multiple elements always form a tuple
-        Ok(Expr::Tuple {
-          elements,
+
+        Ok(Expr {
+          attributes: vec![],
+          kind: ExprKind::Tuple { elements },
           span: token.span,
         })
-      }
+      },
     }
   }
 }

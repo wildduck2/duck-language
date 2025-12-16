@@ -1,42 +1,3 @@
-//! TODO: Lifetime parser does not yet match full Rust grammar.
-//!
-//! Missing features:
-//!
-//! 1. Lifetime parameter syntax inside for<...> is incomplete.
-//!    Rust allows:  'a: 'b + 'c
-//!    The current parse_for_lifetimes only parses bare lifetimes.
-//!    It does not parse bounds for lifetime parameters inside the binder.
-//!
-//! 2. parse_lifetimes should reject invalid tokens inside <...>.
-//!    Rust does strict validation of what can appear in generic parameter lists.
-//!
-//! 3. parse_lifetime must validate that the lifetime token is a valid named lifetime,
-//!    not the anonymous lifetime '_ which behaves differently.
-//!
-//! 4. Lifetime bounds parsing is incomplete:
-//!    - Missing recognition of closing paren ')' as a terminator.
-//!    - Missing recognition of semicolon ';' as a terminator.
-//!    - Does not allow higher ranked lifetimes inside lifetime bounds.
-//!
-//! 5. parse_for_lifetimes must allow spaces and comments between tokens exactly as Rust does.
-//!
-//! 6. Missing support for higher ranked lifetimes in type position:
-//!    for<'a> fn(&'a T)
-//!
-//! 7. Does not validate that repeated lifetimes inside for<...> are forbidden:
-//!    for<'a, 'a> is invalid.
-//!
-//! 8. Lifetime names must follow Rust rules:
-//!    - after the quote, the first char must be alphabetic or underscore
-//!    - subsequent chars must be alphanumeric or underscore
-//!
-//! 9. parse_lifetime_bounds must correctly handle multiple plus signs,
-//!    and must produce diagnostics for trailing plus signs.
-//!
-//! 10. parse_lifetime should handle the anonymous lifetime '_ specially,
-//!     because Rust treats it differently than named lifetimes.
-//!
-
 use crate::{DiagnosticEngine, Parser};
 use diagnostic::{
   code::DiagnosticCode,
@@ -46,19 +7,6 @@ use diagnostic::{
 use lexer::token::TokenKind;
 
 impl Parser {
-  /// Parse a list of lifetimes separated by commas.
-  ///
-  /// Grammar:
-  /// ```
-  /// lifetimes -> lifetime ("," lifetime)* ","?
-  /// ```
-  ///
-  /// Example:
-  /// ```rust
-  /// <'a, 'b, 'c>
-  /// ```
-  ///
-  /// Returns a vector of lifetime names as strings.
   pub(crate) fn parse_lifetimes(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -76,20 +24,6 @@ impl Parser {
     Ok(lifetimes)
   }
 
-  /// Parse a single lifetime token.
-  ///
-  /// Grammar:
-  /// ```
-  /// lifetime -> LIFETIME
-  /// ```
-  ///
-  /// Example:
-  /// ```rust
-  /// 'a
-  /// ```
-  ///
-  /// Returns the lifetime name (including the leading `'`).
-  /// Emits a diagnostic if the token is not a valid lifetime.
   pub(crate) fn parse_lifetime(&mut self, engine: &mut DiagnosticEngine) -> Result<String, ()> {
     let token = self.current_token();
 
@@ -116,20 +50,6 @@ impl Parser {
     Err(())
   }
 
-  /// Parse a `for<'a, 'b>` higher-ranked lifetime binder used in type predicates.
-  ///
-  /// Grammar:
-  /// ```
-  /// forLifetimes  -> "for" "<" lifetimeParam ("," lifetimeParam)* ","? ">"
-  /// lifetimeParam -> LIFETIME (":" lifetimeBounds)?
-  /// ```
-  ///
-  /// Example:
-  /// ```rust
-  /// for<'a, 'b> F: Fn(&'a T, &'b U)
-  /// ```
-  ///
-  /// Returns a vector of lifetime names within the `for` clause.
   pub(crate) fn parse_for_lifetimes(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -146,19 +66,6 @@ impl Parser {
     }
   }
 
-  /// Parse a lifetime bound list such as `: 'a + 'b`.
-  ///
-  /// Grammar:
-  /// ```
-  /// lifetimeBounds -> lifetime ("+" lifetime)* "+"?
-  /// ```
-  ///
-  /// Example:
-  /// ```rust
-  /// 'a: 'b + 'c
-  /// ```
-  ///
-  /// Stops parsing when reaching delimiters such as `{`, `,`, or `>`.
   pub(crate) fn parse_lifetime_bounds(
     &mut self,
     engine: &mut DiagnosticEngine,

@@ -87,7 +87,7 @@ impl Parser {
           {
             let name = self.get_token_lexeme(&self.current_token());
             self.advance(engine); // consume the lifetime
-            bounds.push(TypeBound::Lifetime { name });
+            bounds.push(name);
             match_and_consume!(self, engine, TokenKind::Plus)?;
           }
         }
@@ -172,12 +172,10 @@ impl Parser {
 
           let for_lifetimes = self.parse_for_lifetimes(engine)?;
           let path = self.parse_path(false, engine)?;
-          let generics = self.parse_generic_args(engine)?;
 
           bounds.push(TypeBound::Trait {
             modifier,
             path,
-            generics,
             for_lifetimes,
           });
         },
@@ -272,7 +270,7 @@ impl Parser {
 
         Ok(Some(GenericArgs::Parenthesized {
           inputs,
-          output: Some(output),
+          output: Some(Box::new(output)),
         }))
       },
       TokenKind::Lt | TokenKind::ColonColon => {
@@ -297,7 +295,7 @@ impl Parser {
     &mut self,
     engine: &mut DiagnosticEngine,
   ) -> Result<GenericArg, ()> {
-    let mut token = self.current_token();
+    let token = self.current_token();
     let name = self.get_token_lexeme(&token);
 
     match token.kind {
@@ -313,42 +311,34 @@ impl Parser {
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Colon) => {
         self.advance(engine); // consume the identifier
 
-        let generics = self.parse_generic_params(&mut token, engine)?;
+        let args = self.parse_generic_args(engine)?;
 
         if self.current_token().kind == TokenKind::Colon {
           let bounds = self.parse_trait_bounds(engine)?;
 
-          return Ok(GenericArg::Constraint {
-            name,
-            generics,
-            bounds,
-          });
+          return Ok(GenericArg::Constraint { name, args, bounds });
         }
 
         self.expect(TokenKind::Colon, engine)?;
         let ty = self.parse_type(engine)?;
-        Ok(GenericArg::Binding { name, generics, ty })
+        Ok(GenericArg::Binding { name, args, ty })
       },
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Eq | TokenKind::Lt) => {
         self.advance(engine); // consume the identifier
 
-        let generics = self.parse_generic_params(&mut token, engine)?;
+        let args = self.parse_generic_args(engine)?;
 
         if self.current_token().kind == TokenKind::Colon {
           self.advance(engine); // consume the ':'
 
           let bounds = self.parse_trait_bounds(engine)?;
-          return Ok(GenericArg::Constraint {
-            name,
-            generics,
-            bounds,
-          });
+          return Ok(GenericArg::Constraint { args, name, bounds });
         }
 
         self.expect(TokenKind::Eq, engine)?; // consume the '='
         let ty = self.parse_type(engine)?;
 
-        Ok(GenericArg::Binding { name, generics, ty })
+        Ok(GenericArg::Binding { name, args, ty })
       },
 
       _ => Ok(GenericArg::Type(self.parse_type(engine)?)),

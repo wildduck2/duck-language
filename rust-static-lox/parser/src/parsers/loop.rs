@@ -1,5 +1,5 @@
 use crate::{
-  ast::{Attribute, Expr},
+  ast::{Attribute, Expr, ExprKind},
   parser_utils::ExprContext,
   Parser,
 };
@@ -22,9 +22,12 @@ impl Parser {
     let body = self.parse_block(None, ExprContext::LoopCondition, outer_attributes, engine)?;
 
     token.span.merge(self.current_token().span);
-    Ok(Expr::Loop {
-      label,
-      body: Box::new(body),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Loop {
+        label,
+        body: Box::new(body),
+      },
       span: token.span,
     })
   }
@@ -46,10 +49,13 @@ impl Parser {
 
     let body = self.parse_block(None, ExprContext::Default, outer_attributes, engine)?;
 
-    Ok(Expr::While {
-      condition: Box::new(condition),
-      body: Box::new(body),
-      label,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::While {
+        condition: Box::new(condition),
+        body: Box::new(body),
+        label,
+      },
       span: *token.span.merge(self.current_token().span),
     })
   }
@@ -72,11 +78,14 @@ impl Parser {
     let iterator = self.parse_expression(vec![], ExprContext::Default, engine)?;
     let body = self.parse_block(None, ExprContext::Default, outer_attributes, engine)?;
 
-    Ok(Expr::For {
-      pattern,
-      iterator: Box::new(iterator),
-      body: Box::new(body),
-      label,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::For {
+        pattern,
+        iterator: Box::new(iterator),
+        body: Box::new(body),
+        label,
+      },
       span: token.span,
     })
   }

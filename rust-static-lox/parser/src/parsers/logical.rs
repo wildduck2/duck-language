@@ -4,24 +4,11 @@ use diagnostic::types::error::DiagnosticError;
 use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
-use crate::ast::BinaryOp;
+use crate::ast::{BinaryOp, ExprKind};
 use crate::parser_utils::ExprContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  /// Parses logical OR expressions.
-  ///
-  /// Grammar:
-  ///
-  ///   logicalOr ::= logicalAnd ( "||" logicalAnd )*
-  ///
-  /// Properties:
-  /// - Left associative.
-  /// - Short-circuiting semantics.
-  /// - Left operand is parsed using `parse_logical_and()`.
-  ///
-  /// Example:
-  ///   a || b || c
   pub(crate) fn parse_logical_or(
     &mut self,
     context: ExprContext,
@@ -62,11 +49,13 @@ impl Parser {
           }
 
           let rhs = self.parse_logical_and(context, engine)?;
-
-          lhs = Expr::Binary {
-            op: BinaryOp::Or,
-            left: Box::new(lhs),
-            right: Box::new(rhs),
+          lhs = Expr {
+            attributes: vec![],
+            kind: ExprKind::Binary {
+              op: BinaryOp::Or,
+              left: Box::new(lhs),
+              right: Box::new(rhs),
+            },
             span: token.span,
           };
         },
@@ -77,19 +66,6 @@ impl Parser {
     Ok(lhs)
   }
 
-  /// Parses logical AND expressions.
-  ///
-  /// Grammar:
-  ///
-  ///   logicalAnd ::= comparison ( "&&" comparison )*
-  ///
-  /// Properties:
-  /// - Left associative.
-  /// - Short-circuiting semantics.
-  /// - Left operand is parsed using `parse_comparison()`.
-  ///
-  /// Example:
-  ///   a && b && c
   pub(crate) fn parse_logical_and(
     &mut self,
     context: ExprContext,
@@ -131,10 +107,13 @@ impl Parser {
 
           let rhs = self.parse_comparison(context, engine)?;
 
-          lhs = Expr::Binary {
-            op: BinaryOp::And,
-            left: Box::new(lhs),
-            right: Box::new(rhs),
+          lhs = Expr {
+            attributes: vec![],
+            kind: ExprKind::Binary {
+              op: BinaryOp::And,
+              left: Box::new(lhs),
+              right: Box::new(rhs),
+            },
             span: token.span,
           };
         },

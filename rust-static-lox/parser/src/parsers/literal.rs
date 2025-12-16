@@ -7,36 +7,11 @@ use diagnostic::{
 use lexer::token::{LiteralKind, Token};
 
 use crate::{
-  ast::{Expr, StrKind},
+  ast::{Expr, ExprKind, Lit},
   Parser,
 };
 
 impl Parser {
-  /// Parses a literal token and delegates to the appropriate specialized parser.
-  ///
-  /// Grammar reference (`<literalExpr>`):
-  ///
-  /// ```bnf
-  /// <literalExpr> ::=
-  ///       CHAR
-  ///     | STRING
-  ///     | RAW_STRING
-  ///     | BYTE
-  ///     | BYTE_STRING
-  ///     | RAW_BYTE_STRING
-  ///     | C_STRING
-  ///     | RAW_C_STRING
-  ///     | INTEGER
-  ///     | FLOAT
-  ///     | "true"
-  ///     | "false"
-  /// ```
-  ///
-  /// Notes:
-  /// - The lexer already validated structural correctness.
-  /// - This phase only extracts the semantic value (numeric parsing,
-  ///   char extraction, raw text capture, suffix extraction, etc.).
-  /// - Invalid numeric values (overflow, malformed exponent, etc.) emit diagnostics here.
   pub(crate) fn parser_literal(
     &mut self,
     kind: LiteralKind,
@@ -54,7 +29,7 @@ impl Parser {
 
       LiteralKind::Float { suffix_start, base } => {
         self.parser_float(engine, &mut token, suffix_start, base)
-      }
+      },
 
       LiteralKind::Str => self.parser_string(engine, &mut token),
 
@@ -66,7 +41,7 @@ impl Parser {
 
       LiteralKind::RawByteStr { n_hashes } => {
         self.parser_raw_byte_string(engine, &mut token, n_hashes)
-      }
+      },
 
       LiteralKind::RawCStr { n_hashes } => self.parser_raw_c_string(engine, &mut token, n_hashes),
 
@@ -76,27 +51,6 @@ impl Parser {
     }
   }
 
-  /// Parses an `<INTEGER>` literal according to the grammar:
-  ///
-  /// ```bnf
-  /// INTEGER ::=
-  ///       DEC_INTEGER
-  ///     | BIN_INTEGER
-  ///     | OCT_INTEGER
-  ///     | HEX_INTEGER
-  ///
-  /// DEC_INTEGER ::= [0-9][0-9_]* (integerSuffix)?
-  /// BIN_INTEGER ::= "0b" [01_]+ (integerSuffix)?
-  /// OCT_INTEGER ::= "0o" [0-7_]+ (integerSuffix)?
-  /// HEX_INTEGER ::= "0x" [0-9A-Fa-f_]+ (integerSuffix)?
-  ///
-  /// integerSuffix ::= "u8" | "u16" | ... | "i128" | "isize"
-  /// ```
-  ///
-  /// Notes:
-  /// - `_` separators are removed before numeric conversion.
-  /// - `empty_int=true` means `0x`, `0b`, `0o` without digits (lexer detected this).
-  /// - Overflow, invalid suffix, or malformed digits produce diagnostics here.
   fn parser_integer(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -148,36 +102,16 @@ impl Parser {
         );
         engine.add(diagnostic);
         return Err(());
-      }
+      },
     };
 
-    Ok(Expr::Integer {
-      value,
-      suffix,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::Integer { value, suffix }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses a `<FLOAT>` literal.
-  ///
-  /// Grammar reference:
-  ///
-  /// ```bnf
-  /// FLOAT ::= DEC_FLOAT (floatSuffix)?
-  ///
-  /// DEC_FLOAT ::=
-  ///       [0-9][0-9_]* "." [0-9_]+ (exponentPart)?
-  ///     | [0-9][0-9_]* exponentPart
-  ///
-  /// exponentPart ::= ("e" | "E") ("+" | "-")? [0-9_]+
-  ///
-  /// floatSuffix ::= "f32" | "f64"
-  /// ```
-  ///
-  /// Notes:
-  /// - Decimal floats only (hex floats are rejected earlier by lexer).
-  /// - Underscore separators are stripped before parsing.
-  /// - Malformed exponent or overflow produces a diagnostic.
   fn parser_float(
     &mut self,
     engine: &mut DiagnosticEngine,
@@ -209,145 +143,131 @@ impl Parser {
         );
         engine.add(diagnostic);
         return Err(());
-      }
+      },
     };
 
-    Ok(Expr::Float {
-      value,
-      suffix,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::Float { value, suffix }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<STRING>` literal:
-  ///
-  /// ```bnf
-  /// STRING ::= "\"" (escapedChar | !["\\])* "\""
-  /// ```
-  ///
-  /// Notes:
-  /// - Escape resolution was already done by the lexer.
-  /// - Here we simply store the reconstructed string.
   fn parser_string(
     &mut self,
     _engine: &mut DiagnosticEngine,
     token: &mut Token,
   ) -> Result<Expr, ()> {
     let raw = &self.source_file.src[token.span.start..token.span.end];
-    Ok(Expr::String {
-      kind: StrKind::Normal,
-      value: raw.into(),
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::String {
+        value: raw.into(),
+        raw_hashes: None,
+      }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<BYTE_STRING>` literal (`b"..."`).
   fn parser_byte_string(
     &mut self,
     _engine: &mut DiagnosticEngine,
     token: &mut Token,
   ) -> Result<Expr, ()> {
     let raw = &self.source_file.src[token.span.start..token.span.end];
-    Ok(Expr::String {
-      kind: StrKind::Byte,
-      value: raw.into(),
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::String {
+        value: raw.into(),
+        raw_hashes: None,
+      }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<C_STRING>` literal (`c"..."`).
   fn parser_c_string(
     &mut self,
     _engine: &mut DiagnosticEngine,
     token: &mut Token,
   ) -> Result<Expr, ()> {
     let raw = &self.source_file.src[token.span.start..token.span.end];
-    Ok(Expr::String {
-      kind: StrKind::C,
-      value: raw.into(),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::String {
+        value: raw.into(),
+        raw_hashes: None,
+      }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<RAW_STRING>` literal (`r###"..."###`).
-  ///
-  /// ```bnf
-  /// RAW_STRING ::= "r" "#"* "\"" rawText "\"" "#"*
-  /// ```
   fn parser_raw_string(
     &mut self,
     _engine: &mut DiagnosticEngine,
     token: &mut Token,
-    n_hashes: u16,
+    n_hashes: usize,
   ) -> Result<Expr, ()> {
     let raw = &self.source_file.src[token.span.start..token.span.end];
-    Ok(Expr::String {
-      kind: StrKind::Raw(n_hashes.into()),
-      value: raw.into(),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::String {
+        value: raw.into(),
+        raw_hashes: Some(n_hashes),
+      }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<RAW_BYTE_STRING>` (`br###"..."###`).
   fn parser_raw_byte_string(
     &mut self,
     _engine: &mut DiagnosticEngine,
     token: &mut Token,
-    n_hashes: u16,
+    n_hashes: usize,
   ) -> Result<Expr, ()> {
     let raw = &self.source_file.src[token.span.start..token.span.end];
-    Ok(Expr::String {
-      kind: StrKind::RawByte(n_hashes.into()),
-      value: raw.into(),
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::String {
+        value: raw.into(),
+        raw_hashes: Some(n_hashes),
+      }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<RAW_C_STRING>` (`cr###"..."###`).
   fn parser_raw_c_string(
     &mut self,
     _engine: &mut DiagnosticEngine,
     token: &mut Token,
-    n_hashes: u16,
+    n_hashes: usize,
   ) -> Result<Expr, ()> {
     let raw = &self.source_file.src[token.span.start..token.span.end];
-    Ok(Expr::String {
-      kind: StrKind::RawC(n_hashes.into()),
-      value: raw.into(),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::String {
+        value: raw.into(),
+        raw_hashes: Some(n_hashes),
+      }),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<CHAR>` literal.
-  ///
-  /// ```bnf
-  /// CHAR ::= "'" (escapedChar | unicodeScalar) "'"
-  /// ```
-  ///
-  /// Notes:
-  /// - Lexer validated escape rules.
-  /// - Only the inner character is extracted here.
   fn parser_char(&mut self, _engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
     let ch = self.source_file.src[token.span.start + 1..token.span.end]
       .chars()
       .next()
       .unwrap();
 
-    Ok(Expr::Char {
-      value: ch,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::Char(ch)),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses `<BYTE>` literal (`b'a'`).
-  ///
-  /// ```bnf
-  /// BYTE ::= "b'" asciiByte "'"
-  /// ```
-  ///
-  /// Notes:
-  /// - Must be exactly one ASCII byte.
-  /// - Non-ASCII or multi-char already errored in the lexer.
   fn parser_byte(&mut self, engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
     if token.span.start == token.span.end - 1 {
       let diag = Diagnostic::new(
@@ -371,24 +291,20 @@ impl Parser {
       .to_string()
       .as_bytes()[0];
 
-    Ok(Expr::Byte {
-      value: byte,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::Byte(byte)),
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses boolean literals:
-  ///
-  /// ```bnf
-  /// literalExpr ::= "true" | "false"
-  /// ```
   pub(crate) fn parser_bool(&mut self, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let value = self.get_token_lexeme(&token).parse::<bool>().unwrap();
     self.advance(engine);
-
-    Ok(Expr::Bool {
-      value,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Literal(Lit::Bool(value)),
       span: *token.span.merge(self.current_token().span),
     })
   }
