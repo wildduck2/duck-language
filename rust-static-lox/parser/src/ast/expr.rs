@@ -5,7 +5,9 @@
 
 use diagnostic::Span;
 
-use crate::ast::{Attribute, GenericArgs, MacroInvocation, Mutability, Path, Pattern, Stmt, Type};
+use crate::ast::{
+  Attribute, GenericArgs, MacroInvocation, Mutability, Path, Pattern, QSelf, Stmt, Type,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Expr {
@@ -18,7 +20,7 @@ pub(crate) struct Expr {
 pub(crate) enum ExprKind {
   Literal(Lit),
   Path {
-    qself: Option<Box<Type>>,
+    qself: Option<QSelf>,
     path: Path,
   },
 

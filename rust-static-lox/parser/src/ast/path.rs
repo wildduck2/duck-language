@@ -26,13 +26,6 @@ pub enum PathSegmentKind {
 }
 
 impl Path {
-  pub fn new(leading_colon: bool, segments: Vec<PathSegment>) -> Self {
-    Self {
-      leading_colon,
-      segments,
-    }
-  }
-
   pub fn from_ident(ident: String) -> Self {
     Self {
       leading_colon: false,

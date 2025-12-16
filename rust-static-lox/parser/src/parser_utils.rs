@@ -121,7 +121,15 @@ impl Parser {
         self.parse_macro_invocation_statement(engine)
       },
       TokenKind::Dollar | TokenKind::KwCrate | TokenKind::Lt
-        if !matches!(self.peek(1).kind, TokenKind::ColonColon) =>
+        if !matches!(
+          self.peek(1).kind,
+          TokenKind::ColonColon
+            | TokenKind::Ident
+            | TokenKind::KwSelfType
+            | TokenKind::Dollar
+            | TokenKind::KwCrate
+            | TokenKind::KwSuper
+        ) =>
       {
         self.parse_macro_invocation_statement(engine)
       },
@@ -157,9 +165,6 @@ impl Parser {
     })
   }
 
-  /// Entry point for expression parsing. The supplied `context` controls
-  /// future diagnostic wording once more productions are wired in.
-  /// TODO: make sure that macros are supported in this context
   pub(crate) fn parse_expression(
     &mut self,
     outer_attributes: Vec<Attribute>,
@@ -196,7 +201,7 @@ impl Parser {
 
   pub(crate) fn parse_primary(
     &mut self,
-    context: ExprContext,
+    _context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let token = self.current_token();
@@ -219,6 +224,8 @@ impl Parser {
       // --------------------------------------------------
       // path expressions
       // --------------------------------------------------
+      TokenKind::Lt => self.parse_qualified_path(engine),
+
       TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
         self.parse_path_expr(true, engine)
       },

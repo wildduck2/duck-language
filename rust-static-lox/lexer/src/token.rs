@@ -550,6 +550,7 @@ impl TokenKind {
       | KwAsync
       | KwUnsafe
       | KwExtern
+      | Lt
     )
   }
 

@@ -58,36 +58,42 @@ impl Parser {
       TokenKind::Bang => Ok(Type::Never),
 
       // Primitive names and user defined paths
-      TokenKind::Ident | TokenKind::KwCrate => match lexeme.as_str() {
-        "u8" => Ok(Type::U8),
-        "u16" => Ok(Type::U16),
-        "u32" => Ok(Type::U32),
-        "u64" => Ok(Type::U64),
-        "u128" => Ok(Type::U128),
-        "usize" => Ok(Type::Usize),
+      TokenKind::Ident
+      | TokenKind::KwSuper
+      | TokenKind::ColonColon
+      | TokenKind::Dollar
+      | TokenKind::KwCrate => {
+        match lexeme.as_str() {
+          "u8" => Ok(Type::U8),
+          "u16" => Ok(Type::U16),
+          "u32" => Ok(Type::U32),
+          "u64" => Ok(Type::U64),
+          "u128" => Ok(Type::U128),
+          "usize" => Ok(Type::Usize),
 
-        "i8" => Ok(Type::I8),
-        "i16" => Ok(Type::I16),
-        "i32" => Ok(Type::I32),
-        "i64" => Ok(Type::I64),
-        "i128" => Ok(Type::I128),
-        "isize" => Ok(Type::Isize),
+          "i8" => Ok(Type::I8),
+          "i16" => Ok(Type::I16),
+          "i32" => Ok(Type::I32),
+          "i64" => Ok(Type::I64),
+          "i128" => Ok(Type::I128),
+          "isize" => Ok(Type::Isize),
 
-        "f32" => Ok(Type::F32),
-        "f64" => Ok(Type::F64),
-        // "f128" => Ok(Type::F128),
-        "char" => Ok(Type::Char),
-        "str" => Ok(Type::Str),
+          "f32" => Ok(Type::F32),
+          "f64" => Ok(Type::F64),
+          // "f128" => Ok(Type::F128),
+          "char" => Ok(Type::Char),
+          "str" => Ok(Type::Str),
 
-        "bool" => Ok(Type::Bool),
-        "_" => Ok(Type::Infer),
+          "bool" => Ok(Type::Bool),
+          "_" => Ok(Type::Infer),
 
-        // Fallback: treat as a path type, possibly with generic arguments
-        _ => {
-          // Reset position so parse_path can consume the ident or crate token
-          self.current -= 1;
-          Ok(Type::Path(self.parse_path(true, engine)?))
-        },
+          // Fallback: treat as a path type, possibly with generic arguments
+          _ => {
+            // Reset position so parse_path can consume the ident or crate token
+            self.current -= 1;
+            Ok(Type::Path(self.parse_path(true, engine)?))
+          },
+        }
       },
 
       // Tuple and parenthesized types: (T, U, V)
@@ -342,7 +348,7 @@ impl Parser {
   fn parse_qpath_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
-    let qself = self.parse_qself_type_header(engine)?.unwrap();
+    let qself = self.parse_qself_type_header(engine)?;
     let path = self.parse_path(false, engine)?;
 
     Ok(Type::QualifiedPath { qself, path })
@@ -366,9 +372,25 @@ impl Parser {
   pub(crate) fn parse_qself_type_header(
     &mut self,
     engine: &mut DiagnosticEngine,
-  ) -> Result<Option<QSelf>, ()> {
+  ) -> Result<QSelf, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt) {
-      return Ok(None);
+      let lexeme = self.get_token_lexeme(&self.current_token());
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
+        format!("Expected a type, found `{lexeme}`"),
+        self.source_file.path.clone(),
+      )
+      .with_label(
+        self.current_token().span,
+        Some(format!("Expected a type, found `{lexeme}`")),
+        LabelStyle::Primary,
+      )
+      .with_help(format!(
+        "If `{lexeme}` is a custom type, declare it or bring it into scope before use.",
+      ));
+      engine.add(diagnostic);
+
+      return Err(());
     }
 
     // assumes current token is `<`
@@ -384,6 +406,6 @@ impl Parser {
     self.expect(TokenKind::Gt, engine)?;
     self.expect(TokenKind::ColonColon, engine)?;
 
-    Ok(Some(QSelf { as_trait, self_ty }))
+    Ok(QSelf { as_trait, self_ty })
   }
 }

@@ -11,6 +11,44 @@ use crate::{
 };
 
 impl Parser {
+  pub(crate) fn parse_qualified_path(&mut self, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
+    let mut token = self.current_token();
+
+    let qself = self.parse_qself_type_header(engine)?;
+    let path = self.parse_path(true, engine)?;
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Path {
+        qself: Some(qself),
+        path,
+      },
+      span: *token.span.merge(self.current_token().span),
+    })
+  }
+
+  pub(crate) fn parse_path_expr(
+    &mut self,
+    with_args: bool,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Expr, ()> {
+    let mut token = self.current_token();
+    let path = self.parse_path(with_args, engine)?;
+
+    if matches!(
+      self.current_token().kind,
+      TokenKind::OpenBrace | TokenKind::OpenParen
+    ) {
+      return self.parse_struct_expr(path, engine);
+    }
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Path { qself: None, path },
+      span: *token.span.merge(self.current_token().span),
+    })
+  }
+
   pub(crate) fn parse_path(
     &mut self,
     with_args: bool,
@@ -24,12 +62,12 @@ impl Parser {
     }
 
     // Parse the first segment
-    let (first_segment, has_dollar_crate) = self.parse_path_segment(with_args, engine)?;
+    let (first_segment, _) = self.parse_path_segment(with_args, engine)?;
     let mut segments = vec![first_segment];
 
     // Parse additional `::`-separated segments
     while !self.is_eof()
-      && !matches!(
+      && (!matches!(
         self.current_token().kind,
         TokenKind::CloseBracket
           | TokenKind::Lt
@@ -47,7 +85,7 @@ impl Parser {
           | TokenKind::FatArrow
           | TokenKind::Bang
           | TokenKind::Dot
-      )
+      ) && !matches!(self.peek(1).kind, TokenKind::Lt))
     {
       self.expect(TokenKind::ColonColon, engine)?; // require '::' separator
 
@@ -74,30 +112,8 @@ impl Parser {
     }
 
     Ok(Path {
-      leading_colon: leading_colon || has_dollar_crate,
+      leading_colon,
       segments,
-    })
-  }
-
-  pub(crate) fn parse_path_expr(
-    &mut self,
-    with_args: bool,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut token = self.current_token();
-    let path = self.parse_path(with_args, engine)?;
-
-    if matches!(
-      self.current_token().kind,
-      TokenKind::OpenBrace | TokenKind::OpenParen
-    ) {
-      return self.parse_struct_expr(path, engine);
-    }
-
-    Ok(Expr {
-      attributes: vec![],
-      kind: ExprKind::Path { qself: None, path },
-      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -110,7 +126,10 @@ impl Parser {
     self.advance(engine); // consume the segment identifier or keyword
 
     // Optional generic arguments
-    let args = if with_args && matches!(self.current_token().kind, TokenKind::Lt) {
+    let args = if with_args
+      && matches!(self.current_token().kind, TokenKind::Lt)
+      && !matches!(self.peek(1).kind, TokenKind::Lt)
+    {
       self.parse_generic_args(engine)?
     } else if matches!(self.current_token().kind, TokenKind::ColonColon)
       && matches!(self.peek(1).kind, TokenKind::Lt)
@@ -129,6 +148,7 @@ impl Parser {
         PathSegment::new(PathSegmentKind::Ident(self.get_token_lexeme(&token)), args),
         false,
       )),
+      TokenKind::KwSelfType => Ok((PathSegment::new(PathSegmentKind::SelfType, args), false)),
       TokenKind::Dollar if self.peek(0).kind == TokenKind::KwCrate => {
         self.advance(engine); // consume `$crate`
         Ok((PathSegment::new(PathSegmentKind::DollarCrate, args), true))

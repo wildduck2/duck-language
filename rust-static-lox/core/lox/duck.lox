@@ -1,8 +1,4 @@
-b"\"" 
-//b"\"";
-//br#"\""#;
-//"hello";
-//"escaped \" quote";
+<super::Type as Trait>::Item::Sub;
 
 //// minimal valid static without initializer
 //static A: i32;

@@ -1,50 +1,25 @@
 #[cfg(test)]
-mod parser_tests {
-
-  use core::f64;
+mod literal_tests {
 
   use crate::{
-    ast::expr::{BlockFlavor, Expr, ExprKind, Lit},
+    ast::expr::{ExprKind, Lit},
     parser_utils::ExprContext,
     tests::prepare,
-    Parser,
   };
-  use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
-  use lexer::{token::TokenKind, Lexer};
 
   #[test]
   fn literal_expressions_cover_all_variants() {
     let (mut engine, mut parser) = prepare("./tests/files/literal.lox").unwrap();
 
-    // b'a'
-    // b"byte string"
-    // br"raw byte string \n not escaped"
-    // c"c string"
-    // cr"raw c string \n not escaped"
-    // 0
-    // 42
-    // 1_000_000
-    // 0xff
-    // 0b101010
-    // 0o755
-    // 3.14
-    // 0.5
-    // 1e10
-    // 2.5e-3
-    // true
-    // false
-
     let mut ast = vec![];
     while !parser.is_eof() {
       match parser.parse_primary(ExprContext::Default, &mut engine) {
         Ok(item) => {
-          println!("{:#?}", item);
           ast.push(item);
         },
         Err(_) => parser.synchronize(&mut engine),
       }
     }
-    println!("-----{:#?}", ast);
 
     let cases = [
       (0, ExprKind::Literal(Lit::Char('a'))),

@@ -139,19 +139,17 @@ impl Parser {
 
   fn merge_qself_with_path(
     &mut self,
-    qself_header: Option<QSelf>,
+    qself_header: QSelf,
     mut path: Path,
   ) -> (Option<Box<Type>>, Path) {
-    match qself_header {
-      None => (None, path),
-      Some(QSelf { self_ty, as_trait }) => match as_trait {
-        Some(mut trait_path) => {
-          trait_path.segments.extend(path.segments);
-          path.leading_colon = trait_path.leading_colon;
-          (Some(self_ty), trait_path)
-        },
-        None => (Some(self_ty), path),
+    let QSelf { self_ty, as_trait } = qself_header;
+    match as_trait {
+      Some(mut trait_path) => {
+        trait_path.segments.extend(path.segments);
+        path.leading_colon = trait_path.leading_colon;
+        (Some(self_ty), trait_path)
       },
+      None => (Some(self_ty), path),
     }
   }
 
