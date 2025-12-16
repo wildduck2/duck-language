@@ -2,7 +2,7 @@ use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::{
-  ast::{Attribute, Expr, Stmt},
+  ast::{Attribute, Expr, ExprKind, LetStmt, Stmt},
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -16,7 +16,7 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Stmt, ()> {
     let token = self.current_token();
-    self.advance(engine); // consume let
+    self.advance(engine); // consume `let`
 
     let pattern = self.parse_pattern_with_or(context, engine)?;
 
@@ -44,34 +44,14 @@ impl Parser {
       None
     };
 
-    Ok(Stmt::Let {
+    Ok(Stmt::Let(LetStmt {
       attributes,
       pattern,
       ty,
       init: init.map(Box::new),
       else_block: else_block.map(Box::new),
       span: token.span,
-    })
-  }
-
-  pub(crate) fn parse_let_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut token = self.current_token();
-    self.advance(engine); // consume the "let"
-
-    let pattern = self.parse_pattern(context, engine)?;
-    self.expect(TokenKind::Eq, engine)?;
-    let value = self.parse_expression(vec![], context, engine)?;
-
-    token.span.merge(self.current_token().span);
-    Ok(Expr::Let {
-      expr: Box::new(value),
-      pattern,
-      span: token.span,
-    })
+    }))
   }
 
   pub(crate) fn parse_assignment_expr(
@@ -82,8 +62,9 @@ impl Parser {
     let mut lhs = self.parse_range_expr(context, engine)?;
 
     let token = self.current_token();
+
     if matches!(
-      self.current_token().kind,
+      token.kind,
       TokenKind::Eq
         | TokenKind::PlusEq
         | TokenKind::MinusEq
@@ -96,13 +77,17 @@ impl Parser {
         | TokenKind::ShiftLeftEq
         | TokenKind::ShiftRightEq
     ) {
-      self.advance(engine); // consume the assignment operator
+      self.advance(engine); // consume assignment operator
 
       let rhs = self.parse_range_expr(context, engine)?;
 
-      lhs = Expr::Assign {
-        target: Box::new(lhs),
-        value: Box::new(rhs),
+      // TODO: split Assign vs AssignOp when you lower compound operators
+      lhs = Expr {
+        attributes: vec![],
+        kind: ExprKind::Assign {
+          target: Box::new(lhs),
+          value: Box::new(rhs),
+        },
         span: token.span,
       };
     }

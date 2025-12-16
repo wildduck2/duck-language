@@ -1,5 +1,8 @@
+use crate::ast::expr::FieldInit;
 use crate::ast::path::Path;
-use crate::ast::{r#struct::*, *};
+use crate::ast::{
+  r#struct::*, Attribute, Expr, ExprKind, FieldName, Item, VisItem, VisItemKind, Visibility,
+};
 use crate::parser_utils::ExprContext;
 use crate::{match_and_consume, Parser};
 use diagnostic::{
@@ -8,21 +11,9 @@ use diagnostic::{
   types::error::DiagnosticError,
   DiagnosticEngine,
 };
-use lexer::token::TokenKind;
+use lexer::token::{LiteralKind, TokenKind};
 
 impl Parser {
-  //! TODO: missing parts for full Rust struct parsing
-  //! - support for generics with where clause before tuple fields: struct A<T> where T: Copy (...)
-  //! - support for trailing commas in tuple structs: struct A(u8,);
-  //! - support for visibility on tuple and record fields exactly as Rust does
-  //! - support for attributes on struct, tuple, and unit variants in all valid positions
-  //! - support for parsing arbitrary inner attributes on struct bodies
-  //! - support for parsing doc comments as attributes
-  //! - ensure recovery for malformed field lists matches Rust behavior
-  //! - support for parsing attributes before generics and before where clause
-  //! - handle macro invocation forms: struct A { x: i32 } macro_rules!
-  //! - add better error recovery when encountering unexpected tokens
-
   pub(crate) fn parse_struct_decl(
     &mut self,
     attributes: Vec<Attribute>,
@@ -41,13 +32,15 @@ impl Parser {
       // struct Name<T> where ... { fields }   (no trailing ';')
       let fields = self.parse_record_fields(engine)?;
       token.span.merge(self.current_token().span);
-      return Ok(Item::Struct(StructDecl {
+      return Ok(Item::Vis(VisItem {
         attributes,
         visibility,
-        name,
-        generics,
-        kind: StructKind::Named { fields },
-        where_clause,
+        kind: VisItemKind::Struct(StructDecl {
+          name,
+          generics,
+          kind: StructKind::Named { fields },
+          where_clause,
+        }),
         span: token.span,
       }));
     } else if matches!(self.current_token().kind, TokenKind::OpenParen) {
@@ -57,13 +50,16 @@ impl Parser {
       let where_clause = self.parse_where_clause(engine)?;
       self.expect(TokenKind::Semi, engine)?; // required
       token.span.merge(self.current_token().span);
-      return Ok(Item::Struct(StructDecl {
+
+      return Ok(Item::Vis(VisItem {
         attributes,
         visibility,
-        name,
-        generics,
-        kind: StructKind::Tuple(fields),
-        where_clause,
+        kind: VisItemKind::Struct(StructDecl {
+          name,
+          generics,
+          kind: StructKind::Tuple { fields },
+          where_clause,
+        }),
         span: token.span,
       }));
     }
@@ -72,13 +68,15 @@ impl Parser {
     // struct Name<T> where ... ;
     self.expect(TokenKind::Semi, engine)?; // required
     token.span.merge(self.current_token().span);
-    Ok(Item::Struct(StructDecl {
+    Ok(Item::Vis(VisItem {
       attributes,
       visibility,
-      name,
-      generics,
-      kind: StructKind::Unit,
-      where_clause,
+      kind: VisItemKind::Struct(StructDecl {
+        name,
+        generics,
+        kind: StructKind::Unit,
+        where_clause,
+      }),
       span: token.span,
     }))
   }
@@ -107,7 +105,7 @@ impl Parser {
     let mut token = self.current_token();
 
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_attributes(engine)?
+      self.parse_outer_attributes(engine)?
     } else {
       vec![]
     };
@@ -145,7 +143,7 @@ impl Parser {
 
   fn parse_tuple_field(&mut self, engine: &mut DiagnosticEngine) -> Result<TupleField, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_attributes(engine)?;
+    let attributes = self.parse_outer_attributes(engine)?;
     let visibility = self.parse_visibility(engine)?;
     let ty = self.parse_type(engine)?;
 
@@ -200,17 +198,16 @@ impl Parser {
 
     if matches!(self.current_token().kind, TokenKind::OpenBrace) {
       let (fields, base) = self.parse_struct_record_init_fields(engine)?;
-      Ok(Expr::Struct {
-        path,
-        fields,
-        base,
+      Ok(Expr {
+        attributes: vec![],
+        kind: ExprKind::Struct { path, fields, base },
         span: *token.span.merge(self.current_token().span),
       })
     } else {
       let elements = self.parse_struct_tuple_init_fields(engine)?;
-      Ok(Expr::TupleStruct {
-        path,
-        elements,
+      Ok(Expr {
+        attributes: vec![],
+        kind: ExprKind::TupleStruct { path, elements },
         span: *token.span.merge(self.current_token().span),
       })
     }
@@ -262,20 +259,52 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<FieldInit, ()> {
     let mut token = self.current_token();
+
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_attributes(engine)?
+      self.parse_outer_attributes(engine)?
     } else {
       vec![]
     };
 
-    let name = self.parse_name(true, engine)?;
+    // parse field name
+    let name = match self.current_token().kind {
+      TokenKind::Ident => {
+        let ident = self.get_token_lexeme(&self.current_token());
+        self.advance(engine);
+        FieldName::Ident(ident)
+      },
+
+      TokenKind::Literal {
+        kind: LiteralKind::Integer { .. },
+      } => {
+        let index = self
+          .get_token_lexeme(&self.current_token())
+          .parse::<usize>()
+          .unwrap();
+        self.advance(engine);
+        FieldName::TupleIndex(index)
+      },
+
+      _ => {
+        // TODO: emit diagnostic for invalid struct field name
+        return Err(());
+      },
+    };
 
     let value = if matches!(self.current_token().kind, TokenKind::Colon) {
-      self.expect(TokenKind::Colon, engine)?; // consume ':'
+      self.advance(engine); // consume ':'
       Some(self.parse_expression(vec![], ExprContext::Struct, engine)?)
     } else {
-      Some(Expr::Ident {
-        name: name.clone(),
+      // shorthand field init
+      Some(Expr {
+        attributes: vec![],
+        kind: ExprKind::Path {
+          qself: None,
+          path: Path::from_ident(match &name {
+            FieldName::Ident(s) => s.clone(),
+            FieldName::TupleIndex(_) => unreachable!(),
+          }),
+        },
         span: token.span,
       })
     };

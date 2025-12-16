@@ -1,45 +1,14 @@
-use std::task::Context;
-
 use diagnostic::code::DiagnosticCode;
 use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
 use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
-use crate::ast::{BinaryOp, Expr};
+use crate::ast::{BinaryOp, Expr, ExprKind};
 use crate::parser_utils::ExprContext;
 use crate::Parser;
 
 impl Parser {
-  /// Parses bitwise shift expressions.
-  ///
-  /// Grammar:
-  /// ```
-  /// shiftExpr ::= term (("<<" | ">>") term)*
-  /// ```
-  ///
-  /// Supported operators:
-  /// - `<<` - left shift
-  /// - `>>` - right shift
-  ///
-  /// Notes:
-  /// - This rule only handles **double-character** shift operators.
-  /// - Single `<` or `>` tokens are *not* processed here; they belong to
-  ///   the comparison operator grammar layer.
-  /// - Operands are parsed using [`parse_term`].
-  /// - Shifts are left-associative, matching Rust:
-  ///   `(a << b) << c`
-  ///
-  /// Examples:
-  /// ```rust
-  /// a << 1
-  /// value >> 3
-  /// x >> 2 << 1
-  /// ```
-  ///
-  /// Errors:
-  /// - If a range operator (`..` or `..=`) appears immediately after a shift,
-  ///   a diagnostic is emitted because range expressions cannot chain.
   pub(crate) fn parse_shift(
     &mut self,
     context: ExprContext,
@@ -48,7 +17,7 @@ impl Parser {
     let mut lhs = self.parse_term(context, engine)?;
 
     while !self.is_eof() {
-      let token = self.current_token();
+      let mut token = self.current_token();
       let next = self.peek(1);
 
       // Detect shift operator pairs
@@ -94,11 +63,14 @@ impl Parser {
         return Err(());
       }
 
-      lhs = Expr::Binary {
-        op: op.unwrap(),
-        left: Box::new(lhs),
-        right: Box::new(rhs),
-        span: token.span,
+      lhs = Expr {
+        attributes: vec![],
+        kind: ExprKind::Binary {
+          op: op.unwrap(),
+          left: Box::new(lhs),
+          right: Box::new(rhs),
+        },
+        span: *token.span.merge(self.current_token().span),
       };
     }
 

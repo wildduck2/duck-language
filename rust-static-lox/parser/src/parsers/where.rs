@@ -1,14 +1,3 @@
-//! TODO:
-//! add support for predicates of the form (T, U): Trait
-//! add support for qualified type paths inside HRTBs
-//! add support for equality predicates inside trait bounds such as T: Trait<Item = U>
-//! add support for dyn Trait plus separated bounds after equality
-//! add support for underscore type predicate heads like _: Trait
-//! add support for parenthesized types inside predicates
-//! add recovery for malformed predicates such as missing bound after colon
-//! ensure type parser supports generic arguments and QSelf forms used in where clauses
-//! ensure parse_where_clause stops on all valid Rust terminators beyond braces parens semicolon
-
 use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},

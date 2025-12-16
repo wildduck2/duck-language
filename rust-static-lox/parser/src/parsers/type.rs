@@ -1,5 +1,8 @@
 use crate::{
-  ast::{Attribute, Item, Mutability, QSelfHeader, Safety, Type, TypeAliasDecl, Visibility},
+  ast::{
+    Attribute, Item, Mutability, QSelf, Safety, Type, TypeAliasDecl, VisItem, VisItemKind,
+    Visibility,
+  },
   match_and_consume,
   parser_utils::ExprContext,
   DiagnosticEngine, Parser,
@@ -27,14 +30,16 @@ impl Parser {
     self.expect(TokenKind::Eq, engine)?; // consume '='
     let ty = self.parse_type(engine)?;
 
-    Ok(Item::TypeAlias(TypeAliasDecl {
+    Ok(Item::Vis(VisItem {
       attributes,
       visibility,
-      name,
-      generics,
-      bounds,
-      where_clause,
-      ty,
+      kind: VisItemKind::TypeAlias(TypeAliasDecl {
+        name,
+        generics,
+        bounds,
+        where_clause,
+        ty,
+      }),
       span: *token.span.merge(self.current_token().span),
     }))
   }
@@ -70,11 +75,9 @@ impl Parser {
 
         "f32" => Ok(Type::F32),
         "f64" => Ok(Type::F64),
-        "f128" => Ok(Type::F128),
-
+        // "f128" => Ok(Type::F128),
         "char" => Ok(Type::Char),
         "str" => Ok(Type::Str),
-        "String" => Ok(Type::String),
 
         "bool" => Ok(Type::Bool),
         "_" => Ok(Type::Infer),
@@ -339,21 +342,10 @@ impl Parser {
   fn parse_qpath_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
-    let QSelfHeader { self_ty, trait_ref } = self.parse_qself_type_header(engine)?.unwrap();
-
+    let qself = self.parse_qself_type_header(engine)?.unwrap();
     let path = self.parse_path(false, engine)?;
-    let generics = if matches!(self.current_token().kind, TokenKind::Lt) {
-      self.parse_generic_args(engine)?
-    } else {
-      None
-    };
 
-    Ok(Type::QPath {
-      self_ty,
-      trait_ref,
-      path,
-      generics: generics.map(Box::new),
-    })
+    Ok(Type::QualifiedPath { qself, path })
   }
 
   pub(crate) fn parse_type_lifetime(
@@ -374,7 +366,7 @@ impl Parser {
   pub(crate) fn parse_qself_type_header(
     &mut self,
     engine: &mut DiagnosticEngine,
-  ) -> Result<Option<QSelfHeader>, ()> {
+  ) -> Result<Option<QSelf>, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt) {
       return Ok(None);
     }
@@ -383,7 +375,7 @@ impl Parser {
     self.expect(TokenKind::Lt, engine)?;
     let self_ty = Box::new(self.parse_type(engine)?);
 
-    let trait_ref = if match_and_consume!(self, engine, TokenKind::KwAs)? {
+    let as_trait = if match_and_consume!(self, engine, TokenKind::KwAs)? {
       Some(self.parse_path(true, engine)?)
     } else {
       None
@@ -392,6 +384,6 @@ impl Parser {
     self.expect(TokenKind::Gt, engine)?;
     self.expect(TokenKind::ColonColon, engine)?;
 
-    Ok(Some(QSelfHeader { self_ty, trait_ref }))
+    Ok(Some(QSelf { as_trait, self_ty }))
   }
 }

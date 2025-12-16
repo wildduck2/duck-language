@@ -1,5 +1,5 @@
 use crate::{
-  ast::{Expr, RangeKind},
+  ast::{Expr, ExprKind, RangeExprKind},
   parser_utils::ExprContext,
   Parser,
 };
@@ -12,32 +12,6 @@ use diagnostic::{
 use lexer::token::TokenKind;
 
 impl Parser {
-  /// Parses Rust-style range expressions.
-  ///
-  /// Grammar:
-  /// ```
-  /// rangeExpr
-  ///     ::= logicalOr ( (".." | "..=") logicalOr? )?
-  /// ```
-  ///
-  /// Supported forms:
-  ///   a..b          -> RangeKind::To
-  ///   a..=b         -> RangeKind::ToInclusive
-  ///   a..           -> RangeKind::From
-  ///   ..b           -> RangeKind::To
-  ///   ..=b          -> RangeKind::ToInclusive
-  ///   ..            -> RangeKind::Full
-  ///
-  /// Notes:
-  /// - Only a single range operator may appear in an expression.
-  /// - Ranges may omit the left or right operand.
-  /// - Precedence matches Rust’s grammar: the operands come from `logicalOr`.
-  ///
-  /// Examples:
-  ///   0..10
-  ///   start..
-  ///   ..=len
-  ///   ..          // full range
   pub(crate) fn parse_range_expr(
     &mut self,
     context: ExprContext,
@@ -65,31 +39,13 @@ impl Parser {
     }
   }
 
-  /// Parses a single `..` or `..=` range operator and its optional start/end expressions.
-  ///
-  /// Grammar (fragment):
-  /// ```
-  /// range
-  ///     ::= (".." | "..=") logicalOr?
-  /// ```
-  ///
-  /// Behavior:
-  /// - Accepts left-open (`..b`), right-open (`a..`), and full (`..`) ranges.
-  /// - Classifies the syntax into `RangeKind` variants.
-  /// - Rejects chained ranges like `a..b..c`.
-  ///
-  /// Examples:
-  ///   a..b
-  ///   ..=end
-  ///   value..
-  ///   ..
   fn parse_range(
     &mut self,
     context: ExprContext,
     start: Option<Expr>,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let token = self.current_token();
+    let mut token = self.current_token();
     self.advance(engine); // consume ".." or "..="
 
     // Determine whether an expression follows the operator
@@ -110,12 +66,12 @@ impl Parser {
 
     // Classify the kind of range being constructed
     let kind = match (token.kind, start.is_some(), end.is_some()) {
-      (TokenKind::DotDot, false, false) => RangeKind::Full,
-      (TokenKind::DotDot, true, false) => RangeKind::From,
-      (TokenKind::DotDot, _, true) => RangeKind::To,
-      (TokenKind::DotDotEq, _, true) => RangeKind::ToInclusive,
-      (TokenKind::DotDotEq, true, false) => RangeKind::FromInclusive,
-      _ => RangeKind::Exclusive,
+      (TokenKind::DotDot, false, false) => RangeExprKind::Full,
+      (TokenKind::DotDot, true, false) => RangeExprKind::From,
+      (TokenKind::DotDot, _, true) => RangeExprKind::To,
+      (TokenKind::DotDotEq, _, true) => RangeExprKind::ToInclusive,
+      (TokenKind::DotDotEq, true, false) => RangeExprKind::FromInclusive,
+      _ => RangeExprKind::Exclusive,
     };
 
     // Reject chained range operators (e.g., `a..b..c`)
@@ -143,11 +99,14 @@ impl Parser {
       return Err(());
     }
 
-    Ok(Expr::Range {
-      kind,
-      start: start.map(Box::new),
-      end,
-      span: token.span,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Range {
+        start: start.map(Box::new),
+        end,
+        kind,
+      },
+      span: *token.span.merge(self.current_token().span),
     })
   }
 }
