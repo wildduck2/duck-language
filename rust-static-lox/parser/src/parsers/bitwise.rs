@@ -1,4 +1,8 @@
-use crate::{ast::Expr, parser_utils::ExprContext, Parser};
+use crate::{
+  ast::expr::{BinaryOp, Expr, ExprKind},
+  parser_utils::ExprContext,
+  Parser,
+};
 use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
@@ -6,25 +10,8 @@ use diagnostic::{
   DiagnosticEngine,
 };
 
-use crate::ast::BinaryOp;
 use lexer::token::TokenKind;
 impl Parser {
-  /// Parses bitwise OR expressions.
-  ///
-  /// Grammar:
-  ///
-  ///   bitwise_or ::= bitwise_xor ( "|" bitwise_xor )*
-  ///
-  /// This level implements the lowest-precedence bitwise operator.
-  ///
-  /// Behavior:
-  /// - Left associative
-  /// - Accepts chained operations: a | b | c
-  /// - Correctly interacts with higher-precedence operators: a | b ^ c & d
-  ///
-  /// Notes:
-  /// - This parses only the expression-level "|" operator.
-  /// - Pattern and closure "|" are not handled here.
   pub(crate) fn parse_bitwise_or(
     &mut self,
     context: ExprContext,
@@ -40,7 +27,7 @@ impl Parser {
       && !matches!(context, ExprContext::Match)
       && !matches!(self.peek(1).kind, TokenKind::Or)
     {
-      let token = self.current_token();
+      let mut token = self.current_token();
 
       match token.kind {
         TokenKind::Or => {
@@ -78,11 +65,14 @@ impl Parser {
 
           let rhs = self.parse_bitwise_xor(context, engine)?;
 
-          lhs = Expr::Binary {
-            op: BinaryOp::BitOr,
-            left: Box::new(lhs),
-            right: Box::new(rhs),
-            span: token.span,
+          lhs = Expr {
+            attributes: vec![],
+            kind: ExprKind::Binary {
+              left: Box::new(lhs),
+              op: BinaryOp::BitOr,
+              right: Box::new(rhs),
+            },
+            span: *token.span.merge(self.current_token().span),
           };
         },
 
@@ -93,21 +83,6 @@ impl Parser {
     Ok(lhs)
   }
 
-  /// Parses bitwise XOR expressions.
-  ///
-  /// Grammar:
-  ///
-  ///   bitwise_xor ::= bitwise_and ( "^" bitwise_and )*
-  ///
-  /// This is the middle-precedence bitwise operator.
-  ///
-  /// Behavior:
-  /// - Left associative
-  /// - Allows chains like: a ^ b ^ c
-  /// - Interacts correctly with bitwise AND, which has higher precedence
-  ///
-  /// Notes:
-  /// - Only the expression-level "^" operator is handled here.
   pub(crate) fn parse_bitwise_xor(
     &mut self,
     context: ExprContext,
@@ -116,7 +91,7 @@ impl Parser {
     let mut lhs = self.parse_bitwise_and(context, engine)?;
 
     while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::Caret) {
-      let token = self.current_token();
+      let mut token = self.current_token();
 
       match token.kind {
         TokenKind::Caret => {
@@ -154,11 +129,14 @@ impl Parser {
 
           let rhs = self.parse_bitwise_and(context, engine)?;
 
-          lhs = Expr::Binary {
-            op: BinaryOp::BitXor,
-            left: Box::new(lhs),
-            right: Box::new(rhs),
-            span: token.span,
+          lhs = Expr {
+            attributes: vec![],
+            kind: ExprKind::Binary {
+              left: Box::new(lhs),
+              op: BinaryOp::BitXor,
+              right: Box::new(rhs),
+            },
+            span: *token.span.merge(self.current_token().span),
           };
         },
 
@@ -169,21 +147,6 @@ impl Parser {
     Ok(lhs)
   }
 
-  /// Parses bitwise AND expressions.
-  ///
-  /// Grammar:
-  ///
-  ///   bitwise_and ::= shift ( "&" shift )*
-  ///
-  /// This is the highest-precedence bitwise operator.
-  ///
-  /// Behavior:
-  /// - Left associative
-  /// - Supports chains like: a & b & c
-  ///
-  /// Notes:
-  /// - This function handles only the binary "&" operator.
-  /// - Unary "&" (reference) is parsed in the unary expression level.
   pub(crate) fn parse_bitwise_and(
     &mut self,
     context: ExprContext,
@@ -192,7 +155,7 @@ impl Parser {
     let mut lhs = self.parse_shift(context, engine)?;
 
     while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::And) {
-      let token = self.current_token();
+      let mut token = self.current_token();
 
       match token.kind {
         TokenKind::And => {
@@ -230,11 +193,14 @@ impl Parser {
 
           let rhs = self.parse_shift(context, engine)?;
 
-          lhs = Expr::Binary {
-            op: BinaryOp::BitAnd,
-            left: Box::new(lhs),
-            right: Box::new(rhs),
-            span: token.span,
+          lhs = Expr {
+            attributes: vec![],
+            kind: ExprKind::Binary {
+              left: Box::new(lhs),
+              op: BinaryOp::BitAnd,
+              right: Box::new(rhs),
+            },
+            span: *token.span.merge(self.current_token().span),
           };
         },
 

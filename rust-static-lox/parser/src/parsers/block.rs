@@ -1,7 +1,8 @@
-use std::io::pipe;
-
 use crate::{
-  ast::{Attribute, BlockFlavor, Expr, Stmt},
+  ast::{
+    attrs::Attribute,
+    expr::{BlockFlavor, Expr, ExprKind},
+  },
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -30,7 +31,6 @@ impl Parser {
     let flavor = self.parse_block_expression_flavors(ExprContext::Default, engine)?;
     self.advance(engine); // consume the "{"
 
-    let inner_attributes = self.parse_inner_attributes(engine)?;
     let mut stmts = vec![];
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
@@ -39,14 +39,16 @@ impl Parser {
     }
     self.expect(TokenKind::CloseBrace, engine)?;
 
-    token.span.merge(self.current_token().span);
-    Ok(Expr::Block {
-      inner_attributes,
-      outer_attributes,
-      stmts,
-      label,
-      flavor,
-      span: token.span,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Block {
+        tail: None, // TODO: implement tail
+        outer_attributes,
+        stmts,
+        label,
+        flavor,
+      },
+      span: *token.span.merge(self.current_token().span),
     })
   }
 

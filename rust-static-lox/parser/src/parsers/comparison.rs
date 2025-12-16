@@ -4,39 +4,11 @@ use diagnostic::types::error::DiagnosticError;
 use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
-use crate::ast::BinaryOp;
+use crate::ast::expr::{BinaryOp, Expr, ExprKind};
 use crate::parser_utils::ExprContext;
-use crate::{ast::Expr, Parser};
+use crate::Parser;
 
 impl Parser {
-  /// Parses comparison expressions using the standard comparison operators.
-  ///
-  /// Grammar:
-  ///
-  ///   comparison ::= bitwiseOr ( compOp bitwiseOr )*
-  ///
-  ///   compOp ::= "==" | "!=" | "<" | "<=" | ">" | ">="
-  ///
-  /// Description:
-  /// - A comparison expression consists of a left operand and zero or more
-  ///   comparison operator + operand pairs.
-  /// - Each operand is parsed using `parse_bitwise_or`, which has higher
-  ///   precedence than comparison operators.
-  ///
-  /// Associativity:
-  /// - Comparison operators associate from left to right.
-  ///   Example: a < b < c parses as (a < b) < c.
-  ///
-  /// Error Handling:
-  /// - If the right side of a comparison operator does not begin a valid
-  ///   expression, an UnexpectedToken diagnostic is emitted.
-  ///
-  /// Examples:
-  ///   x == y
-  ///   a != b
-  ///   count < limit
-  ///   low <= mid <= high   (parsed as left associative)
-  ///
   pub(crate) fn parse_comparison(
     &mut self,
     context: ExprContext,
@@ -49,7 +21,7 @@ impl Parser {
         break;
       }
 
-      let token = self.current_token();
+      let mut token = self.current_token();
       let op = match token.kind {
         TokenKind::EqEq => BinaryOp::Eq,
         TokenKind::Ne => BinaryOp::NotEq,
@@ -94,11 +66,14 @@ impl Parser {
         return Err(());
       }
 
-      lhs = Expr::Binary {
-        op,
-        left: Box::new(lhs),
-        right: Box::new(rhs),
-        span: token.span,
+      lhs = Expr {
+        attributes: vec![],
+        kind: ExprKind::Binary {
+          left: Box::new(lhs),
+          op,
+          right: Box::new(rhs),
+        },
+        span: *token.span.merge(self.current_token().span),
       };
     }
 

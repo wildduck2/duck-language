@@ -1,4 +1,9 @@
-use crate::{ast::Expr, match_and_consume, parser_utils::ExprContext, Parser};
+use crate::{
+  ast::expr::{Expr, ExprKind},
+  match_and_consume,
+  parser_utils::ExprContext,
+  Parser,
+};
 use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
@@ -43,10 +48,13 @@ impl Parser {
     }
 
     token.span.merge(self.current_token().span);
-    Ok(Expr::If {
-      condition: Box::new(condition),
-      then_branch: Box::new(then_branch),
-      else_branch: else_branch.map(Box::new),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::If {
+        condition: Box::new(condition),
+        then_branch: Box::new(then_branch),
+        else_branch: else_branch.map(Box::new),
+      },
       span: token.span,
     })
   }
@@ -95,8 +103,9 @@ impl Parser {
 
     token.span.merge(self.current_token().span);
 
-    Ok(Expr::Continue {
-      label,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Continue { label },
       span: token.span,
     })
   }
@@ -153,10 +162,12 @@ impl Parser {
     };
 
     token.span.merge(self.current_token().span);
-
-    Ok(Expr::Break {
-      value: value.map(Box::new),
-      label,
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Break {
+        value: value.map(Box::new),
+        label,
+      },
       span: token.span,
     })
   }
@@ -212,36 +223,54 @@ impl Parser {
 
     token.span.merge(self.current_token().span);
 
-    Ok(Expr::Return {
-      value: value.map(Box::new),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Return {
+        value: value.map(Box::new),
+      },
       span: token.span,
     })
   }
 
   fn is_valid_condition(&self, expr: &Expr) -> bool {
-    use Expr::*;
+    match &expr.kind {
+      ExprKind::Literal(_)
+      | ExprKind::Path { .. }
+      | ExprKind::Group { .. }
+      | ExprKind::Tuple { .. }
+      | ExprKind::Array { .. }
+      | ExprKind::Call { .. }
+      | ExprKind::MethodCall { .. }
+      | ExprKind::Field { .. }
+      | ExprKind::Index { .. }
+      | ExprKind::Unary { .. }
+      | ExprKind::Binary { .. }
+      | ExprKind::Cast { .. } => true,
 
-    match expr {
-      Integer { .. }
-      | Float { .. }
-      | String { .. }
-      | Char { .. }
-      | ByteString { .. }
-      | Byte { .. }
-      | Bool { .. }
-      | Ident { .. }
-      | Path(_)
-      | Binary { .. }
-      | Unary { .. }
-      | Group { .. }
-      | Tuple { .. }
-      | Field { .. }
-      | MethodCall { .. }
-      | Call { .. }
-      | Index { .. }
-      | Let { .. } => true,
-      // TODO: check these later for correctness and more cases
-      _ => false,
+      // let expressions are only valid in if let / while let,
+      // but keeping them allowed here matches rustc parsing stage
+      ExprKind::IfLet { .. } => true,
+
+      // everything else is not a valid boolean condition
+      ExprKind::Struct { .. }
+      | ExprKind::TupleStruct { .. }
+      | ExprKind::Assign { .. }
+      | ExprKind::AssignOp { .. }
+      | ExprKind::Range { .. }
+      | ExprKind::Block { .. }
+      | ExprKind::If { .. }
+      | ExprKind::Match { .. }
+      | ExprKind::Loop { .. }
+      | ExprKind::While { .. }
+      | ExprKind::WhileLet { .. }
+      | ExprKind::For { .. }
+      | ExprKind::Break { .. }
+      | ExprKind::Continue { .. }
+      | ExprKind::Return { .. }
+      | ExprKind::Closure { .. }
+      | ExprKind::Macro { .. }
+      | ExprKind::Await { .. }
+      | ExprKind::Try { .. } => false,
     }
   }
 

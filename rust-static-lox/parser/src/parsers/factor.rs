@@ -4,38 +4,11 @@ use diagnostic::types::error::DiagnosticError;
 use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
-use crate::ast::BinaryOp;
+use crate::ast::{BinaryOp, ExprKind};
 use crate::parser_utils::ExprContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  /// Parses multiplicative expressions using the operators `*`, `/`, and `%`.
-  ///
-  /// Grammar:
-  ///
-  ///   factor ::= cast ( factorOp cast )*
-  ///
-  ///   factorOp ::= "*" | "/" | "%"
-  ///
-  /// Description:
-  /// - A factor expression consists of a left operand followed by zero or more
-  ///   multiplicative operators and right operands.
-  /// - Each operand is parsed using `parse_cast`, the next higher-precedence rule.
-  ///
-  /// Associativity:
-  /// - Multiplicative operators associate left to right.
-  ///   Example: a * b * c parses as (a * b) * c.
-  ///
-  /// Error Handling:
-  /// - If the right side of an operator does not start a valid expression,
-  ///   an UnexpectedToken diagnostic is emitted.
-  ///
-  /// Examples:
-  ///   x * y
-  ///   a / b
-  ///   n % 10
-  ///   x * y / z % k
-  ///
   pub(crate) fn parse_factor(
     &mut self,
     context: ExprContext,
@@ -45,7 +18,7 @@ impl Parser {
     let mut lhs = self.parse_cast(context, engine)?;
 
     loop {
-      let token = self.current_token();
+      let mut token = self.current_token();
 
       let op = match token.kind {
         TokenKind::Star => BinaryOp::Mul,
@@ -85,11 +58,14 @@ impl Parser {
       // parse the next cast-level expression (not parse_factor)
       let rhs = self.parse_cast(context, engine)?;
 
-      lhs = Expr::Binary {
-        op,
-        left: Box::new(lhs),
-        right: Box::new(rhs),
-        span: token.span,
+      lhs = Expr {
+        attributes: vec![], // TODO: implement attributes
+        kind: ExprKind::Binary {
+          left: Box::new(lhs),
+          op,
+          right: Box::new(rhs),
+        },
+        span: *token.span.merge(self.current_token().span),
       };
     }
 

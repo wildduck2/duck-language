@@ -1,5 +1,8 @@
 use crate::{
-  ast::{CaptureKind, ClosureParam, Expr, Type},
+  ast::{
+    expr::{ClosureParam, Expr, ExprKind},
+    ty::Type,
+  },
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -15,11 +18,6 @@ impl Parser {
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let (is_move, is_async) = self.parse_closure_flavors(engine)?;
-    let capture = if is_move {
-      CaptureKind::Move
-    } else {
-      CaptureKind::Default
-    };
 
     self.expect(TokenKind::Or, engine)?;
     let params = self.parse_closure_params(context, engine)?;
@@ -28,13 +26,15 @@ impl Parser {
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
       let body = self.parse_expression(vec![], context, engine)?;
       token.span.merge(self.current_token().span);
-      return Ok(Expr::Closure {
-        capture,
-        is_async,
-        is_move,
-        params,
-        return_type: None,
-        body: Box::new(body),
+      return Ok(Expr {
+        attributes: vec![],
+        kind: ExprKind::Closure {
+          is_async,
+          is_move,
+          params,
+          return_type: None,
+          body: Box::new(body),
+        },
         span: token.span,
       });
     }
@@ -44,13 +44,15 @@ impl Parser {
     let body = self.parse_expression(vec![], context, engine)?;
 
     token.span.merge(self.current_token().span);
-    Ok(Expr::Closure {
-      capture: CaptureKind::Default,
-      is_async,
-      is_move,
-      params,
-      return_type: Some(return_type),
-      body: Box::new(body),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Closure {
+        is_async,
+        is_move,
+        params,
+        return_type: Some(return_type),
+        body: Box::new(body),
+      },
       span: token.span,
     })
   }
@@ -73,6 +75,7 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<ClosureParam, ()> {
+    let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(engine)?;
     let pattern = self.parse_pattern(context, engine)?;
 
@@ -87,6 +90,7 @@ impl Parser {
       attributes,
       pattern,
       ty,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 

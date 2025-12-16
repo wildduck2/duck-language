@@ -191,7 +191,7 @@ pub enum LiteralKind {
   /// ```
   RawStr {
     /// Number of `#` delimiters used
-    n_hashes: u16,
+    n_hashes: usize,
   },
 
   /// Raw byte string literal (raw + byte string combined)
@@ -203,7 +203,7 @@ pub enum LiteralKind {
   /// ```
   RawByteStr {
     /// Number of `#` delimiters used
-    n_hashes: u16,
+    n_hashes: usize,
   },
 
   /// Raw C string literal (raw + C string combined)
@@ -217,7 +217,7 @@ pub enum LiteralKind {
   /// ```
   RawCStr {
     /// Number of `#` delimiters used
-    n_hashes: u16,
+    n_hashes: usize,
   },
 }
 

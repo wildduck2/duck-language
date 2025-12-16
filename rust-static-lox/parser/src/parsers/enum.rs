@@ -2,7 +2,9 @@ use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::{
-  ast::{Attribute, EnumDecl, EnumVariant, EnumVariantKind, Item, Visibility},
+  ast::{
+    Attribute, EnumDecl, EnumVariant, EnumVariantKind, Item, VisItem, VisItemKind, Visibility,
+  },
   match_and_consume,
   parser_utils::ExprContext,
   Parser,
@@ -26,13 +28,15 @@ impl Parser {
 
     let variants = self.parse_enum_variants(engine)?;
 
-    Ok(Item::Enum(EnumDecl {
+    Ok(Item::Vis(VisItem {
       attributes,
       visibility,
-      name,
-      generics,
-      variants,
-      where_clause,
+      kind: VisItemKind::Enum(EnumDecl {
+        name,
+        generics,
+        variants,
+        where_clause,
+      }),
       span: *token.span.merge(token.span),
     }))
   }
@@ -57,9 +61,13 @@ impl Parser {
     let name = self.parse_name(false, engine)?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::OpenBrace) {
-      EnumVariantKind::Struct(self.parse_record_fields(engine)?)
+      EnumVariantKind::Struct {
+        fields: self.parse_record_fields(engine)?,
+      }
     } else if matches!(self.current_token().kind, TokenKind::OpenParen) {
-      EnumVariantKind::Tuple(self.parse_tuple_fields(engine)?)
+      EnumVariantKind::Tuple {
+        fields: self.parse_tuple_fields(engine)?,
+      }
     } else {
       EnumVariantKind::Unit
     };

@@ -5,33 +5,13 @@ use diagnostic::{
 };
 use lexer::token::TokenKind;
 
-use crate::{ast::Expr, parser_utils::ExprContext, DiagnosticEngine, Parser};
+use crate::{
+  ast::expr::{Expr, ExprKind},
+  parser_utils::ExprContext,
+  DiagnosticEngine, Parser,
+};
 
 impl Parser {
-  /// Parses Rust-style array expressions.
-  ///
-  /// Grammar reference (`<arrayExpr>`):
-  ///
-  /// ```bnf
-  /// arrayExpr       ::= "[" arrayElements? "]"
-  ///
-  /// arrayElements   ::=
-  ///        expression ";" expression           // repeat array
-  ///      | expression ("," expression)* ","?   // normal array
-  /// ```
-  ///
-  /// Supported forms:
-  /// - Comma arrays: `[a, b, c]`
-  /// - One-element arrays: `[a]`, `[a,]`
-  /// - Repeat arrays: `[value; count]`
-  /// - Empty arrays: `[]`
-  ///
-  /// Notes:
-  /// - `value` may be any expression.
-  /// - `count` must be a compile-time constant literal (lexer enforces literal form).
-  /// - The parser returns:
-  ///   - `elements: Vec<Expr>` for comma arrays
-  ///   - `repeat: Option<Expr>` for `[value; count]`
   pub(crate) fn parse_array_expr(&mut self, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
     let mut token = self.current_token();
     self.advance(engine); // consume '['
@@ -39,33 +19,16 @@ impl Parser {
     let (elements, repeat) = self.parse_array_elements(engine)?;
     token.span.merge(self.current_token().span);
 
-    Ok(Expr::Array {
-      elements,
-      repeat: repeat.map(Box::new),
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Array {
+        elements,
+        repeat: repeat.map(Box::new),
+      },
       span: *token.span.merge(self.current_token().span),
     })
   }
 
-  /// Parses elements inside an array expression.
-  ///
-  /// Grammar reference (`<arrayElements>`):
-  ///
-  /// ```bnf
-  /// arrayElements ::=
-  ///       expression ";" expression        // repeat array
-  ///     | expression ("," expression)* ","?
-  ///     | ε                               // empty array
-  /// ```
-  ///
-  /// Handles three cases:
-  ///
-  /// 1. **Empty array**: `[]`
-  /// 2. **Repeat array**: `[value; count]`
-  /// 3. **Comma array**: `[a, b, c]`
-  ///
-  /// Notes:
-  /// - A missing repeat count (`[value;]`) is an error.
-  /// - Normal arrays tolerate trailing commas.
   fn parse_array_elements(
     &mut self,
     engine: &mut DiagnosticEngine,

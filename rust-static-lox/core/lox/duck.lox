@@ -76,3 +76,8 @@ static _: i32;
 // long identifier
 static VERY_LONG_STATIC_IDENTIFIER_NAME_123: i64 = 99;
 
+static _: i32;
+static _: i32 = 0;
+static mut _: i32;
+static mut _: i32 = 0;
+

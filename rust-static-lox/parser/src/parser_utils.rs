@@ -62,8 +62,8 @@ impl Parser {
       | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, engine),
       TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, engine),
       TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, engine),
+      TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, engine),
       // TokenKind::KwConst => self.parse_const_decl(attributes, visibility, engine),
-      // TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, engine),
       // TokenKind::KwMod => self.parse_module_decl(attributes, visibility, engine),
       // TokenKind::KwUse => self.parse_use_decl(attributes, visibility, engine),
       // TokenKind::KwExternCrate => self.parse_extern_crate_decl(attributes, visibility, engine),
@@ -101,6 +101,7 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Stmt, ()> {
+    let mut token = self.current_token();
     let outer_attributes = self.parse_outer_attributes(engine)?;
     let visibility = self.parse_visibility(engine)?;
 
@@ -108,7 +109,9 @@ impl Parser {
       TokenKind::Semi => {
         // Empty statement: just a semicolon
         self.advance(engine);
-        Ok(Stmt::Empty)
+        Ok(Stmt::Empty {
+          span: *token.span.merge(self.current_token().span),
+        })
       },
       // let declaration
       TokenKind::KwLet => self.parse_let_statement(context, outer_attributes, engine),
@@ -143,14 +146,15 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Stmt, ()> {
+    let mut token = self.current_token();
     let expr = self.parse_expression(outer_attributes, context, engine)?;
+    let has_semi = matches!(self.current_token().kind, TokenKind::Semi);
 
-    if self.current_token().kind == TokenKind::Semi {
-      self.expect(TokenKind::Semi, engine)?; // check if followed by semicolon
-      Ok(Stmt::Expr(expr))
-    } else {
-      Ok(Stmt::TailExpr(expr))
-    }
+    Ok(Stmt::Expr {
+      expr,
+      has_semi,
+      span: *token.span.merge(self.current_token().span),
+    })
   }
 
   /// Entry point for expression parsing. The supplied `context` controls
@@ -182,7 +186,6 @@ impl Parser {
       },
       TokenKind::KwContinue => self.parse_continue_expression(context, engine),
       TokenKind::KwBreak => self.parse_break_expression(context, engine),
-      TokenKind::KwLet => self.parse_let_expression(context, engine),
       TokenKind::KwReturn => self.parse_return_expression(context, engine),
       TokenKind::KwLoop => self.parse_loop_expression(label, outer_attributes, engine),
       TokenKind::KwWhile => self.parse_while_expression(label, outer_attributes, engine),
@@ -191,55 +194,57 @@ impl Parser {
     }
   }
 
-  /// Parses literals, identifiers, grouped constructs, arrays, and struct expressions.
-  /// Emits a targeted diagnostic when the current token cannot start a primary expression.
   pub(crate) fn parse_primary(
     &mut self,
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    // FIX: this will use the context to determine whether to parse a struct expr or ident
-    // if matches!(context, ExprContext::Default) {
-    //   // return self.parse_struct_expr(&mut token, engine);
-    // }
-    match self.current_token().kind {
-      // Literal handling expr
+    let token = self.current_token();
+
+    match token.kind {
+      // --------------------------------------------------
+      // literals
+      // --------------------------------------------------
       TokenKind::Literal { kind } => self.parser_literal(kind, engine),
-      TokenKind::KwFalse | TokenKind::KwTrue => self.parser_bool(engine),
 
-      // Path handling expr
-      TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
-        Ok(self.parse_path_expr(true, engine)?)
-      },
-      TokenKind::ColonColon => Ok(self.parse_path_expr(true, engine)?),
-      TokenKind::Ident | TokenKind::KwSelf | TokenKind::KwSuper | TokenKind::KwCrate
-        if matches!(
-          self.peek(1).kind,
-          TokenKind::ColonColon | TokenKind::OpenBrace | TokenKind::OpenParen
-        ) =>
-      {
-        Ok(self.parse_path_expr(true, engine)?)
-      },
+      TokenKind::KwTrue | TokenKind::KwFalse => self.parser_bool(engine),
 
-      // Ident handling expr
+      // --------------------------------------------------
+      // macro invocation expression
+      // --------------------------------------------------
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Bang) => {
-        self.parser_macro_invocation_expression(engine)
+        self.parse_macro_invocation_expression(engine)
       },
 
-      TokenKind::Ident => self.parser_ident(engine),
-
-      TokenKind::KwSelf | TokenKind::KwSuper | TokenKind::KwCrate | TokenKind::KwSelfType => {
-        self.parse_keyword_ident(engine)
+      // --------------------------------------------------
+      // path expressions
+      // --------------------------------------------------
+      TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
+        self.parse_path_expr(true, engine)
       },
 
-      // Grouped handling expr
+      TokenKind::ColonColon => self.parse_path_expr(true, engine),
+
+      TokenKind::Ident
+      | TokenKind::KwSelf
+      | TokenKind::KwSuper
+      | TokenKind::KwCrate
+      | TokenKind::KwSelfType => self.parse_path_expr(true, engine),
+
+      // --------------------------------------------------
+      // grouped and tuple expressions
+      // --------------------------------------------------
       TokenKind::OpenParen => self.parse_grouped_and_tuple_expr(engine),
 
-      // Array handling expr
+      // --------------------------------------------------
+      // array expression
+      // --------------------------------------------------
       TokenKind::OpenBracket => self.parse_array_expr(engine),
 
+      // --------------------------------------------------
+      // error
+      // --------------------------------------------------
       _ => {
-        let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
 
         let diagnostic = Diagnostic::new(
@@ -258,7 +263,6 @@ impl Parser {
         .with_help(Parser::get_token_help(&token.kind, &token));
 
         engine.add(diagnostic);
-
         Err(())
       },
     }

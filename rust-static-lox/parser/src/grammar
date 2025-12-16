@@ -3,91 +3,90 @@
  * Models rustc behavior modulo macro expansion and semantic checks.
  */
 
-program           -> shebang? innerAttr* item* EOF ;
+program                 -> shebang? innerAttr* item* EOF ;
 
-shebang           -> "#!" ~[\n]* ;
+shebang                 -> "#!" ~[\n]* ;
 
 /* ------------------------------------------------------------------------- */
 /* Items                                                                     */
 /* ------------------------------------------------------------------------- */
 
-item              -> outerAttr* visItem ;
+item                    -> outerAttr* visItem ;
 
-visItem           -> visibility? itemKind
-                   | macroItem ;
+visItem                 -> visibility? itemKind
+                         | macroItem ;
 
-itemKind          -> functionItem       [x]
-                   | structItem         [x]
-                   | enumItem           [-]
-                   | traitItem
-                   | implItem
-                   | constItem
-                   | staticItem
-                   | typeAliasItem      [x]
-                   | moduleItem
-                   | useItem
-                   | externCrateItem
-                   | foreignModItem
-                   | unionItem
-                   | externTypeItem ;
+/* Safe reorder: each alternative has a distinct leading keyword/token */
+itemKind                -> functionItem            [x]
+                         | structItem              [x]
+                         | typeAliasItem           [x]
+                         | enumItem                [-]
+                         | traitItem
+                         | implItem
+                         | constItem
+                         | staticItem
+                         | moduleItem
+                         | useItem
+                         | externCrateItem
+                         | foreignModItem
+                         | unionItem
+                         | externTypeItem ;
 
 /* ------------------------------------------------------------------------- */
 /* Macros                                                                    */
 /* ------------------------------------------------------------------------- */
 
-macroItem         -> macroInvocationSemi
-                   | macroRulesItem
-                   | macro2Item ;
+macroItem               -> macroInvocationSemi
+                         | macroRulesItem
+                         | macro2Item ;
 
-outerAttr         -> "#" "[" attrInput "]" ;
-innerAttr         -> "#" "!" "[" attrInput "]" ;
+outerAttr               -> "#" "[" attrInput "]" ;
+innerAttr               -> "#" "!" "[" attrInput "]" ;
 
-attrInput         -> simplePath attrInputTail? ;
+attrInput               -> simplePath attrInputTail? ;
 
-attrInputTail     -> delimTokenTree
-                   | "=" expression ;
+attrInputTail           -> delimTokenTree
+                         | "=" expression ;
 
-delimTokenTree    -> "(" tokenStream ")"
-                   | "[" tokenStream "]"
-                   | "{" tokenStream "}" ;
+delimTokenTree          -> "(" tokenStream ")"
+                         | "[" tokenStream "]"
+                         | "{" tokenStream "}" ;
 
-metaItem          -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;
-metaSeq           -> metaItemInner ("," metaItemInner)* ","? ;
-metaItemInner     -> metaItem | literalExpr ;
+metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;
+metaSeq                 -> metaItemInner ("," metaItemInner)* ","? ;
+metaItemInner           -> metaItem | literalExpr ;
 
 /* ------------------------------------------------------------------------- */
 /* Functions                                                                 */
 /* ------------------------------------------------------------------------- */
 
 /* Split signature from bodies to model semantics precisely */
-functionSig       -> functionQualifiers "fn" IDENTIFIER                          [x]
-                     genericParams? "(" functionParams? ")" functionReturnType?  [x]
-                     whereClause? ;                                              [x]
+functionSig             -> functionQualifiers "fn" IDENTIFIER                           [x]
+                           genericParams? "(" functionParams? ")" functionReturnType?   [x]
+                           whereClause? ;                                               [x]
 
-functionItem      -> functionSig blockExpr ;         /* free functions need a body */ [x]
+functionItem            -> functionSig blockExpr ;         /* free functions need a body */ [x]
 
-foreignFunctionItem
-                  -> functionSig ";" ;               /* foreign items end with ';' */ [x]
+foreignFunctionItem     -> functionSig ";" ;               /* foreign items end with ';' */ [x]
 
-associatedFunctionItem
-                  -> functionSig (blockExpr | ";") ; /* traits may have default bodies or ';' */ [x]
+associatedFunctionItem  -> functionSig (blockExpr | ";") ; /* traits may have default bodies or ';' */ [x]
 
 /* Qualifiers */
-functionQualifiers   -> "const"? "async"? "unsafe"? ("extern" abi?)? ;  [x]
+functionQualifiers      -> "const"? "async"? "unsafe"? ("extern" abi?)? ;  [x]
 
-abi                  -> STRING | RAW_STRING ;  [x]
+abi                     -> STRING | RAW_STRING ;  [x]
 
-functionParams       -> selfParam ("," functionParam)* ","?        [x]
-                      | functionParam ("," functionParam)* ","? ;  [x]
+functionParams          -> selfParam ("," functionParam)* ","?        [x]
+                         | functionParam ("," functionParam)* ","? ;  [x]
 
-selfParam            -> outerAttr* (shorthandSelf | typedSelf) ;   [x]
-shorthandSelf        -> ("&" LIFETIME?)? "mut"? "self" ;           [x]
-typedSelf            -> "mut"? "self" ":" type ;                   [x]
+selfParam               -> outerAttr* (shorthandSelf | typedSelf) ;   [x]
+shorthandSelf           -> ("&" LIFETIME?)? "mut"? "self" ;           [x]
+typedSelf               -> "mut"? "self" ":" type ;                   [x]
 
-functionParam        -> outerAttr* (functionParamPattern | "...") ;  [x]
-functionParamPattern -> patternNoTopAlt (":" (type | "..."))? ;      [x]
+functionParam           -> outerAttr* (functionParamPattern | "...") ;  [x]
+functionParamPattern    -> patternNoTopAlt (":" (type | "..."))? ;      [x]
 
-functionReturnType -> "->" type ;  [x]
+functionReturnType      -> "->" type ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Structs                                                                   */
@@ -99,595 +98,587 @@ functionReturnType -> "->" type ;  [x]
    - tuple:     where AFTER ')', then ';' is required
    - unit:      where BEFORE ';', ';' is required
 */
-structItem        -> "struct" IDENTIFIER genericParams?   [x]
-                     ( whereClause? recordStructFields    [x]
-                     | tupleStructFields whereClause? ";" [x]
-                     | whereClause? ";"                   [x]
-                     ) ;                                  [x]
+structItem               -> "struct" IDENTIFIER genericParams?      [x]
+                            ( whereClause? recordStructFields       [x]
+                            | tupleStructFields whereClause? ";"    [x]
+                            | whereClause? ";"                      [x]
+                            ) ;                                     [x]
 
-recordStructFields -> "{" structFields? "}" ;                      [x]
-structFields      -> structField ("," structField)* ","? ;         [x]
-structField       -> outerAttr* visibility? IDENTIFIER ":" type ;  [x]
- 
-tupleStructFields -> "(" tupleFields? ")" ;                        [x]
-tupleFields       -> tupleField ("," tupleField)* ","? ;           [x]
-tupleField        -> outerAttr* visibility? type ;                 [x]
+recordStructFields       -> "{" structFields? "}" ;                      [x]
+structFields             -> structField ("," structField)* ","? ;         [x]
+structField              -> outerAttr* visibility? IDENTIFIER ":" type ;  [x]
+
+tupleStructFields        -> "(" tupleFields? ")" ;                        [x]
+tupleFields              -> tupleField ("," tupleField)* ","? ;           [x]
+tupleField               -> outerAttr* visibility? type ;                 [x]
 
 /* ------------------------------------------------------------------------- */
 /* Enums                                                                     */
 /* ------------------------------------------------------------------------- */
 
-enumItem          -> "enum" IDENTIFIER genericParams? whereClause? "{" enumVariants? "}" ;  [x]
-enumVariants      -> enumVariant ("," enumVariant)* ","? ;  [x]
-enumVariant       -> outerAttr* visibility? IDENTIFIER (enumVariantFields | discriminant)? ;  [x]
-enumVariantFields -> recordStructFields | tupleStructFields ;  [x]
-discriminant      -> "=" expression ;  [x]
+enumItem                 -> "enum" IDENTIFIER genericParams? whereClause? "{" enumVariants? "}" ;  [x]
+enumVariants             -> enumVariant ("," enumVariant)* ","? ;  [x]
+enumVariant              -> outerAttr* visibility? IDENTIFIER (enumVariantFields | discriminant)? ;  [x]
+enumVariantFields        -> recordStructFields | tupleStructFields ;  [x]
+discriminant             -> "=" expression ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Union                                                                     */
 /* ------------------------------------------------------------------------- */
 
-unionItem         -> "union" IDENTIFIER genericParams?
-                     whereClause? recordStructFields ;
+unionItem                -> "union" IDENTIFIER genericParams?
+                            whereClause? recordStructFields ;
 
 /* ------------------------------------------------------------------------- */
-/* Consts, Statics, Type Aliases                                              */
+/* Consts, Statics, Type Aliases                                             */
 /* ------------------------------------------------------------------------- */
 
 /* Free-standing const must have initializer */
-constItem         -> "const" (IDENTIFIER | "_") ":" type "=" expression ";" ;
+constItem                -> "const" (IDENTIFIER | "_") ":" type "=" expression ";" ;
 
 /* Free-standing static may omit initializer */
-staticItem        -> "static" "mut"? IDENTIFIER ":" type
-                     ("=" expression)? ";" ;
+/* FIX 1: allow '_' identifier like rustc */
+staticItem               -> "static" "mut"? (IDENTIFIER | "_") ":" type
+                            ("=" expression)? ";" ;
 
 /* Free-standing type alias must have '=' type */
-typeAliasItem     -> "type" IDENTIFIER genericParams? 
-                     (":" typeParamBounds)? 
-                     whereClause? "=" type ";" ;      [x]
+typeAliasItem             -> "type" IDENTIFIER genericParams?
+                            (":" typeParamBounds)?
+                            whereClause? "=" type ";" ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Traits and Impl                                                           */
 /* ------------------------------------------------------------------------- */
 
-traitItem         -> "unsafe"? "auto"? "trait" IDENTIFIER
-                     genericParams? (":" typeParamBounds)?
-                     whereClause? "{" innerAttr* associatedItem* "}" ;
+traitItem                -> "unsafe"? "auto"? "trait" IDENTIFIER
+                            genericParams? (":" typeParamBounds)?
+                            whereClause? traitBody ;
 
-implItem          -> "unsafe"? "impl" genericParams?
-                     "const"? "!"? traitPath "for" type
-                     whereClause? "{" innerAttr* associatedItem* "}"
-                   | "unsafe"? "impl" genericParams? type
-                     whereClause? "{" innerAttr* inherentImplItem* "}" ;
+traitBody                -> "{" innerAttr* associatedItem* "}" ;
 
-traitPath         -> typePath ;
+implItem                 -> "unsafe"? "impl" genericParams?
+                            "const"? "!"? traitPath "for" type
+                            whereClause? implBody
+                          | "unsafe"? "impl" genericParams? type
+                            whereClause? inherentImplBody ;
 
-associatedItem    -> outerAttr* (macroInvocationSemi | associatedItemKind) ;
+implBody                 -> "{" innerAttr* associatedItem* "}" ;
+inherentImplBody         -> "{" innerAttr* inherentImplItem* "}" ;
 
-associatedItemKind -> associatedTypeItem
-                    | associatedConstItem
-                    | associatedFunctionItem ;
+traitPath                -> typePath ;
+
+associatedItem           -> outerAttr* (macroInvocationSemi | associatedItemKind) ;
+
+associatedItemKind       -> associatedTypeItem
+                          | associatedConstItem
+                          | associatedFunctionItem ;
 
 /* Associated type: generics (GATs) allowed, optional bounds, optional where, optional default */
-associatedTypeItem -> "type" IDENTIFIER genericParams? (":" typeParamBounds)?
-                      whereClause? ("=" type)? ";" ;
+associatedTypeItem       -> "type" IDENTIFIER genericParams? (":" typeParamBounds)?
+                            whereClause? ("=" type)? ";" ;
 
 /* Associated const: in traits value is optional, in impls it must be provided (semantic rule) */
-associatedConstItem -> "const" IDENTIFIER ":" type ("=" expression)? ";" ;
+associatedConstItem      -> "const" IDENTIFIER ":" type ("=" expression)? ";" ;
 
-inherentImplItem  -> outerAttr* (visibility? (functionItem | constItem) | macroInvocationSemi) ;
+inherentImplItem         -> outerAttr* (visibility? (functionItem | constItem) | macroInvocationSemi) ;
 
 /* ------------------------------------------------------------------------- */
-/* Externs, Modules, Use                                                      */
+/* Externs, Modules, Use                                                     */
 /* ------------------------------------------------------------------------- */
 
-externCrateItem   -> "extern" "crate" crateRef asClause? ";" ;
-crateRef          -> IDENTIFIER | "self" ;
-asClause          -> "as" (IDENTIFIER | "_") ;
+externCrateItem          -> "extern" "crate" crateRef asClause? ";" ;
+crateRef                 -> IDENTIFIER | "self" ;
+asClause                 -> "as" (IDENTIFIER | "_") ;
 
-useItem           -> "use" useTree ";" ;
-useTree           -> (simplePath? "::")? ("*" | useTreeList)
-                   | simplePath ("as" (IDENTIFIER | "_"))? ;
-useTreeList       -> "{" (useTree ("," useTree)* ","?)? "}" ;
+useItem                  -> "use" useTree ";" ;
+useTree                  -> (simplePath? "::")? ("*" | useTreeList)
+                          | simplePath ("as" (IDENTIFIER | "_"))? ;
+useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;
 
-moduleItem        -> "mod" IDENTIFIER (";" | "{" innerAttr* item* "}") ;
+/* FIX 2: module blocks are item containers, not expression blocks */
+moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;
+
+/* Item container block: allows inner attributes */
+itemBlock                -> "{" innerAttr* item* "}" ;
 
 /* Foreign module: only foreignFunctionItem and foreign statics inside */
-foreignModItem    -> "unsafe"? "extern" abi? "{" innerAttr* externalItem* "}" ;
-externalItem      -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;
-externalItemKind  -> "static" "mut"? IDENTIFIER ":" type ";"
-                   | foreignFunctionItem ;
+foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;
+foreignModBody           -> "{" innerAttr* externalItem* "}" ;
+
+externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;
+externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"
+                          | foreignFunctionItem ;
 
 /* extern type is a separate free item (no generics) */
-externTypeItem    -> "extern" "type" IDENTIFIER ";" ;
+externTypeItem           -> "extern" "type" IDENTIFIER ";" ;
 
 /* ------------------------------------------------------------------------- */
-/* Macros (defs)                                                              */
+/* Macros (defs)                                                             */
 /* ------------------------------------------------------------------------- */
 
-macroRulesItem    -> "macro_rules" "!" IDENTIFIER macroRulesDef ;
-macroRulesDef     -> "(" macroRules ")" ";"
-                   | "{" macroRules "}"
-                   | "[" macroRules "]" ;
+macroRulesItem            -> "macro_rules" "!" IDENTIFIER macroRulesDef ;
+macroRulesDef             -> "(" macroRules ")" ";"
+                           | "{" macroRules "}"
+                           | "[" macroRules "]" ;
 
-macroRules        -> macroRule (";" macroRule)* ";"? ;
-macroRule         -> macroMatcher "=>" macroTranscriber ;
+macroRules                -> macroRule (";" macroRule)* ";"? ;
+macroRule                 -> macroMatcher "=>" macroTranscriber ;
 
-macroMatcher      -> "(" macroMatch* ")"
-                   | "[" macroMatch* "]"
-                   | "{" macroMatch* "}" ;
+macroMatcher              -> "(" macroMatch* ")"
+                           | "[" macroMatch* "]"
+                           | "{" macroMatch* "}" ;
 
-macroMatch        -> tokenExceptDelims
-                   | macroMatcher
-                   | "$" (IDENTIFIER ":" macroFragSpec | "(" macroMatch+ ")" macroRepSep? macroRepOp) ;
+macroMatch                -> tokenExceptDelims
+                           | macroMatcher
+                           | "$" (IDENTIFIER ":" macroFragSpec | "(" macroMatch+ ")" macroRepSep? macroRepOp) ;
 
-macroFragSpec     -> "block" | "expr" | "ident" | "item" | "lifetime" | "literal"
-                   | "meta" | "pat" | "pat_param" | "path" | "stmt" | "tt" | "ty" | "vis" ;
+macroFragSpec             -> "block" | "expr" | "ident" | "item" | "lifetime" | "literal"
+                           | "meta" | "pat" | "pat_param" | "path" | "stmt" | "tt" | "ty" | "vis" ;
 
-macroRepSep       -> tokenExceptDelims | macroRepOp ;
-macroRepOp        -> "*" | "+" | "?" ;
+macroRepSep               -> tokenExceptDelims | macroRepOp ;
+macroRepOp                -> "*" | "+" | "?" ;
 
-macroTranscriber  -> delimTokenTree ;
+macroTranscriber          -> delimTokenTree ;
 
-macro2Item        -> "macro" IDENTIFIER "(" macroParams? ")" delimTokenTree ;
-macroParams       -> IDENTIFIER ("," IDENTIFIER)* ","? ;
+macro2Item                -> "macro" IDENTIFIER "(" macroParams? ")" delimTokenTree ;
+macroParams               -> IDENTIFIER ("," IDENTIFIER)* ","? ;
 
 /* ------------------------------------------------------------------------- */
-/* Generics                                                                   */
+/* Generics                                                                  */
 /* ------------------------------------------------------------------------- */
 
-genericParams     -> "<" (genericParam ("," genericParam)* ","?)? ">" ;    [x]
-genericParam      -> outerAttr* (lifetimeParam | typeParam | constParam) ; [x]
+genericParams             -> "<" (genericParam ("," genericParam)* ","?)? ">" ;    [x]
+genericParam              -> outerAttr* (lifetimeParam | typeParam | constParam) ; [x]
 
-lifetimeParam     -> LIFETIME (":" lifetimeBounds)? ; [x]
+lifetimeParam             -> LIFETIME (":" lifetimeBounds)? ; [x]
 
 /* type param: optional bounds, optional default */
-typeParam         -> IDENTIFIER (":" typeParamBounds)? ("=" type)? ; [x]
+typeParam                 -> IDENTIFIER (":" typeParamBounds)? ("=" type)? ; [x]
 
 /* const param: allow const-evaluable defaults */
-constParam        -> "const" IDENTIFIER ":" type ("=" block | "=" IDENTIFIER | "=" literalExpr)? ; [x]
+constParam                -> "const" IDENTIFIER ":" type ("=" block | "=" IDENTIFIER | "=" literalExpr)? ; [x]
 
 /* where clause */
+whereClause               -> "where" (whereClauseItem ("," whereClauseItem)* ","?)? ; [x]
+whereClauseItem           -> lifetimeWhereClauseItem      [x]
+                           | typeBoundWhereClauseItem ;   [x]
 
-whereClause       -> "where" (whereClauseItem ("," whereClauseItem)* ","?)? ; [x]
-whereClauseItem   -> lifetimeWhereClauseItem     [x]
-                   | typeBoundWhereClauseItem ;  [x]
-
-lifetimeWhereClauseItem -> LIFETIME ":" lifetimeBounds ;  [x]
-typeBoundWhereClauseItem -> forLifetimes? type ":" typeParamBounds? ;  [x]
+lifetimeWhereClauseItem   -> LIFETIME ":" lifetimeBounds ;  [x]
+typeBoundWhereClauseItem  -> forLifetimes? type ":" typeParamBounds? ;  [x]
 
 /* bounds */
-lifetimeBounds    -> (LIFETIME ("+" LIFETIME)*)? ; [x]
-typeParamBounds   -> typeParamBound ("+" typeParamBound)* ; [x]
-typeParamBound    -> LIFETIME | traitBound ; [x]
+lifetimeBounds            -> (LIFETIME ("+" LIFETIME)*)? ; [x]
+typeParamBounds           -> typeParamBound ("+" typeParamBound)* ; [x]
+typeParamBound            -> LIFETIME | traitBound ; [x]
 
 /* trait bounds */
-traitBound          -> traitBoundModifier? forLifetimes? typePath [x]
+traitBound                -> traitBoundModifier? forLifetimes? typePath [x]
 
-traitBoundModifier  -> "?"                      [x]
-                     | "~const"                 [x]
-                     | "?~const"                [x]
-
+traitBoundModifier        -> "?"                      [x]
+                           | "~const"                 [x]
+                           | "?~const"                [x]
 
 /* HRTB: only lifetimes may appear inside for<...> */
-forLifetimes      -> "for" "<" LIFETIME ("," LIFETIME)* ","? ">" ; [x]
+forLifetimes              -> "for" "<" LIFETIME ("," LIFETIME)* ","? ">" ; [x]
 
 /* generic args on paths: lifetimes, types, consts, bindings, and (contextually) constraints */
-genericArgs       -> "<" genericArg ("," genericArg)* ","?            [x]
-                   | "::" "<" genericArg ("," genericArg)* ","? ">" ; [x]
+genericArgs               -> "<" genericArg ("," genericArg)* ","?               [x]
+                           | "::" "<" genericArg ("," genericArg)* ","? ">"      [x]
 
-genericArg        -> LIFETIME                                    [x]
-                   | type                                        [x]
-                   | genericArgsConst                            [x]
-                   | genericArgsBinding                          [x]
-                   | constrainedTypeParam ;                      [x]
+genericArg                -> LIFETIME                                           [x]
+                           | type                                               [x]
+                           | genericArgsConst                                   [x]
+                           | genericArgsBinding                                 [x]
+                           | constrainedTypeParam ;                             [x]
 
 /* const args: grammar-level expression; evaluator enforces const-evaluable */
-genericArgsConst  -> expression ; [x]
+genericArgsConst          -> expression ; [x]
 
 /* equality binding: e.g., Item<'a> = T */
-genericArgsBinding -> IDENTIFIER genericArgs? "=" type ; [x]
+genericArgsBinding        -> IDENTIFIER genericArgs? "=" type ; [x]
 
 /* constrained type param (allowed contextually in bounds, like Item: Trait) */
-constrainedTypeParam -> IDENTIFIER genericArgs? ":" typeParamBounds ; [x]
+constrainedTypeParam      -> IDENTIFIER genericArgs? ":" typeParamBounds ; [x]
 
 /* ------------------------------------------------------------------------- */
-/* Visibility                                                                 */
+/* Visibility                                                                */
 /* ------------------------------------------------------------------------- */
 
-visibility        -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) ")")? ;  [x]
+visibility                -> "pub" ("(" ("crate" | "self" | "super" | "in" simplePath) ")")? ;  [x]
 
 /* ------------------------------------------------------------------------- */
-/* Types                                                                      */
+/* Types                                                                     */
 /* ------------------------------------------------------------------------- */
 
-type              -> typeNoBounds            [-]
-                   | implTraitType
-                   | traitObjectType ;
+type                      -> typeNoBounds             [-]
+                           | implTraitType
+                           | traitObjectType ;
 
-typeNoBounds      -> parenthesizedType       [-]
-                   | implTraitTypeOneBound
-                   | traitObjectTypeOneBound
-                   | typePath                [-]
-                   | tupleType               [x]
-                   | neverType               [x]
-                   | rawPointerType          [x]
-                   | referenceType           [x]
-                   | arrayType               [x]
-                   | sliceType               [x]
-                   | inferredType            [x]
-                   | qualifiedPathInType     [-]
-                   | bareFunctionType        [x]
-                   | macroInvocation ;
+typeNoBounds              -> parenthesizedType        [-]
+                           | implTraitTypeOneBound
+                           | traitObjectTypeOneBound
+                           | typePath                 [-]
+                           | tupleType                [x]
+                           | neverType                [x]
+                           | rawPointerType           [x]
+                           | referenceType            [x]
+                           | arrayType                [x]
+                           | sliceType                [x]
+                           | inferredType             [x]
+                           | qualifiedPathInType      [-]
+                           | bareFunctionType         [x]
+                           | macroInvocation ;
 
-parenthesizedType -> "(" type ")" ;
+parenthesizedType         -> "(" type ")" ;
 
-tupleType         -> "(" ")"                     [x]
-                   | "(" (type ",")+ type? ")" ; [x]
+tupleType                 -> "(" ")"                     [x]
+                           | "(" (type ",")+ type? ")" ; [x]
 
-neverType         -> "!" ;                       [x]
+neverType                 -> "!" ;                       [x]
 
-rawPointerType    -> "*" ("mut" | "const") typeNoBounds ;  [x]
-referenceType     -> "&" LIFETIME? "mut"? typeNoBounds ;   [x]
+rawPointerType            -> "*" ("mut" | "const") typeNoBounds ;  [x]
+referenceType             -> "&" LIFETIME? "mut"? typeNoBounds ;   [x]
 
-arrayType         -> "[" type ";" expression "]" ;    [x]
-sliceType         -> "[" type "]" ;                   [x]
-inferredType      -> "_" ;                            [x]
+arrayType                 -> "[" type ";" expression "]" ;    [x]
+sliceType                 -> "[" type "]" ;                   [x]
+inferredType              -> "_" ;                            [x]
 
-bareFunctionType  -> forLifetimes? unsafe? externAbi? "fn"
-                     "(" (type ("," type)* ("," "...")? | "...")? ","? ")"
-                     ("->" typeNoBounds)?                                  [x]
+bareFunctionType          -> forLifetimes? unsafe? externAbi? "fn"
+                             "(" (type ("," type)* ("," "...")? | "...")? ","? ")"
+                             ("->" typeNoBounds)?                                  [x]
 
-qualifiedPathInType -> qualifiedPathType ("::" typePath)? ;     [-]
-qualifiedPathType   -> "<" type ("as" typePath)? ">" ;          [-]
+qualifiedPathInType       -> qualifiedPathType ("::" typePath)? ;     [-]
+qualifiedPathType         -> "<" type ("as" typePath)? ">" ;          [-]
 
 /* Note: no turbofish '::<' in type paths */
-typePath          -> "::"? typePathSegment ("::" typePathSegment)* ; [-]
-typePathSegment   -> pathIdentSegment genericArgs? ;                 [-]
+typePath                  -> "::"? typePathSegment ("::" typePathSegment)* ; [-]
+typePathSegment           -> pathIdentSegment genericArgs? ;                 [-]
 
 /* ------------------------------------------------------------------------- */
-/* Paths in expressions                                                       */
+/* Paths in expressions                                                      */
 /* ------------------------------------------------------------------------- */
 
-simplePath        -> "::"? simplePathSegment ("::" simplePathSegment)* ;  [x]
-simplePathSegment -> IDENTIFIER | "super" | "self" | "crate" | "$crate" ; [x]
+simplePath                -> "::"? simplePathSegment ("::" simplePathSegment)* ;  [x]
+simplePathSegment         -> IDENTIFIER | "super" | "self" | "crate" | "$crate" ; [x]
 
-pathInExpression  -> "::"? pathExprSegment ("::" pathExprSegment)* ;      [x]
-pathExprSegment   -> pathIdentSegment ("::" genericArgs)? ;               [x]
-pathIdentSegment  -> IDENTIFIER | "super" | "self" | "Self" | "crate" | "$crate" ; [x]
+pathInExpression          -> "::"? pathExprSegment ("::" pathExprSegment)* ;      [x]
+pathExprSegment           -> pathIdentSegment ("::" genericArgs)? ;               [x]
+pathIdentSegment          -> IDENTIFIER | "super" | "self" | "Self" | "crate" | "$crate" ; [x]
 
-qualifiedPathInExpression -> qualifiedPathType ("::" pathExprSegment)+ ;  [x]
+qualifiedPathInExpression -> qualifiedPathType ("::" pathExprSegment)+ ;          [x]
 
 /* ------------------------------------------------------------------------- */
 /* Patterns                                                                  */
 /* ------------------------------------------------------------------------- */
 
-pattern           -> "|"? patternNoTopAlt ("|" patternNoTopAlt)* ; [x]
+pattern                   -> "|"? patternNoTopAlt ("|" patternNoTopAlt)* ; [x]
 
-patternNoTopAlt   -> patternWithoutRange [x]
-                   | rangePattern ;      [x]
+patternNoTopAlt           -> patternWithoutRange  [x]
+                           | rangePattern ;       [x]
 
-patternWithoutRange 
-                  -> literalPattern         [x]
-                   | identifierPattern      [x]
-                   | wildcardPattern        [x]
-                   | restPattern            [x]
-                   | referencePattern       [x]
-                   | structPattern          [x]
-                   | tupleStructPattern     [x]
-                   | tuplePattern           [x]
-                   | groupedPattern         [x]
-                   | slicePattern           [x]
-                   | pathPattern            [x]
-                   | macroInvocation ;      [x]
+patternWithoutRange       -> literalPattern        [x]
+                           | identifierPattern     [x]
+                           | wildcardPattern       [x]
+                           | restPattern           [x]
+                           | referencePattern      [x]
+                           | structPattern         [x]
+                           | tupleStructPattern    [x]
+                           | tuplePattern          [x]
+                           | groupedPattern        [x]
+                           | slicePattern          [x]
+                           | pathPattern           [x]
+                           | macroInvocation ;     [x]
 
-literalPattern    -> "true" | "false"    [x]
-                   | CHAR                [x]
-                   | BYTE                [x]
-                   | STRING              [x]
-                   | RAW_STRING          [x]
-                   | BYTE_STRING         [x]
-                   | RAW_BYTE_STRING     [x]
-                   | C_STRING            [x]
-                   | RAW_C_STRING        [x]
-                   | INTEGER             [x]
-                   | FLOAT               [x]
-                   | "-" INTEGER         [x]
-                   | "-" FLOAT ;         [x]
+literalPattern            -> "true" | "false"    [x]
+                           | CHAR                [x]
+                           | BYTE                [x]
+                           | STRING              [x]
+                           | RAW_STRING          [x]
+                           | BYTE_STRING         [x]
+                           | RAW_BYTE_STRING     [x]
+                           | C_STRING            [x]
+                           | RAW_C_STRING        [x]
+                           | INTEGER             [x]
+                           | FLOAT               [x]
+                           | "-" INTEGER         [x]
+                           | "-" FLOAT ;         [x]
 
-identifierPattern -> "ref"? "mut"? IDENTIFIER ("@" patternNoTopAlt)? ; [x]
-wildcardPattern   -> "_" ;     [x]
-restPattern       -> ".." ;    [x]  
-referencePattern  -> ("&" | "&&") "mut"? patternWithoutRange ; [x]
+identifierPattern         -> "ref"? "mut"? IDENTIFIER ("@" patternNoTopAlt)? ; [x]
+wildcardPattern           -> "_" ;     [x]
+restPattern               -> ".." ;    [x]
+referencePattern          -> ("&" | "&&") "mut"? patternWithoutRange ; [x]
 
-structPattern         -> pathInExpression "{" structPatternElements? "}" ; [x]
-structPatternElements -> structPatternFields ("," structPatternEtCetera?)? [x]
-                       | structPatternEtCetera ;                           [x]
-structPatternFields   -> structPatternField ("," structPatternField)* ;    [x]
-structPatternField    -> outerAttr* (tupleIndex ":" patternNoTopAlt        [x]
-                                  | IDENTIFIER ":" patternNoTopAlt         [x]
-                                  | "ref"? "mut"? IDENTIFIER) ;            [x]
-structPatternEtCetera -> outerAttr* ".." ; [x]
+structPattern             -> pathInExpression "{" structPatternElements? "}" ; [x]
+structPatternElements     -> structPatternFields ("," structPatternEtCetera?)? [x]
+                           | structPatternEtCetera ;                           [x]
+structPatternFields       -> structPatternField ("," structPatternField)* ;    [x]
+structPatternField        -> outerAttr* (tupleIndex ":" patternNoTopAlt         [x]
+                                      | IDENTIFIER ":" patternNoTopAlt         [x]
+                                      | "ref"? "mut"? IDENTIFIER) ;            [x]
+structPatternEtCetera     -> outerAttr* ".." ; [x]
 
-tupleStructPattern    -> pathInExpression "(" tuplePatternItems? ")" ; [x]
-tuplePattern          -> "(" tuplePatternItems? ")" ;    [x]
-tuplePatternItems     -> pattern ("," pattern)* ","?     [x]
-                       | restPattern ("," pattern)+ ","? [x]
-                       | pattern ("," pattern)* "," restPattern ("," pattern)* ","? ; [x]
+tupleStructPattern        -> pathInExpression "(" tuplePatternItems? ")" ; [x]
+tuplePattern              -> "(" tuplePatternItems? ")" ;    [x]
+tuplePatternItems         -> pattern ("," pattern)* ","?     [x]
+                           | restPattern ("," pattern)+ ","? [x]
+                           | pattern ("," pattern)* "," restPattern ("," pattern)* ","? ; [x]
 
-groupedPattern        -> "(" pattern ")" ; [x]
-slicePattern          -> "[" slicePatternItems? "]" ;  [x]
-slicePatternItems     -> pattern ("," pattern)* ","? ; [x]
+groupedPattern            -> "(" pattern ")" ; [x]
+slicePattern              -> "[" slicePatternItems? "]" ;  [x]
+slicePatternItems         -> pattern ("," pattern)* ","? ; [x]
 
-pathPattern           -> pathInExpression             [x]
-                       | qualifiedPathInExpression ;  [x]
+pathPattern               -> pathInExpression             [x]
+                           | qualifiedPathInExpression ;  [x]
 
-rangePattern          -> rangePatternBound ("..=" | "...") rangePatternBound [x]
-                       | rangeInclusiveStart [x]
-                       | obsoleteRangePattern ; [x]
+rangePattern              -> rangePatternBound ("..=" | "...") rangePatternBound  [x]
+                           | rangeInclusiveStart                                [x]
+                           | obsoleteRangePattern ;                             [x]
 
-rangePatternBound     -> CHAR | BYTE | "-"? INTEGER | "-"? FLOAT | pathInExpression ; [x]
-rangeInclusiveStart   -> rangePatternBound "..=" ;  [x]
-obsoleteRangePattern  -> rangePatternBound "..." ; [x]
-
-/* ------------------------------------------------------------------------- */
-/* Statements                                                                 */
-/* ------------------------------------------------------------------------- */
-
-statement         -> ";"
-                   | item                  [-]
-                   | letStatement          [x]
-                   | expressionStatement   [-]
-                   | macroInvocationSemi ; [-]
-
-letStatement      -> outerAttr* "let" patternNoTopAlt (":" type)? ("=" expression ("else" blockExpr)?)? ";" ;  [x]
-expressionStatement -> expressionWithoutBlock ";"  [x]
-                     | expressionWithBlock ";"? ;  [x]
+rangePatternBound         -> CHAR | BYTE | "-"? INTEGER | "-"? FLOAT | pathInExpression ; [x]
+rangeInclusiveStart       -> rangePatternBound "..=" ;  [x]
+obsoleteRangePattern      -> rangePatternBound "..." ;  [x]
 
 /* ------------------------------------------------------------------------- */
-/* Macro invocations in expr/stmt                                             */
+/* Statements                                                                */
 /* ------------------------------------------------------------------------- */
 
-macroInvocationSemi -> simplePath "!" delimTokenTree ";" ;  [-]
+statement                 -> ";"
+                           | item                   [-]
+                           | letStatement           [x]
+                           | expressionStatement    [-]
+                           | macroInvocationSemi ;  [-]
+
+letStatement              -> outerAttr* "let" patternNoTopAlt (":" type)?
+                             ("=" expression ("else" blockExpr)?)? ";" ;  [x]
+
+expressionStatement       -> expressionWithoutBlock ";"  [x]
+                           | expressionWithBlock ";"? ;  [x]
 
 /* ------------------------------------------------------------------------- */
-/* Expressions                                                                */
+/* Macro invocations in expr/stmt                                            */
 /* ------------------------------------------------------------------------- */
 
-expression        -> assignment ;                                                                  [x]
-assignment        -> (rangeExpr assignOp)* rangeExpr ;                                             [x]
-assignOp          -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ; [x]
-
-rangeExpr         -> logicalOr (rangeOp logicalOr)? ; [x]
-rangeOp           -> ".." | "..=" ;                   [x]
-
-logicalOr         -> logicalAnd ("||" logicalAnd)* ; [x]
-logicalAnd        -> comparison ("&&" comparison)* ; [x]
-
-comparison        -> bitwiseOr (comparisonOp bitwiseOr)* ;   [x]
-comparisonOp      -> "==" | "!=" | "<" | "<=" | ">" | ">=" ; [x]
-
-bitwiseOr         -> bitwiseXor ("|" bitwiseXor)* ; [x]
-bitwiseXor        -> bitwiseAnd ("^" bitwiseAnd)* ; [x]
-bitwiseAnd        -> shift ("&" shift)* ;           [x]
-
-shift             -> term (shiftOp term)* ; [x]
-shiftOp           -> "<<" | ">>" ;          [x]
-
-term              -> factor (termOp factor)* ; [x]
-termOp            -> "+" | "-" ; [x]
-
-factor            -> cast (factorOp cast)* ; [x]
-factorOp          -> "*" | "/" | "%" ;       [x]
-
-cast              -> unary ("as" typeNoBounds)* ; [x]
-
-unary             -> unaryOp* postfix ;                           [x]   
-unaryOp           -> "-" | "!" | "*" | "&" "mut"? | "&&" "mut"? ; [x]
-
-postfix           -> primary postfixOp* ;  [x]
-postfixOp         -> callOp                [x]
-                   | methodCallOp          [x]
-                   | fieldAccessOp         [x]  
-                   | tupleIndexOp          [x]
-                   | indexOp               [x]
-                   | awaitOp               [x]
-                   | tryOp ;               [x]
-
-callOp            -> "(" callParams? ")" ;                     [x]
-methodCallOp      -> "." pathExprSegment "(" callParams? ")" ; [x]
-fieldAccessOp     -> "." IDENTIFIER ;                          [x]
-tupleIndexOp      -> "." INTEGER ;                             [x]
-indexOp           -> "[" expression "]" ;                      [x]
-awaitOp           -> "." "await" ;                             [x]
-tryOp             -> "?" ;                                     [x]
-
-callParams        -> expression ("," expression)* ","? ;       [x]
-
-primary           -> literalExpr       [x]
-                   | pathExpr          [x]
-                   | groupedExpr       [x]
-                   | arrayExpr         [x]
-                   | tupleExpr         [x]
-                   | structExpr        [x]
-                   | closureExpr       [x]
-                   | blockExpr         [x]
-                   | asyncBlockExpr    [x]
-                   | unsafeBlockExpr   [x]
-                   | tryBlockExpr      [x]
-                   | loopExpr          [x]
-                   | ifExpr            [x]
-                   | ifLetExpr         [x]
-                   | matchExpr         [x]
-                   | continueExpr      [x]
-                   | breakExpr         [x]
-                   | returnExpr        [x]
-                   | macroInvocation ; [x]
-
-literalExpr       -> CHAR            [x]
-                   | STRING          [x]
-                   | RAW_STRING      [x]
-                   | BYTE            [x]
-                   | BYTE_STRING     [x]
-                   | RAW_BYTE_STRING [x]
-                   | C_STRING        [x]
-                   | RAW_C_STRING    [x]
-                   | INTEGER         [x]
-                   | FLOAT           [x]
-                   | "true"          [x]
-                   | "false" ;       [x]
-
-pathExpr          -> pathInExpression            [x]
-                   | qualifiedPathInExpression ; [x]
-
-groupedExpr       -> "(" expression ")" ; [x]
-
-arrayExpr         -> "[" arrayElements? "]" ;                               [x]     
-arrayElements     -> expression (";" expression | ("," expression)* ","?) ; [x]
-
-tupleExpr         -> "(" tupleElements? ")" ;        [x]
-tupleElements     -> (expression ",")+ expression? ; [x]
-
-structExpr        -> structExprStruct       [x]
-                   | structExprTuple        [x]
-                   | structExprUnit ;       [x]
-
-structExprStruct  -> pathInExpression "{" (structExprFields | structBase)? "}" ;          [x]
-structExprFields  -> structExprField ("," structExprField)* ("," structBase | ","?) ;     [x]
-structExprField   -> outerAttr* (IDENTIFIER | (IDENTIFIER | tupleIndex) ":" expression) ; [x]
-structBase        -> ".." expression ;                                                    [x]
-
-structExprTuple   -> pathInExpression "(" (expression ("," expression)* ","?)? ")" ;      [x]
-structExprUnit    -> pathInExpression ;                                                   [x]
-
-closureExpr       -> "move"? "async"? ("||" | "|" closureParams? "|") (expression | "->" typeNoBounds blockExpr) ; [x] 
-closureParams     -> closureParam ("," closureParam)* ","? ;                                                       [x]
-closureParam      -> outerAttr* patternNoTopAlt (":" type)? ;                                                      [x]
-
-blockExpr         -> outerAttr* "{" innerAttr* statements? "}" ;   [x]
-unsafeBlockExpr   -> outerAttr* "unsafe" blockExpr ;               [x]
-asyncBlockExpr    -> outerAttr* "async" "move"? blockExpr ;        [x]
-tryBlockExpr      -> outerAttr* "try" blockExpr ; // nightly only  [x]
-
-statements        -> statement+ expression? ;                      [x]
-                   | expression ;                                  [x]
-
-loopExpr          -> infiniteLoopExpr                                         [x]
-                   | predicateLoopExpr                                        [x]
-                   | predicatePatternLoopExpr                                 [x]
-                   | iteratorLoopExpr                                         [x]
-                   | labelBlockExpr ;                                         [x]
-
-infiniteLoopExpr  -> loopLabel? "loop" blockExpr ;                                      [x]
-predicateLoopExpr -> loopLabel? "while" expression blockExpr ;                          [x]
-predicatePatternLoopExpr -> loopLabel? "while" "let" pattern "=" scrutinee blockExpr ;  [x]
-iteratorLoopExpr  -> loopLabel? "for" pattern "in" expression blockExpr ;               [x]
-loopLabel         -> LIFETIME ":" ;        [x]
-labelBlockExpr    -> loopLabel blockExpr ; [x]
-
-scrutinee         -> expression ;          [x]
-
-ifExpr            -> "if" expression blockExpr ("else" (blockExpr | ifExpr | ifLetExpr))? ;                  [x]
-ifLetExpr         -> "if" "let" pattern "=" scrutinee blockExpr ("else" (blockExpr | ifExpr | ifLetExpr))? ; [x]
+macroInvocationSemi       -> simplePath "!" delimTokenTree ";" ;  [-]
 
 /* ------------------------------------------------------------------------- */
-/* Match expressions (with inner + outer attributes)                         */
+/* Expressions                                                               */
 /* ------------------------------------------------------------------------- */
 
-matchExpr         -> "match" scrutinee "{" matchArms? "}" ; [x]
-matchArms         -> matchArm "=>" matchArmBody ","?        [x]
-                   (matchArm "=>" matchArmBody ","?)* ;     [x]
-                   (matchArm "=>" matchArmBody ","?)* ;     [x]
-matchArmBody      -> expressionWithBlock                    [x]
-                   | expressionWithoutBlock ;               [x]
-matchArm          -> outerAttr* pattern matchArmGuard? ;    [x]
-matchArmGuard     -> "if" expression ;                      [x]
+expression                -> assignment ;                                                                  [x]
+assignment                -> (rangeExpr assignOp)* rangeExpr ;                                             [x]
+assignOp                  -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ; [x]
 
-continueExpr      -> "continue" LIFETIME? ;                 [x]
-breakExpr         -> "break" LIFETIME? expression? ;        [x]
-returnExpr        -> "return" expression? ;                 [x]
+rangeExpr                  -> logicalOr (rangeOp logicalOr)? ; [x]
+rangeOp                    -> ".." | "..=" ;                   [x]
+
+logicalOr                  -> logicalAnd ("||" logicalAnd)* ; [x]
+logicalAnd                 -> comparison ("&&" comparison)* ; [x]
+
+comparison                 -> bitwiseOr (comparisonOp bitwiseOr)* ;   [x]
+comparisonOp               -> "==" | "!=" | "<" | "<=" | ">" | ">=" ; [x]
+
+bitwiseOr                  -> bitwiseXor ("|" bitwiseXor)* ; [x]
+bitwiseXor                 -> bitwiseAnd ("^" bitwiseAnd)* ; [x]
+bitwiseAnd                 -> shift ("&" shift)* ;           [x]
+
+shift                      -> term (shiftOp term)* ; [x]
+shiftOp                    -> "<<" | ">>" ;          [x]
+
+term                       -> factor (termOp factor)* ; [x]
+termOp                     -> "+" | "-" ; [x]
+
+factor                     -> cast (factorOp cast)* ; [x]
+factorOp                   -> "*" | "/" | "%" ;       [x]
+
+cast                       -> unary ("as" typeNoBounds)* ; [x]
+
+unary                      -> unaryOp* postfix ;                           [x]
+unaryOp                    -> "-" | "!" | "*" | "&" "mut"? | "&&" "mut"? ; [x]
+
+postfix                    -> primary postfixOp* ;  [x]
+postfixOp                  -> callOp                [x]
+                           | methodCallOp          [x]
+                           | fieldAccessOp         [x]
+                           | tupleIndexOp          [x]
+                           | indexOp               [x]
+                           | awaitOp               [x]
+                           | tryOp ;               [x]
+
+callOp                     -> "(" callParams? ")" ;                     [x]
+methodCallOp               -> "." pathExprSegment "(" callParams? ")" ; [x]
+fieldAccessOp              -> "." IDENTIFIER ;                          [x]
+tupleIndexOp               -> "." INTEGER ;                             [x]
+indexOp                    -> "[" expression "]" ;                      [x]
+awaitOp                    -> "." "await" ;                             [x]
+tryOp                      -> "?" ;                                     [x]
+
+callParams                 -> expression ("," expression)* ","? ;       [x]
+
+primary                    -> literalExpr         [x]
+                           | pathExpr            [x]
+                           | groupedExpr         [x]
+                           | arrayExpr           [x]
+                           | tupleExpr           [x]
+                           | structExpr          [x]
+                           | closureExpr         [x]
+                           | blockExpr           [x]
+                           | asyncBlockExpr      [x]
+                           | unsafeBlockExpr     [x]
+                           | tryBlockExpr        [x]
+                           | loopExpr            [x]
+                           | ifExpr              [x]
+                           | ifLetExpr           [x]
+                           | matchExpr           [x]
+                           | continueExpr        [x]
+                           | breakExpr           [x]
+                           | returnExpr          [x]
+                           | macroInvocation ;   [x]
+
+literalExpr                -> CHAR            [x]
+                           | STRING          [x]
+                           | RAW_STRING      [x]
+                           | BYTE            [x]
+                           | BYTE_STRING     [x]
+                           | RAW_BYTE_STRING [x]
+                           | C_STRING        [x]
+                           | RAW_C_STRING    [x]
+                           | INTEGER         [x]
+                           | FLOAT           [x]
+                           | "true"          [x]
+                           | "false" ;       [x]
+
+pathExpr                   -> pathInExpression            [x]
+                           | qualifiedPathInExpression ;  [x]
+
+groupedExpr                -> "(" expression ")" ;  [x]
+
+arrayExpr                  -> "[" arrayElements? "]" ;                                [x]
+arrayElements              -> expression (";" expression | ("," expression)* ","?) ;  [x]
+
+tupleExpr                  -> "(" tupleElements? ")" ;         [x]
+tupleElements              -> (expression ",")+ expression? ;   [x]
+
+structExpr                 -> structExprStruct       [x]
+                           | structExprTuple        [x]
+                           | structExprUnit ;       [x]
+
+structExprStruct            -> pathInExpression "{"
+                               (structExprFields | structBase)?
+                               "}" ;  [x]
+structExprFields            -> structExprField ("," structExprField)*
+                               ("," structBase | ","?) ;  [x]
+structExprField             -> outerAttr* (IDENTIFIER | (IDENTIFIER | tupleIndex) ":" expression) ;  [x]
+structBase                  -> ".." expression ;  [x]
+
+structExprTuple             -> pathInExpression "(" (expression ("," expression)* ","?)? ")" ;  [x]
+structExprUnit              -> pathInExpression ;  [x]
+
+closureExpr                 -> "move"? "async"? ("||" | "|" closureParams? "|")
+                               (expression | "->" typeNoBounds blockExpr) ;  [x]
+closureParams               -> closureParam ("," closureParam)* ","? ;        [x]
+closureParam                -> outerAttr* patternNoTopAlt (":" type)? ;       [x]
+
+/* FIX 3: expression blocks do NOT allow inner attributes */
+blockExpr                   -> outerAttr* "{" statements? "}" ;        [x]
+unsafeBlockExpr             -> outerAttr* "unsafe" blockExpr ;         [x]
+asyncBlockExpr              -> outerAttr* "async" "move"? blockExpr ;  [x]
+tryBlockExpr                -> outerAttr* "try" blockExpr ;            [x]  /* nightly only */
+
+statements                  -> statement+ expression? ;  [x]
+                           | expression ;               [x]
+
+loopExpr                    -> infiniteLoopExpr                                         [x]
+                           | predicateLoopExpr                                        [x]
+                           | predicatePatternLoopExpr                                 [x]
+                           | iteratorLoopExpr                                         [x]
+                           | labelBlockExpr ;                                         [x]
+
+infiniteLoopExpr            -> loopLabel? "loop" blockExpr ;                                       [x]
+predicateLoopExpr           -> loopLabel? "while" expression blockExpr ;                           [x]
+predicatePatternLoopExpr    -> loopLabel? "while" "let" pattern "=" scrutinee blockExpr ;          [x]
+iteratorLoopExpr            -> loopLabel? "for" pattern "in" expression blockExpr ;               [x]
+loopLabel                   -> LIFETIME ":" ;                                                     [x]
+labelBlockExpr              -> loopLabel blockExpr ;                                               [x]
+
+scrutinee                   -> expression ;  [x]
+
+ifExpr                      -> "if" expression blockExpr
+                               ("else" (blockExpr | ifExpr | ifLetExpr))? ;  [x]
+ifLetExpr                   -> "if" "let" pattern "=" scrutinee blockExpr
+                               ("else" (blockExpr | ifExpr | ifLetExpr))? ;  [x]
+
+/* ------------------------------------------------------------------------- */
+/* Match expressions (with outer attributes)                                 */
+/* ------------------------------------------------------------------------- */
+
+matchExpr                   -> "match" scrutinee "{" matchArms? "}" ;  [x]
+matchArms                   -> matchArm "=>" matchArmBody ","?        [x]
+                               (matchArm "=>" matchArmBody ","?)* ;   [x]
+matchArmBody                -> expressionWithBlock                    [x]
+                           | expressionWithoutBlock ;                 [x]
+matchArm                    -> outerAttr* pattern matchArmGuard? ;     [x]
+matchArmGuard               -> "if" expression ;                       [x]
+
+continueExpr                -> "continue" LIFETIME? ;                  [x]
+breakExpr                   -> "break" LIFETIME? expression? ;         [x]
+returnExpr                  -> "return" expression? ;                  [x]
 
 /* ------------------------------------------------------------------------- */
 /* ExpressionWithoutBlock / ExpressionWithBlock                              */
-/* (mirroring the main expression grammar but restricting block forms)       */
 /* ------------------------------------------------------------------------- */
 
-/* Without-block expressions reuse the same precedence structure as `expression`,
- * but are built on a restricted `primaryWithoutBlock` that excludes
- * plain blocks, unsafe blocks, loops, if/if let, and match. Async blocks
- * (`asyncBlockExpr`) are included here.
- */
+expressionWithoutBlock      -> outerAttr* assignmentWithoutBlock ;                             [x]
+assignmentWithoutBlock      -> (rangeExprWithoutBlock assignOp)* rangeExprWithoutBlock ;       [x]
+rangeExprWithoutBlock       -> logicalOrWithoutBlock (rangeOp logicalOrWithoutBlock?)? ;       [x]
+logicalOrWithoutBlock       -> logicalAndWithoutBlock ("||" logicalAndWithoutBlock)* ;         [x]
+logicalAndWithoutBlock      -> comparisonWithoutBlock ("&&" comparisonWithoutBlock)* ;         [x]
+comparisonWithoutBlock      -> bitwiseOrWithoutBlock (comparisonOp bitwiseOrWithoutBlock)* ;   [x]
+bitwiseOrWithoutBlock       -> bitwiseXorWithoutBlock ("^" bitwiseXorWithoutBlock)* ;          [x]
+bitwiseXorWithoutBlock      -> bitwiseAndWithoutBlock ("&" bitwiseAndWithoutBlock)* ;          [x]
+bitwiseAndWithoutBlock      -> shiftWithoutBlock ("&" shiftWithoutBlock)* ;                    [x]
+shiftWithoutBlock           -> termWithoutBlock (shiftOp termWithoutBlock)* ;                  [x]
+termWithoutBlock            -> factorWithoutBlock (termOp factorWithoutBlock)* ;               [x]
+factorWithoutBlock          -> castWithoutBlock (factorOp castWithoutBlock)* ;                 [x]
+castWithoutBlock            -> unaryWithoutBlock ("as" typeNoBounds)* ;                        [x]
+unaryWithoutBlock           -> unaryOp* postfixWithoutBlock ;                                  [x]
+postfixWithoutBlock         -> primaryWithoutBlock postfixOp* ;                                [x]
 
-expressionWithoutBlock -> outerAttr* assignmentWithoutBlock ;                             [x]
-assignmentWithoutBlock -> (rangeExprWithoutBlock assignOp)* rangeExprWithoutBlock ;       [x]
-rangeExprWithoutBlock  -> logicalOrWithoutBlock (rangeOp logicalOrWithoutBlock?)? ;       [x]
-logicalOrWithoutBlock  -> logicalAndWithoutBlock ("||" logicalAndWithoutBlock)* ;         [x]
-logicalAndWithoutBlock -> comparisonWithoutBlock ("&&" comparisonWithoutBlock)* ;         [x]
-comparisonWithoutBlock -> bitwiseOrWithoutBlock (comparisonOp bitwiseOrWithoutBlock)* ;   [x]
-bitwiseOrWithoutBlock  -> bitwiseXorWithoutBlock ("^" bitwiseXorWithoutBlock)* ;          [x]
-bitwiseXorWithoutBlock -> bitwiseAndWithoutBlock ("&" bitwiseAndWithoutBlock)* ;          [x]
-bitwiseAndWithoutBlock -> shiftWithoutBlock ("&" shiftWithoutBlock)* ;                    [x]
-shiftWithoutBlock      -> termWithoutBlock (shiftOp termWithoutBlock)* ;                  [x]
-termWithoutBlock       -> factorWithoutBlock (termOp factorWithoutBlock)* ;               [x]
-factorWithoutBlock     -> castWithoutBlock (factorOp castWithoutBlock)* ;                 [x]
-castWithoutBlock       -> unaryWithoutBlock ("as" typeNoBounds)* ;                        [x]
-unaryWithoutBlock      -> unaryOp* postfixWithoutBlock ;                                  [x]
-postfixWithoutBlock    -> primaryWithoutBlock postfixOp* ;                                [x]
+primaryWithoutBlock         -> literalExpr       [x]
+                           | pathExpr          [x]
+                           | groupedExpr       [x]
+                           | arrayExpr         [x]
+                           | tupleExpr         [x]
+                           | structExpr        [x]
+                           | closureExpr       [x]
+                           | asyncBlockExpr    [x]
+                           | continueExpr      [x]
+                           | breakExpr         [x]
+                           | returnExpr        [x]
+                           | macroInvocation ; [x]
 
-primaryWithoutBlock    -> literalExpr       [x]
-                        | pathExpr          [x]
-                        | groupedExpr       [x]  
-                        | arrayExpr         [x]
-                        | tupleExpr         [x]
-                        | structExpr        [x]
-                        | closureExpr       [x]
-                        | asyncBlockExpr    [x]
-                        | continueExpr      [x]
-                        | breakExpr         [x]
-                        | returnExpr        [x]
-                        | macroInvocation ; [x]
+expressionWithBlock         -> outerAttr* expressionKindWithBlock ;  [x]
 
-/* With-block expressions at the outermost level */
-
-expressionWithBlock     -> outerAttr* expressionKindWithBlock ; [x]
-
-expressionKindWithBlock -> blockExpr       [x]  
-                         | unsafeBlockExpr [x]
-                         | tryBlockExpr    [x]
-                         | loopExpr        [x]
-                         | ifExpr          [x]
-                         | ifLetExpr       [x]
-                         | matchExpr ;     [x]
+expressionKindWithBlock     -> blockExpr        [x]
+                           | unsafeBlockExpr  [x]
+                           | tryBlockExpr     [x]
+                           | loopExpr         [x]
+                           | ifExpr           [x]
+                           | ifLetExpr        [x]
+                           | matchExpr ;      [x]
 
 /* ------------------------------------------------------------------------- */
 /* Macro invocation (expr/stmt/type)                                         */
 /* ------------------------------------------------------------------------- */
 
-macroInvocation   -> simplePath "!" delimTokenTree ;
+macroInvocation             -> simplePath "!" delimTokenTree ;
 
 /* ------------------------------------------------------------------------- */
-/* Tokens                                                                     */
+/* Tokens                                                                    */
 /* ------------------------------------------------------------------------- */
 
-tokenStream       -> tokenTree* ;
-tokenTree         -> tokenExceptDelims
-                   | delimTokenTree ;
+tokenStream                 -> tokenTree* ;
+tokenTree                   -> tokenExceptDelims
+                           | delimTokenTree ;
 
-tupleIndex        -> INTEGER ;
-
-/* ------------------------------------------------------------------------- */
-/* Notes (semantic / disambiguation rules beyond pure CFG)                    */
-/* - associatedConstItem: '=' is required in impls, optional in traits.       */
-/* - structExpr vs blockExpr are disambiguated by looking ahead after the     */
-/*   path: if it can start a struct literal, parse structExpr; otherwise      */
-/*   parse blockExpr.                                                         */
-/* - turbofish '::<' is only allowed in expression position; type paths       */
-/*   do not use it.                                                           */
-/* - genericArgs with constrainedTypeParam are only accepted in bound         */
-/*   contexts (e.g., impl Trait / dyn Trait), not arbitrary type paths.       */
-/* - const generic arguments must be const-evaluable; grammar accepts         */
-/*   'expression' but the evaluator/enforcer restricts it.                    */
-/* - macroInvocation, macroRules, and fragment kinds are additionally         */
-/*   constrained by macro expansion context and fragment spec.                */
-/* ------------------------------------------------------------------------- */
+tupleIndex                  -> INTEGER ;
 

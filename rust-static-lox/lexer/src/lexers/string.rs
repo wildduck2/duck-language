@@ -173,10 +173,10 @@ impl Lexer {
     // The 'c' prefix has been consumed; we're currently at 'r'.
     self.advance(); // consume 'r'
 
-    const MAX_HASHES: u16 = 255;
+    const MAX_HASHES: usize = 255;
 
     // We're now at the first `#` or `"` character.
-    let mut n_hashes: u16 = 0;
+    let mut n_hashes: usize = 0;
     while self.peek() == Some('#') {
       n_hashes = n_hashes.saturating_add(1);
       self.advance();
@@ -206,7 +206,7 @@ impl Lexer {
         DiagnosticCode::Error(DiagnosticError::UnterminatedString),
         format!(
           "Expected '\"' after 'cr{}' in raw C string literal",
-          "#".repeat(n_hashes as usize)
+          "#".repeat(n_hashes)
         ),
         self.source.path.to_string(),
       )
@@ -234,7 +234,7 @@ impl Lexer {
         let saved = self.current;
         self.advance(); // consume quote
 
-        let mut matched = 0u16;
+        let mut matched = 0usize;
         while matched < n_hashes && self.peek() == Some('#') {
           matched += 1;
           self.advance();
@@ -256,7 +256,7 @@ impl Lexer {
         DiagnosticCode::Error(DiagnosticError::UnterminatedString),
         format!(
           "Unterminated raw C string literal: expected closing '\"{}'",
-          "#".repeat(n_hashes as usize)
+          "#".repeat(n_hashes)
         ),
         self.source.path.to_string(),
       )
@@ -267,7 +267,7 @@ impl Lexer {
       )
       .with_help(format!(
         "Raw C strings must end with \"{h}\" (e.g., cr{h}\"...\"{h}).",
-        h = "#".repeat(n_hashes as usize),
+        h = "#".repeat(n_hashes),
       ));
       engine.add(diag);
     }
@@ -282,10 +282,10 @@ impl Lexer {
   /// Counts `#` fences, requires an opening `"`, then scans until a matching
   /// closing `"###…###`. Escapes are not processed.
   fn lex_raw_str(&mut self, engine: &mut DiagnosticEngine) -> Option<TokenKind> {
-    const MAX_HASHES: u16 = 255;
+    const MAX_HASHES: usize = 255;
 
     // We're just after the 'r' and at zero or more '#'.
-    let mut n_hashes: u16 = 0;
+    let mut n_hashes: usize = 0;
     while self.peek() == Some('#') {
       n_hashes = n_hashes.saturating_add(1);
       self.advance();
@@ -315,7 +315,7 @@ impl Lexer {
         DiagnosticCode::Error(DiagnosticError::UnterminatedString),
         format!(
           "Expected '\"' after 'r{}' in raw string literal",
-          "#".repeat(n_hashes as usize)
+          "#".repeat(n_hashes)
         ),
         self.source.path.to_string(),
       )
@@ -374,7 +374,7 @@ impl Lexer {
         let saved = self.current;
         self.advance(); // consume '"'
 
-        let mut matched: u16 = 0;
+        let mut matched: usize = 0;
         while matched < n_hashes && self.peek() == Some('#') {
           matched += 1;
           self.advance();
@@ -396,7 +396,7 @@ impl Lexer {
         DiagnosticCode::Error(DiagnosticError::UnterminatedString),
         format!(
           "Unterminated raw string literal: expected closing '\"{}'",
-          "#".repeat(n_hashes as usize)
+          "#".repeat(n_hashes)
         ),
         self.source.path.to_string(),
       )
@@ -407,7 +407,7 @@ impl Lexer {
       )
       .with_help(format!(
         "Raw strings must end with \"{h}\" (e.g., r{h}\"...\"{h}).",
-        h = "#".repeat(n_hashes as usize),
+        h = "#".repeat(n_hashes),
       ));
       engine.add(diag);
 
@@ -469,7 +469,7 @@ impl Lexer {
       // --- RAW BYTE STRING: br"..." or br#"..."# ---
       self.advance(); // consume 'r'
 
-      let mut n_hashes: u16 = 0;
+      let mut n_hashes: usize = 0;
       while self.peek() == Some('#') {
         n_hashes = n_hashes.saturating_add(1);
         self.advance();
@@ -480,7 +480,7 @@ impl Lexer {
           DiagnosticCode::Error(DiagnosticError::UnterminatedString),
           format!(
             "Expected '\"' after 'br{}' in raw byte string literal",
-            "#".repeat(n_hashes as usize)
+            "#".repeat(n_hashes)
           ),
           self.source.path.to_string(),
         )
@@ -503,7 +503,7 @@ impl Lexer {
         if c == '"' {
           let saved = self.current;
           self.advance();
-          let mut matched = 0u16;
+          let mut matched = 0usize;
           while matched < n_hashes && self.peek() == Some('#') {
             matched += 1;
             self.advance();
@@ -524,7 +524,7 @@ impl Lexer {
           DiagnosticCode::Error(DiagnosticError::UnterminatedString),
           format!(
             "Unterminated raw byte string literal: expected closing '\"{}'",
-            "#".repeat(n_hashes as usize)
+            "#".repeat(n_hashes)
           ),
           self.source.path.to_string(),
         )
@@ -535,7 +535,7 @@ impl Lexer {
         )
         .with_help(format!(
           "Raw byte strings must end with \"{h}\" (e.g., br{h}\"...\"{h}).",
-          h = "#".repeat(n_hashes as usize)
+          h = "#".repeat(n_hashes)
         ));
         engine.add(diag);
       }
