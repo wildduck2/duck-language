@@ -4,13 +4,13 @@ use diagnostic::{
   types::error::DiagnosticError,
   DiagnosticEngine,
 };
-use lexer::token::TokenKind;
 
 use crate::{ast::*, Parser};
+use lexer::token::TokenKind;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum ExprContext {
+pub enum ExprContext {
   Default,
   IfCondition,
   Match,
@@ -129,6 +129,7 @@ impl Parser {
             | TokenKind::Dollar
             | TokenKind::KwCrate
             | TokenKind::KwSuper
+            | TokenKind::OpenParen
         ) =>
       {
         self.parse_macro_invocation_statement(engine)
@@ -207,23 +208,17 @@ impl Parser {
     let token = self.current_token();
 
     match token.kind {
-      // --------------------------------------------------
       // literals
-      // --------------------------------------------------
       TokenKind::Literal { kind } => self.parser_literal(kind, engine),
 
       TokenKind::KwTrue | TokenKind::KwFalse => self.parser_bool(engine),
 
-      // --------------------------------------------------
       // macro invocation expression
-      // --------------------------------------------------
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Bang) => {
         self.parse_macro_invocation_expression(engine)
       },
 
-      // --------------------------------------------------
       // path expressions
-      // --------------------------------------------------
       TokenKind::Lt => self.parse_qualified_path(engine),
 
       TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
@@ -238,19 +233,12 @@ impl Parser {
       | TokenKind::KwCrate
       | TokenKind::KwSelfType => self.parse_path_expr(true, engine),
 
-      // --------------------------------------------------
       // grouped and tuple expressions
-      // --------------------------------------------------
       TokenKind::OpenParen => self.parse_grouped_and_tuple_expr(engine),
 
-      // --------------------------------------------------
       // array expression
-      // --------------------------------------------------
       TokenKind::OpenBracket => self.parse_array_expr(engine),
 
-      // --------------------------------------------------
-      // error
-      // --------------------------------------------------
       _ => {
         let lexeme = self.get_token_lexeme(&token);
 

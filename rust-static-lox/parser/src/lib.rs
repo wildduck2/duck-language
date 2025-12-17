@@ -99,7 +99,7 @@ impl Parser {
   }
 
   /// Function that consume the code until there's valid tokens to start a new expr
-  pub fn synchronize(&mut self, engine: &mut DiagnosticEngine) {
+  pub(crate) fn synchronize(&mut self, engine: &mut DiagnosticEngine) {
     while !self.is_eof() {
       match self.current_token().kind {
         TokenKind::Semi => {

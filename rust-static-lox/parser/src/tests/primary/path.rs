@@ -6,7 +6,6 @@ mod path_tests {
       expr::ExprKind, GenericArg, GenericArgs, Path, PathSegment, PathSegmentKind, QSelf, Type,
     },
     parser_utils::ExprContext,
-    tests::prepare,
   };
 
   // Helper function to parse a single expression from a string
@@ -14,30 +13,32 @@ mod path_tests {
     use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
     use lexer::Lexer;
     use std::path::PathBuf;
-    
+
     let mut engine = DiagnosticEngine::new();
     let mut source_map = SourceMap::new();
-    
+
     // Create a source file directly from the input string
     let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
       .join("tests")
       .join("files")
       .join("path_test_temp.lox");
     let path_str = test_file_path.to_str().unwrap().to_string();
-    
+
     let source_file = SourceFile::new(path_str.clone(), input.to_string());
     source_map.add_file(&path_str, input);
     engine.add_file(&path_str, input);
-    
+
     let mut lexer = Lexer::new(source_file.clone());
     lexer.scan_tokens(&mut engine);
-    
+
     if engine.has_errors() {
       return Err(());
     }
-    
+
     let mut parser = crate::Parser::new(lexer.tokens, source_file);
-    parser.parse_primary(ExprContext::Default, &mut engine).map(|expr| expr.kind)
+    parser
+      .parse_primary(ExprContext::Default, &mut engine)
+      .map(|expr| expr.kind)
   }
 
   // Helper function to check if parsing produces an error
@@ -1843,31 +1844,276 @@ mod path_tests {
     );
   }
 
+  #[test]
+  fn test_path_with_lifetime_generic() {
+    let result = parse_single("foo::bar::<'a>").unwrap();
+    assert_eq!(
+      result,
+      ExprKind::Path {
+        qself: None,
+        path: Path {
+          leading_colon: false,
+          segments: vec![
+            PathSegment {
+              kind: PathSegmentKind::Ident("foo".to_string()),
+              args: None,
+            },
+            PathSegment {
+              kind: PathSegmentKind::Ident("bar".to_string()),
+              args: Some(GenericArgs::AngleBracketed {
+                args: vec![GenericArg::Lifetime("'a".to_string())],
+              }),
+            },
+          ],
+        },
+      }
+    );
+  }
+
+  #[test]
+  fn test_qualified_path_with_lifetime_generic() {
+    let result = parse_single("<T>::Item::<'a>").unwrap();
+    assert_eq!(
+      result,
+      ExprKind::Path {
+        qself: Some(QSelf {
+          self_ty: Box::new(Type::Path(Path {
+            leading_colon: false,
+            segments: vec![PathSegment {
+              kind: PathSegmentKind::Ident("T".to_string()),
+              args: None,
+            }],
+          })),
+          as_trait: None,
+        }),
+        path: Path {
+          leading_colon: false,
+          segments: vec![PathSegment {
+            kind: PathSegmentKind::Ident("Item".to_string()),
+            args: Some(GenericArgs::AngleBracketed {
+              args: vec![GenericArg::Lifetime("'a".to_string())],
+            }),
+          },],
+        },
+      }
+    );
+  }
+
+  #[test]
+  fn test_qself_as_trait_with_lifetime_generic() {
+    let result = parse_single("<crate::Type as Trait<'a>>::Item").unwrap();
+    assert_eq!(
+      result,
+      ExprKind::Path {
+        qself: Some(QSelf {
+          self_ty: Box::new(Type::Path(Path {
+            leading_colon: false,
+            segments: vec![
+              PathSegment {
+                kind: PathSegmentKind::Crate,
+                args: None,
+              },
+              PathSegment {
+                kind: PathSegmentKind::Ident("Type".to_string()),
+                args: None,
+              },
+            ],
+          })),
+          as_trait: Some(Path {
+            leading_colon: false,
+            segments: vec![PathSegment {
+              kind: PathSegmentKind::Ident("Trait".to_string()),
+              args: Some(GenericArgs::AngleBracketed {
+                args: vec![GenericArg::Lifetime("'a".to_string())],
+              }),
+            },],
+          }),
+        }),
+        path: Path {
+          leading_colon: false,
+          segments: vec![PathSegment {
+            kind: PathSegmentKind::Ident("Item".to_string()),
+            args: None,
+          },],
+        },
+      }
+    );
+  }
+
   // ============================================================================
   // Error/Invalid Syntax Tests
   // ============================================================================
-  // TODO: Add tests for invalid syntax that should produce errors
-  // Examples from path.lox lines 57-59:
-  // - foo::<>::bar
-  // - foo::<> <T as>::Item <T Trait>::Item
-  // - <>::Item <T>::;
-  //
-  // Add your error test cases here:
-  //
-  // #[test]
-  // fn test_empty_generic_args_should_error() {
-  //   assert!(should_error("foo::<>::bar"));
-  // }
-  //
-  // #[test]
-  // fn test_malformed_qualified_path_should_error() {
-  //   assert!(should_error("foo::<> <T as>::Item"));
-  // }
-  //
-  // #[test]
-  // fn test_incomplete_path_should_error() {
-  //   assert!(should_error("<>::Item <T>::"));
-  // }
-  //
-  // Add more error test cases as needed...
+
+  #[test]
+  fn test_invalid_lifetime_generics_should_error() {
+    let cases = [
+      "foo::bar::<'a,>",
+      "foo::bar::<,'a>",
+      "foo::bar::<'a 'b>",
+      "<T>::Item::<'a,>",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_empty_or_malformed_generic_args_should_error() {
+    let cases = [
+      "foo::<>",
+      "foo::<>::bar",
+      "foo::bar::<>",
+      "foo::<,>",
+      "foo::<T,>",
+      "foo::<,T>",
+      "foo::<T,,U>",
+      "foo::<T U>",
+      "foo::<T;>",
+      "foo::<T as>",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_missing_path_segment_after_coloncolon_should_error() {
+    let cases = [
+      "foo::",
+      "::foo::",
+      "<T>::",
+      "<T>:::",
+      "<T as Trait>::",
+      "<T as Trait>:::",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_malformed_qualified_path_header_should_error() {
+    let cases = [
+      "<>",
+      "Item<>",
+      "<>::Item",
+      "<T as>::Item",
+      "<T Trait>::Item",
+      "<T as Trait Item>::Assoc",
+      "<T as Trait as Other>::Item",
+      "<T as>",
+      "<T as Trait>",
+      "<T as Trait>::",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_qualified_path_without_trailing_segments_should_error() {
+    let cases = [
+      "<T>",
+      "<T as Trait>",
+      "<Self>",
+      "<Self as Trait>",
+      "<crate::Type>",
+      "<crate::Type as Trait>",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_illegal_qself_placement_should_error() {
+    let cases = [
+      "foo::<T>::<U>::bar",
+      "foo::<T>::<U as Trait>::bar",
+      "foo::<T as Trait>::bar",
+      "foo::bar::<T as Trait>",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_invalid_or_empty_path_segments_should_error() {
+    let cases = [
+      "::",
+      ":::",
+      "foo::::bar",
+      "foo::123",
+      "foo::true",
+      "foo::false",
+      "foo::as",
+      "foo::type",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_invalid_tokens_inside_qself_type_should_error() {
+    let cases = [
+      "<(foo)>::Item",
+      "<[T]>::Item",
+      "<{T}>::Item",
+      "<(T,)>::Item",
+      "<fn()>::Item",
+      "<impl Trait>::Item",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_incomplete_binary_expressions_with_qpath_should_error() {
+    let cases = [
+      "<T>:: <U>::Item",
+      "<T>::Item <",
+      "<T>::Item <>",
+      "<T>::Item < ::foo",
+      "<T>::Item < T",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_invalid_dollar_crate_usage_should_error() {
+    let cases = ["foo::$crate", "foo::bar::$crate", "<T as $crate>::Item"];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
+
+  #[test]
+  fn test_mixed_known_failure_cases_should_error() {
+    let cases = [
+      "foo::<>::bar",
+      "foo::<> <T as>::Item",
+      "<>::Item <T>::",
+      "<T as>::Item",
+      "<T Trait>::Item",
+    ];
+
+    for src in cases {
+      assert!(should_error(src), "expected error for `{}`", src);
+    }
+  }
 }

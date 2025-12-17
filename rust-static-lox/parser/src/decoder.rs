@@ -6,10 +6,10 @@ use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
 use diagnostic::{DiagnosticEngine, Span};
 
-pub struct Decoder;
+pub(crate) struct Decoder;
 
 impl Decoder {
-  pub fn decode_string(
+  pub(crate) fn decode_string(
     input: &str,
     path: &str,
     span: Span,
@@ -29,7 +29,7 @@ impl Decoder {
     Ok(out)
   }
 
-  pub fn decode_byte_string(
+  pub(crate) fn decode_byte_string(
     input: &str,
     path: &str,
     span: Span,
@@ -76,7 +76,7 @@ impl Decoder {
     Ok(out)
   }
 
-  pub fn decode_char(
+  pub(crate) fn decode_char(
     input: &str,
     path: &str,
     span: Span,
@@ -124,7 +124,7 @@ impl Decoder {
     Ok(out[0])
   }
 
-  pub fn decode_byte(
+  pub(crate) fn decode_byte(
     input: &str,
     path: &str,
     span: Span,

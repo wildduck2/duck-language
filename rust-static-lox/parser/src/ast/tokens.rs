@@ -1,22 +1,25 @@
 // Token trees used by attributes and macros.
 // This is purely syntactic (no expansion).
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Delimiter {
+pub enum Delimiter {
   Paren,
   Brace,
   Bracket,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum RepeatKind {
+pub enum RepeatKind {
   ZeroOrMore,
   OneOrMore,
   ZeroOrOne,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum TokenTree {
+pub enum TokenTree {
   Token(String),
   Delimited {
     delimiter: Delimiter,

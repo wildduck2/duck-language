@@ -7,8 +7,9 @@ use diagnostic::Span;
 
 use crate::ast::{Attribute, Expr, Item, MacroInvocation, Pattern, Type};
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Stmt {
+pub enum Stmt {
   Empty {
     span: Span,
   },
@@ -30,7 +31,7 @@ pub(crate) enum Stmt {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct LetStmt {
+pub struct LetStmt {
   pub attributes: Vec<Attribute>,
   pub pattern: Pattern,
   pub ty: Option<Type>,

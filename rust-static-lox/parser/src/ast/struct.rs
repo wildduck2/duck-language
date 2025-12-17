@@ -5,22 +5,23 @@ use diagnostic::Span;
 use crate::ast::{Attribute, GenericParams, Type, Visibility, WhereClause};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct StructDecl {
+pub struct StructDecl {
   pub name: String,
   pub generics: Option<GenericParams>,
   pub kind: StructKind,
   pub where_clause: Option<WhereClause>,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum StructKind {
+pub enum StructKind {
   Named { fields: Vec<FieldDecl> },
   Tuple { fields: Vec<TupleField> },
   Unit,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct FieldDecl {
+pub struct FieldDecl {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
   pub name: String,
@@ -29,7 +30,7 @@ pub(crate) struct FieldDecl {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct TupleField {
+pub struct TupleField {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
   pub ty: Type,

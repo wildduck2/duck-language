@@ -111,7 +111,7 @@ Change Log
 2025-11-13
 - Added lifetime, mutability, and `where` clause parsers (plus supporting diagnostics) and wired
   them into struct/type/generic parsing so trait/lifetime bounds read like real Rust.
-- Extended visibility + path parsing to cover `pub`, `pub(crate)`, `pub(in module)`, and multi-segment
+- Extended visibility + path parsing to cover `pub`, `pub`, `pub(in module)`, and multi-segment
   forms, unblocking type + struct definitions with richer access modifiers.
 - Hardened the lexer/parser hand-off for contextual keywords and shift operators, teaching the lexer
   to split `<<`/`>>` tokens properly and feeding a dedicated shift-expression parser.

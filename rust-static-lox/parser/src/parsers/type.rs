@@ -373,7 +373,18 @@ impl Parser {
     &mut self,
     engine: &mut DiagnosticEngine,
   ) -> Result<QSelf, ()> {
-    if !matches!(self.current_token().kind, TokenKind::Lt) {
+    if !matches!(self.current_token().kind, TokenKind::Lt)
+      || !matches!(
+        self.peek(1).kind,
+        TokenKind::Ident
+          | TokenKind::KwSelfType
+          | TokenKind::ColonColon
+          | TokenKind::KwSelf
+          | TokenKind::KwSuper
+          | TokenKind::Dollar
+          | TokenKind::KwCrate
+      )
+    {
       let lexeme = self.get_token_lexeme(&self.current_token());
       let diagnostic = Diagnostic::new(
         DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
@@ -397,7 +408,15 @@ impl Parser {
     self.expect(TokenKind::Lt, engine)?;
     let self_ty = Box::new(self.parse_type(engine)?);
 
-    let as_trait = if match_and_consume!(self, engine, TokenKind::KwAs)? {
+    let as_trait = if match_and_consume!(self, engine, TokenKind::KwAs)?
+      && !matches!(
+        self.peek(1).kind,
+        TokenKind::Dollar
+          | TokenKind::KwCrate
+          | TokenKind::KwSelf
+          | TokenKind::KwSuper
+          | TokenKind::KwSelfType
+      ) {
       Some(self.parse_path(true, engine)?)
     } else {
       None

@@ -255,17 +255,74 @@ impl Parser {
   ) -> Result<Option<GenericArgs>, ()> {
     match self.current_token().kind {
       TokenKind::OpenParen => {
+        let token = self.current_token();
         let mut inputs = Vec::<Type>::new();
-        self.advance(engine); // consume the "("
+        self.advance(engine);
 
         while !self.is_eof() && self.current_token().kind != TokenKind::CloseParen {
           inputs.push(self.parse_type(engine)?);
+          let token = self.current_token();
           match_and_consume!(self, engine, TokenKind::Comma)?;
+
+          if !matches!(
+            self.current_token().kind,
+            TokenKind::Comma | TokenKind::CloseParen
+          ) {
+            let bad = self.current_token();
+
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidGenericArgs),
+              "Invalid generic argument".to_string(),
+              self.source_file.path.clone(),
+            )
+            .with_label(
+              bad.span,
+              Some("Expected a ',' or '>' after a generic argument".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_help(
+              "Generic arguments must be separated by a ',' and may not be followed by a '>'."
+                .to_string(),
+            );
+            engine.add(diagnostic);
+            return Err(());
+          }
+
+          if matches!(self.current_token().kind, TokenKind::CloseParen)
+            && matches!(token.kind, TokenKind::Comma)
+          {
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidTrailingComma),
+              "Invalid trailing comma".to_string(),
+              self.source_file.path.clone(),
+            )
+            .with_label(
+              token.span,
+              Some("expected a type, lifetime, or const parameter".to_string()),
+              LabelStyle::Primary,
+            );
+            engine.add(diagnostic);
+            return Err(());
+          }
         }
 
-        self.expect(TokenKind::CloseParen, engine)?; // consume the ")"
-        self.expect(TokenKind::ThinArrow, engine)?; // consume the "->"
+        if inputs.is_empty() {
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::EmptyGenericArgs),
+            "empty generic argument list".to_string(),
+            self.source_file.path.clone(),
+          )
+          .with_label(
+            token.span,
+            Some("expected a type, lifetime, or const parameter".to_string()),
+            LabelStyle::Primary,
+          );
+          engine.add(diagnostic);
+          return Err(());
+        }
 
+        self.expect(TokenKind::CloseParen, engine)?;
+        self.expect(TokenKind::ThinArrow, engine)?;
         let output = self.parse_type(engine)?;
 
         Ok(Some(GenericArgs::Parenthesized {
@@ -273,19 +330,12 @@ impl Parser {
           output: Some(Box::new(output)),
         }))
       },
+
       TokenKind::Lt | TokenKind::ColonColon => {
-        let mut args = Vec::<GenericArg>::new();
-        self.expect(TokenKind::Lt, engine)?; // consume the "<"
-
-        while !self.is_eof() && self.current_token().kind != TokenKind::Gt {
-          args.push(self.parse_generic_arg(engine)?);
-          match_and_consume!(self, engine, TokenKind::Comma)?;
-        }
-
-        self.expect(TokenKind::Gt, engine)?; // consume the ">"
-
+        let args = self.parse_angle_bracketed_generic_args_inner(engine)?;
         Ok(Some(GenericArgs::AngleBracketed { args }))
       },
+
       _ => Ok(None),
     }
   }
@@ -343,5 +393,78 @@ impl Parser {
 
       _ => Ok(GenericArg::Type(self.parse_type(engine)?)),
     }
+  }
+
+  fn parse_angle_bracketed_generic_args_inner(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Vec<GenericArg>, ()> {
+    let token = self.current_token();
+    let mut args = Vec::<GenericArg>::new();
+
+    self.expect(TokenKind::Lt, engine)?;
+
+    while !self.is_eof() && self.current_token().kind != TokenKind::Gt {
+      args.push(self.parse_generic_arg(engine)?);
+      let token = self.current_token();
+
+      if !matches!(self.current_token().kind, TokenKind::Comma | TokenKind::Gt) {
+        let bad = self.current_token();
+
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidGenericArgs),
+          "Invalid generic argument".to_string(),
+          self.source_file.path.clone(),
+        )
+        .with_label(
+          bad.span,
+          Some("Expected a ',' or '>' after a generic argument".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help(
+          "Generic arguments must be separated by a ',' and may not be followed by a '>'."
+            .to_string(),
+        );
+        engine.add(diagnostic);
+        return Err(());
+      }
+
+      match_and_consume!(self, engine, TokenKind::Comma)?;
+
+      if matches!(self.current_token().kind, TokenKind::Gt)
+        && matches!(token.kind, TokenKind::Comma)
+      {
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidTrailingComma),
+          "Invalid trailing comma".to_string(),
+          self.source_file.path.clone(),
+        )
+        .with_label(
+          token.span,
+          Some("expected a type, lifetime, or const parameter".to_string()),
+          LabelStyle::Primary,
+        );
+        engine.add(diagnostic);
+        return Err(());
+      }
+    }
+
+    if args.is_empty() {
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::EmptyGenericArgs),
+        "empty generic argument list".to_string(),
+        self.source_file.path.clone(),
+      )
+      .with_label(
+        token.span,
+        Some("expected a type, lifetime, or const parameter".to_string()),
+        LabelStyle::Primary,
+      );
+      engine.add(diagnostic);
+      return Err(());
+    }
+
+    self.expect(TokenKind::Gt, engine)?;
+    Ok(args)
   }
 }

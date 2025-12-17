@@ -67,10 +67,9 @@ impl Parser {
 
     // Parse additional `::`-separated segments
     while !self.is_eof()
-      && (!matches!(
+      && !matches!(
         self.current_token().kind,
         TokenKind::CloseBracket
-          | TokenKind::Lt
           | TokenKind::Eq
           | TokenKind::OpenParen
           | TokenKind::OpenBrace
@@ -85,9 +84,32 @@ impl Parser {
           | TokenKind::FatArrow
           | TokenKind::Bang
           | TokenKind::Dot
-      ) && !matches!(self.peek(1).kind, TokenKind::Lt))
+      )
     {
       self.expect(TokenKind::ColonColon, engine)?; // require '::' separator
+
+      if !matches!(
+        self.current_token().kind,
+        TokenKind::Ident
+          | TokenKind::KwSelf
+          | TokenKind::KwSuper
+          | TokenKind::KwCrate
+          | TokenKind::Dollar
+      ) {
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidPathSegment),
+          "Unexpected token in path segment".to_string(),
+          self.source_file.path.clone(),
+        )
+        .with_label(
+          self.current_token().span,
+          Some("Expected an identifier, keyword, or `$`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("Valid path segments are identifiers, keywords like `self`, `super`, `crate`, or `$crate`.".to_string());
+        engine.add(diagnostic);
+        return Err(());
+      }
 
       let (segment, is_dollar_crate) = self.parse_path_segment(with_args, engine)?;
       if is_dollar_crate {
@@ -125,19 +147,15 @@ impl Parser {
     let token = self.current_token();
     self.advance(engine); // consume the segment identifier or keyword
 
-    // Optional generic arguments
-    let args = if with_args
-      && matches!(self.current_token().kind, TokenKind::Lt)
-      && !matches!(self.peek(1).kind, TokenKind::Lt)
-    {
-      self.parse_generic_args(engine)?
-    } else if matches!(self.current_token().kind, TokenKind::ColonColon)
-      && matches!(self.peek(1).kind, TokenKind::Lt)
-    {
-      self.advance(engine);
-      self.parse_generic_args(engine)?
-    } else {
-      None
+    let args = match (with_args, self.current_token().kind, self.peek(1).kind) {
+      (true, TokenKind::Lt, TokenKind::Lt) => None,
+      (true, TokenKind::Lt, _) => self.parse_generic_args(engine)?,
+      (_, TokenKind::OpenParen, _) => self.parse_generic_args(engine)?,
+      (_, TokenKind::ColonColon, TokenKind::Lt) => {
+        self.advance(engine);
+        self.parse_generic_args(engine)?
+      },
+      _ => None,
     };
 
     match token.kind {

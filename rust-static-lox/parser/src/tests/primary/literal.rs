@@ -11,30 +11,32 @@ mod literal_tests {
     use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
     use lexer::Lexer;
     use std::path::PathBuf;
-    
+
     let mut engine = DiagnosticEngine::new();
     let mut source_map = SourceMap::new();
-    
+
     // Create a source file directly from the input string
     let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
       .join("tests")
       .join("files")
       .join("literal_test_temp.lox");
     let path_str = test_file_path.to_str().unwrap().to_string();
-    
+
     let source_file = SourceFile::new(path_str.clone(), input.to_string());
     source_map.add_file(&path_str, input);
     engine.add_file(&path_str, input);
-    
+
     let mut lexer = Lexer::new(source_file.clone());
     lexer.scan_tokens(&mut engine);
-    
+
     if engine.has_errors() {
       return Err(());
     }
-    
+
     let mut parser = crate::Parser::new(lexer.tokens, source_file);
-    parser.parse_primary(ExprContext::Default, &mut engine).map(|expr| expr.kind)
+    parser
+      .parse_primary(ExprContext::Default, &mut engine)
+      .map(|expr| expr.kind)
   }
 
   // Helper function to check if parsing produces an error
@@ -456,19 +458,6 @@ mod literal_tests {
     );
   }
 
-  // Note: 0X prefix may not be supported by the lexer (only 0x is supported)
-  // #[test]
-  // fn test_integer_hex_prefix_uppercase() {
-  //   let result = parse_single("0Xff").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Integer {
-  //       value: 255,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
-
   #[test]
   fn test_integer_binary_lowercase() {
     let result = parse_single("0b101010").unwrap();
@@ -481,19 +470,6 @@ mod literal_tests {
     );
   }
 
-  // Note: 0B prefix may not be supported by the lexer (only 0b is supported)
-  // #[test]
-  // fn test_integer_binary_uppercase() {
-  //   let result = parse_single("0B101010").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Integer {
-  //       value: 42,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
-
   #[test]
   fn test_integer_octal_lowercase() {
     let result = parse_single("0o755").unwrap();
@@ -505,19 +481,6 @@ mod literal_tests {
       })
     );
   }
-
-  // Note: 0O prefix may not be supported by the lexer (only 0o is supported)
-  // #[test]
-  // fn test_integer_octal_uppercase() {
-  //   let result = parse_single("0O755").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Integer {
-  //       value: 493,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
 
   // ============================================================================
   // Float Literal Tests
@@ -546,32 +509,6 @@ mod literal_tests {
       })
     );
   }
-
-  // Note: .5 format may not be supported by the lexer
-  // #[test]
-  // fn test_float_starting_with_dot() {
-  //   let result = parse_single(".5").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Float {
-  //       value: 0.5,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
-
-  // Note: 5. format may not be supported by the lexer
-  // #[test]
-  // fn test_float_ending_with_dot() {
-  //   let result = parse_single("5.").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Float {
-  //       value: 5.0,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
 
   #[test]
   fn test_float_scientific_lowercase() {
@@ -681,31 +618,6 @@ mod literal_tests {
     );
   }
 
-  // Note: .5e10 and 5.e10 formats may not be supported by the lexer
-  // #[test]
-  // fn test_float_starting_with_dot_and_exponent() {
-  //   let result = parse_single(".5e10").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Float {
-  //       value: 0.5e10,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
-
-  // #[test]
-  // fn test_float_ending_with_dot_and_exponent() {
-  //   let result = parse_single("5.e10").unwrap();
-  //   assert_eq!(
-  //     result,
-  //     ExprKind::Literal(Lit::Float {
-  //       value: 5.0e10,
-  //       suffix: None,
-  //     })
-  //   );
-  // }
-
   // ============================================================================
   // Boolean Literal Tests
   // ============================================================================
@@ -725,49 +637,55 @@ mod literal_tests {
   // ============================================================================
   // Error/Invalid Syntax Tests
   // ============================================================================
-  // TODO: Add tests for invalid syntax that should produce errors
-  // Examples from literal.lox commented lines:
-  // - '' (empty char)
-  // - 'ab' (multiple chars)
-  // - '\x' (incomplete hex escape)
-  // - '\u' (incomplete unicode escape)
-  // - "unclosed string
-  // - 0x (incomplete hex)
-  // - 0b (incomplete binary)
-  // - 0o (incomplete octal)
-  // - 0xG (invalid hex digit)
-  // - 0b2 (invalid binary digit)
-  // - 0o9 (invalid octal digit)
-  // - 1_000_000_ (trailing underscore)
-  // - _1_000_000 (leading underscore)
-  // - 1__000 (double underscore)
-  // - 3.14. (trailing dot)
-  // - .5. (double dot)
-  // - 5..5 (double dot)
-  // - 1e (incomplete exponent)
-  // - 1e+ (incomplete exponent)
-  // - 1e- (incomplete exponent)
-  // - tru (incomplete bool)
-  // - fals (incomplete bool)
-  // - True (wrong case)
-  // - False (wrong case)
-  //
-  // Add your error test cases here:
-  //
-  // #[test]
-  // fn test_empty_char_should_error() {
-  //   assert!(should_error("''"));
-  // }
-  //
-  // #[test]
-  // fn test_multiple_chars_should_error() {
-  //   assert!(should_error("'ab'"));
-  // }
-  //
-  // #[test]
-  // fn test_incomplete_hex_escape_should_error() {
-  //   assert!(should_error("'\\x'"));
-  // }
-  //
-  // Add more error test cases as needed...
+  // NOTE: This module focuses on parser/decoder behavior.
+  // If an input is rejected during tokenization (unterminated strings, invalid escapes, etc.),
+  // it should be covered by `lexer` tests instead of here.
+
+  // Character literal cases that make it through tokenization but should still be rejected.
+  #[test]
+  fn test_char_long_hex_escape_should_error() {
+    assert!(should_error("'\\x4142'"));
+  }
+
+  // Integer literal error cases
+  #[test]
+  fn test_integer_incomplete_hex_should_error() {
+    assert!(should_error("0x"));
+  }
+
+  #[test]
+  fn test_integer_hex_stops_before_invalid_digit_should_error() {
+    assert!(should_error("0xG"));
+  }
+
+  #[test]
+  fn test_integer_incomplete_binary_should_error() {
+    assert!(should_error("0b"));
+  }
+
+  #[test]
+  fn test_integer_binary_stops_before_invalid_digit_should_error() {
+    assert!(should_error("0b2"));
+  }
+
+  #[test]
+  fn test_integer_octal_stops_before_invalid_digit_should_error() {
+    assert!(should_error("0o9"));
+  }
+
+  // Float literal error cases
+  #[test]
+  fn test_float_incomplete_exponent_should_error() {
+    assert!(should_error("1e"));
+  }
+
+  #[test]
+  fn test_float_incomplete_exponent_plus_should_error() {
+    assert!(should_error("1e+"));
+  }
+
+  #[test]
+  fn test_float_incomplete_exponent_minus_should_error() {
+    assert!(should_error("1e-"));
+  }
 }

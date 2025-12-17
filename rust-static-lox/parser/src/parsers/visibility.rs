@@ -14,7 +14,7 @@ impl Parser {
     let token = self.current_token();
 
     // not `pub` means private visibility
-    if !matches!(token.kind, TokenKind::KwPub) {
+    if !matches!(token.kind, TokenKind::Kwpub) {
       return Ok(Visibility::Private);
     }
 
@@ -53,8 +53,7 @@ impl Parser {
             LabelStyle::Primary,
           )
           .with_help(
-            "valid forms are: pub(crate), pub(self), pub(super), pub(in path::to::module)"
-              .to_string(),
+            "valid forms are: pub, pub(self), pub(super), pub(in path::to::module)".to_string(),
           );
 
           engine.add(diagnostic);
