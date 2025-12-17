@@ -1,9 +1,0 @@
-/// outer doc comment
-//! inner doc comment
-
-/* outer level
-  /* nested level */
-  still outer
-*/
-
-/* unterminated comment

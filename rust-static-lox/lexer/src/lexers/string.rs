@@ -94,7 +94,7 @@ impl Lexer {
   /// For prefixes like `f`, `cf`, `rf`, we emit “reserved / unknown prefix”
   /// diagnostics (this is a language extension; Rust itself would just lex
   /// identifiers in those cases).
-  pub fn lex_string(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_string(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     let first = self.get_current_lexeme(); // e.g. "b", "c", "r", "\"", or "'"
     let second = self.peek(); // next char, e.g. 'r', '"', etc.
 
@@ -228,6 +228,33 @@ impl Lexer {
 
     // Scan until we see a closing `"` followed by exactly `n_hashes` `#`.
     'outer: while let Some(c) = self.peek() {
+      if c == '\r' {
+        let diag = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+          "Carriage return (CR) is not allowed in raw C string literals; use \\n instead"
+            .to_string(),
+          self.source.path.to_string(),
+        )
+        .with_label(
+          diagnostic::Span::new(self.current, self.current + 1),
+          Some("remove this '\\r' or use an escape".to_string()),
+          LabelStyle::Primary,
+        );
+        engine.add(diag);
+        self.advance();
+        return Err(());
+      }
+
+      if c == '\0' {
+        self.report_nul_in_string(
+          engine,
+          "raw C string",
+          diagnostic::Span::new(self.current, self.current + 1),
+        );
+        self.advance();
+        return Err(());
+      }
+
       if c == '"' {
         let saved = self.current;
         self.advance(); // consume quote
@@ -338,6 +365,22 @@ impl Lexer {
     'outer: while let Some(c) = self.peek() {
       // Lookahead for probable next-line raw prefix to improve recovery
       // (this is a non-Rust extension for nicer diagnostics).
+      if c == '\r' {
+        let diag = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+          "Carriage return (CR) is not allowed in raw string literals; use \\n instead".to_string(),
+          self.source.path.to_string(),
+        )
+        .with_label(
+          diagnostic::Span::new(self.current, self.current + 1),
+          Some("remove this '\\r' or use an escape".to_string()),
+          LabelStyle::Primary,
+        );
+        engine.add(diag);
+        self.advance();
+        return Err(());
+      }
+
       if c == '\n' {
         let saved = self.current;
 
@@ -425,7 +468,7 @@ impl Lexer {
     // The 'c' prefix has been consumed; we're at the opening '"'.
     self.advance(); // consume '"'
 
-    let terminated = self.scan_string_body(engine, "C string");
+    let terminated = self.scan_string_body(engine, "C string", true, true);
 
     if !terminated {
       let diagnostic = Diagnostic::new(
@@ -463,10 +506,30 @@ impl Lexer {
       // --- RAW BYTE STRING: br"..." or br#"..."# ---
       self.advance(); // consume 'r'
 
+      const MAX_HASHES: usize = 255;
+
       let mut n_hashes: usize = 0;
       while self.peek() == Some('#') {
         n_hashes = n_hashes.saturating_add(1);
         self.advance();
+      }
+
+      if n_hashes > MAX_HASHES {
+        let diag = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::TooManyRawStrHashes),
+          format!(
+            "Raw byte string uses {} hashes; maximum is {}.",
+            n_hashes, MAX_HASHES
+          ),
+          self.source.path.to_string(),
+        )
+        .with_label(
+          diagnostic::Span::new(self.start, self.current),
+          Some("Too many '#' characters here".to_string()),
+          LabelStyle::Primary,
+        );
+        engine.add(diag);
+        n_hashes = MAX_HASHES;
       }
 
       if self.peek() != Some('"') {
@@ -494,6 +557,40 @@ impl Lexer {
 
       let mut found_end = false;
       'outer: while let Some(c) = self.peek() {
+        if c == '\r' {
+          let diag = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+            "Carriage return (CR) is not allowed in raw byte string literals; use \\n instead"
+              .to_string(),
+            self.source.path.to_string(),
+          )
+          .with_label(
+            diagnostic::Span::new(self.current, self.current + 1),
+            Some("remove this '\\r' or use an escape".to_string()),
+            LabelStyle::Primary,
+          );
+          engine.add(diag);
+          self.advance();
+          return Err(());
+        }
+
+        if !c.is_ascii() {
+          let diag = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+            "Raw byte strings must contain only ASCII characters (use \\xNN for bytes >127)"
+              .to_string(),
+            self.source.path.to_string(),
+          )
+          .with_label(
+            diagnostic::Span::new(self.current, self.current + c.len_utf8()),
+            Some("non-ASCII character here".to_string()),
+            LabelStyle::Primary,
+          );
+          engine.add(diag);
+          self.advance();
+          return Err(());
+        }
+
         if c == '"' {
           let saved = self.current;
           self.advance();
@@ -573,7 +670,7 @@ impl Lexer {
                 self.advance();
               }
             },
-            Some('n') | Some('r') | Some('t') | Some('\\') | Some('"') | Some('0') => {
+            Some('n') | Some('r') | Some('t') | Some('\\') | Some('"') | Some('\'') | Some('0') => {
               self.advance(); // simple escape
             },
             Some('x') => {
@@ -905,12 +1002,14 @@ impl Lexer {
               // Hex escape: \xNN (two hex digits).
               self.advance();
               let mut count = 0;
+              let mut value: u32 = 0;
               while count < 2
                 && self
                   .peek()
                   .map(|ch| ch.is_ascii_hexdigit())
                   .unwrap_or(false)
               {
+                value = (value << 4) | self.peek().unwrap().to_digit(16).unwrap();
                 self.advance();
                 count += 1;
               }
@@ -921,6 +1020,20 @@ impl Lexer {
                   self.source.path.to_string(),
                 );
                 engine.add(diag);
+                return Err(());
+              } else if value > 0x7F {
+                let diag = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "Invalid \\x escape: characters must be in ASCII range (<= 0x7F)".to_string(),
+                  self.source.path.to_string(),
+                )
+                .with_label(
+                  diagnostic::Span::new(self.start, self.current),
+                  Some("value is greater than 0x7F".to_string()),
+                  LabelStyle::Primary,
+                );
+                engine.add(diag);
+                return Err(());
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
@@ -992,7 +1105,23 @@ impl Lexer {
             },
           }
         },
-        '\n' | ':' | ',' | ' ' => {
+        '\n' => {
+          let diag = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+            "Newline is not allowed inside a character literal".to_string(),
+            self.source.path.to_string(),
+          )
+          .with_label(
+            diagnostic::Span::new(self.current, self.current + 1),
+            Some("remove this newline".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("character literals must fit on a single line".to_string());
+          engine.add(diag);
+          self.advance();
+          return Err(());
+        },
+        ':' | ',' | ' ' => {
           // Likely a lifetime or unterminated literal.
           break;
         },
@@ -1062,7 +1191,7 @@ impl Lexer {
   /// - Supports line-continuation escapes (`\` + LF + following whitespace).
   /// - Allows LF, forbids bare CR.
   fn lex_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
-    let terminated = self.scan_string_body(engine, "string");
+    let terminated = self.scan_string_body(engine, "string", false, false);
 
     if !terminated {
       let diagnostic = Diagnostic::new(
@@ -1088,7 +1217,7 @@ impl Lexer {
   /// Helper that checks if the next two characters form a string prefix.
   ///
   /// Returns `true` if the current character plus lookahead are a string prefix.
-  pub fn is_string_prefix(&mut self, first: char) -> bool {
+  pub(crate) fn is_string_prefix(&mut self, first: char) -> bool {
     let next = self.peek();
     let next2 = self.peek_next(1);
 
@@ -1106,7 +1235,19 @@ impl Lexer {
       },
 
       // r" or r#" (raw strings)
-      'r' => matches!(next, Some('"') | Some('#')),
+      'r' => {
+        if matches!(next, Some('"')) {
+          true
+        } else if matches!(next, Some('#')) {
+          let mut offset = 1;
+          while self.peek_next(offset) == Some('#') {
+            offset += 1;
+          }
+          matches!(self.peek_next(offset), Some('"'))
+        } else {
+          false
+        }
+      },
 
       _ => false,
     }
@@ -1115,8 +1256,15 @@ impl Lexer {
   /// Shared implementation for non-raw `"..."` and `c"..."` bodies.
   ///
   /// Returns `true` if a closing `"` was found, `false` on EOF.
-  fn scan_string_body(&mut self, engine: &mut DiagnosticEngine, context: &str) -> bool {
+  fn scan_string_body(
+    &mut self,
+    engine: &mut DiagnosticEngine,
+    context: &str,
+    forbid_nul: bool,
+    allow_full_byte_hex: bool,
+  ) -> bool {
     let mut terminated = false;
+    let max_hex_escape = if allow_full_byte_hex { 0xFF } else { 0x7F };
 
     while let Some(c) = self.peek() {
       match c {
@@ -1127,6 +1275,7 @@ impl Lexer {
         },
         '\\' => {
           self.advance(); // consume '\'
+          let escape_start = self.current - 1;
           match self.peek() {
             // Line continuation: `\` + LF + trailing whitespace.
             Some('\n') => {
@@ -1135,8 +1284,16 @@ impl Lexer {
                 self.advance();
               }
             },
-            Some('n' | 'r' | 't' | '\\' | '"' | '0') => {
+            Some('n' | 'r' | 't' | '\\' | '"' | '\'' | '0') => {
+              let esc = self.peek().unwrap();
               self.advance();
+              if forbid_nul && esc == '0' {
+                self.report_nul_in_string(
+                  engine,
+                  context,
+                  diagnostic::Span::new(escape_start, self.current),
+                );
+              }
             },
             Some('x') => {
               self.advance(); // consume 'x'
@@ -1152,13 +1309,19 @@ impl Lexer {
                   None => break,
                 }
               }
-              if count < 2 || value > 0x7F {
+              if count < 2 || value > max_hex_escape {
                 let diag = Diagnostic::new(
                   DiagnosticCode::Error(DiagnosticError::InvalidEscape),
                   format!("Invalid \\x escape in {} literal", context),
                   self.source.path.to_string(),
                 );
                 engine.add(diag);
+              } else if forbid_nul && value == 0 {
+                self.report_nul_in_string(
+                  engine,
+                  context,
+                  diagnostic::Span::new(escape_start, self.current),
+                );
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
@@ -1211,6 +1374,13 @@ impl Lexer {
                   );
                   engine.add(diag);
                 }
+                if forbid_nul && value == 0 {
+                  self.report_nul_in_string(
+                    engine,
+                    context,
+                    diagnostic::Span::new(escape_start, self.current),
+                  );
+                }
               }
             },
             _ => {
@@ -1240,11 +1410,42 @@ impl Lexer {
           self.advance();
         },
         _ => {
+          if forbid_nul && c == '\0' {
+            self.report_nul_in_string(
+              engine,
+              context,
+              diagnostic::Span::new(self.current, self.current + 1),
+            );
+          }
           self.advance();
         },
       }
     }
 
     terminated
+  }
+
+  fn report_nul_in_string(
+    &self,
+    engine: &mut DiagnosticEngine,
+    context: &str,
+    span: diagnostic::Span,
+  ) {
+    engine.add(
+      Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+        format!("{context} literal cannot contain interior NUL bytes"),
+        self.source.path.to_string(),
+      )
+      .with_label(
+        span,
+        Some("NUL byte is not allowed here".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help(
+        "Split the literal or avoid escapes that evaluate to zero when targeting C strings."
+          .to_string(),
+      ),
+    );
   }
 }

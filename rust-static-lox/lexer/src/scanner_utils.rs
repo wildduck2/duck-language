@@ -32,8 +32,13 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind)` if a token was successfully lexed, `None` otherwise
-  pub fn lex_tokens(&mut self, c: char, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  /// `Ok(TokenKind)` for successfully lexed tokens, or `Err(())` after emitting
+  /// a diagnostic for malformed input.
+  pub(crate) fn lex_tokens(
+    &mut self,
+    c: char,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<TokenKind, ()> {
     match c {
       // punctuation and delimiters
       ';' => self.lex_semicolon(),
@@ -101,8 +106,8 @@ impl Lexer {
       _ => {
         let diagnostic = Diagnostic::new(
           DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
-          format!("unexpected character: {}", self.get_current_lexeme()),
-          "demo.lox".to_string(),
+          format!("unexpected character `{c}`"),
+          self.source.path.to_string(),
         )
         .with_label(
           Span::new(self.current, self.column + 1),
@@ -111,7 +116,7 @@ impl Lexer {
         );
 
         engine.add(diagnostic);
-        return Err(());
+        Err(())
       },
     }
   }
@@ -123,7 +128,7 @@ impl Lexer {
   ///
   /// # Returns
   ///
-  /// `Some(TokenKind::Whitespace)` after consuming all whitespace
+  /// `Ok(TokenKind::Whitespace)` after consuming all whitespace
   fn lex_whitespace(&mut self) -> Result<TokenKind, ()> {
     while let Some(c) = self.peek() {
       if c.is_whitespace() {

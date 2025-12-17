@@ -1,5 +1,0 @@
-fn broken() {
-    let x = 0x;
-    let y = 0b102;
-    let z = "
-}

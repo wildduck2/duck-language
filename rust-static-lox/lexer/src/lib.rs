@@ -13,12 +13,17 @@
 //! UTF-8 handling. It maintains state for the current position (`current`),
 //! token start position (`start`), and line/column tracking.
 
-use diagnostic::{DiagnosticEngine, SourceFile, Span};
-
 use crate::token::{LiteralKind, Token, TokenKind};
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  DiagnosticEngine, SourceFile, Span,
+};
 
 mod lexers;
 mod scanner_utils;
+mod tests;
 pub mod token;
 
 /// Lexer for converting source code into tokens.
@@ -78,19 +83,33 @@ impl Lexer {
   /// lexer.scan_tokens(&mut engine);
   /// // lexer.tokens now contains all tokens from the source
   /// ```
-  pub fn scan_tokens(&mut self, engine: &mut DiagnosticEngine) {
+  pub fn scan_tokens(&mut self, engine: &mut DiagnosticEngine) -> Result<(), std::io::Error> {
     while !self.is_eof() {
       self.start = self.current;
       let c = self.advance();
 
-      let token = self.lex_tokens(c, engine);
-
-      if let Ok(token_type) = token {
-        self.emit(token_type);
+      let token = match self.lex_tokens(c, engine) {
+        Ok(token) => token,
+        Err(_) => {
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+            "invalid character".to_string(),
+            self.source.path.to_string(),
+          )
+          .with_label(
+            Span::new(self.current, self.column + 1),
+            Some("invalid character".to_string()),
+            LabelStyle::Primary,
+          );
+          engine.add(diagnostic);
+          return Err(std::io::Error::other("invalid character"));
+        },
       };
+      self.emit(token);
     }
 
     self.emit(TokenKind::Eof);
+    Ok(())
   }
 
   /// Conditionally consumes the next character if it matches the expected character.
@@ -309,32 +328,5 @@ impl Lexer {
   /// `true` if `current >= source.len()`, `false` otherwise
   fn is_eof(&self) -> bool {
     self.current >= self.source.src.len()
-  }
-
-  /// Retrieves a specific line from the source file.
-  ///
-  /// # Arguments
-  ///
-  /// * `line_num` - Zero-indexed line number
-  ///
-  /// # Returns
-  ///
-  /// The line content as a `String`, or empty string if out of range
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// // For source "line1\nline2\nline3":
-  /// lexer.get_line(0) // "line1"
-  /// lexer.get_line(1) // "line2"
-  /// ```
-  pub fn get_line(&self, line_num: usize) -> String {
-    self
-      .source
-      .src
-      .lines()
-      .nth(line_num)
-      .unwrap_or("")
-      .to_string()
   }
 }

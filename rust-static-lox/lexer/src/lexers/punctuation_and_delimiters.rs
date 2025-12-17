@@ -14,7 +14,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Semi)`
-  pub fn lex_semicolon(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_semicolon(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::Semi)
   }
 
@@ -25,7 +25,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Comma)`
-  pub fn lex_comma(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_comma(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::Comma)
   }
 
@@ -39,7 +39,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Dot)`, `Some(TokenKind::DotDot)`, or `Some(TokenKind::DotDotEq)`
-  pub fn lex_dot(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_dot(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('.') {
       if self.match_char('=') {
         return Ok(TokenKind::DotDotEq);
@@ -58,7 +58,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::OpenParen)`
-  pub fn lex_open_paren(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_open_paren(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::OpenParen)
   }
 
@@ -69,7 +69,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::CloseParen)`
-  pub fn lex_close_paren(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_close_paren(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::CloseParen)
   }
 
@@ -80,7 +80,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::OpenBrace)`
-  pub fn lex_open_brace(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_open_brace(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::OpenBrace)
   }
 
@@ -91,7 +91,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::CloseBrace)`
-  pub fn lex_close_brace(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_close_brace(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::CloseBrace)
   }
 
@@ -102,7 +102,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::OpenBracket)`
-  pub fn lex_open_bracket(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_open_bracket(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::OpenBracket)
   }
 
@@ -113,7 +113,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::CloseBracket)`
-  pub fn lex_close_bracket(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_close_bracket(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::CloseBracket)
   }
 
@@ -124,7 +124,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::At)`
-  pub fn lex_at(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_at(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::At)
   }
 
@@ -141,9 +141,8 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Pound)` or `Some(TokenKind::Shebang)`, or `None` for invalid shebang
-  pub fn lex_pound(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
-    //FIX: the shebang must be at the start of the file
-    if self.column == 0 && self.match_char('!') {
+  pub(crate) fn lex_pound(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+    if self.start == 0 && self.match_char('!') {
       return self.lex_shebang(engine);
     }
 
@@ -157,7 +156,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Tilde)`
-  pub fn lex_tilde(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_tilde(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::Tilde)
   }
 
@@ -168,7 +167,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Question)`
-  pub fn lex_question(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_question(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::Question)
   }
 
@@ -181,7 +180,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Colon)` or `Some(TokenKind::ColonColon)`
-  pub fn lex_colon(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_colon(&mut self) -> Result<TokenKind, ()> {
     if self.match_char(':') {
       return Ok(TokenKind::ColonColon);
     }
@@ -196,7 +195,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Dollar)`
-  pub fn lex_dollar(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_dollar(&mut self) -> Result<TokenKind, ()> {
     Ok(TokenKind::Dollar)
   }
 }

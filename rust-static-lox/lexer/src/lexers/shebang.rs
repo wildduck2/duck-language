@@ -14,7 +14,7 @@ use diagnostic::{
 impl Lexer {
   /// Lexes a shebang line (`#!...`).
   ///
-  /// Shebangs are only valid at the very beginning of a file (byte offset 1).
+  /// Shebangs are only valid at the very beginning of a file (byte offset 0).
   /// Consumes all characters until newline or EOF.
   ///
   /// # Arguments
@@ -24,7 +24,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Shebang)` if valid, `None` otherwise
-  pub fn lex_shebang(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_shebang(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     // Only valid at very beginning of the file (before any other text)
     if self.start != 0 {
       return Err(());
@@ -51,9 +51,9 @@ impl Lexer {
       // Anything else is invalid for a shebang
       _ => {
         let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidShebang),
-          "invalid shebang".to_string(),
-          "demo.lox".to_string(),
+            DiagnosticCode::Error(DiagnosticError::InvalidShebang),
+            "invalid shebang".to_string(),
+            self.source.path.to_string(),
         )
         .with_label(
           Span::new(self.start, self.current),
@@ -63,7 +63,7 @@ impl Lexer {
 
         engine.add(diagnostic);
 
-        return Err(());
+        Err(())
       },
     }
   }
