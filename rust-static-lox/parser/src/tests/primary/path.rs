@@ -29,7 +29,7 @@ mod path_tests {
     engine.add_file(&path_str, input);
 
     let mut lexer = Lexer::new(source_file.clone());
-    lexer.scan_tokens(&mut engine);
+    let _ = lexer.scan_tokens(&mut engine);
 
     if engine.has_errors() {
       return Err(());
@@ -41,9 +41,18 @@ mod path_tests {
       .map(|expr| expr.kind)
   }
 
+  fn assert_path(input: &str, expected: ExprKind) {
+    let result = parse_single(input).unwrap();
+    assert_eq!(result, expected);
+  }
+
   // Helper function to check if parsing produces an error
-  fn should_error(input: &str) -> bool {
-    parse_single(input).is_err()
+  fn assert_err(input: &str) {
+    assert!(
+      parse_single(input).is_err(),
+      "expected error for `{}`",
+      input
+    );
   }
 
   // ============================================================================
@@ -52,9 +61,8 @@ mod path_tests {
 
   #[test]
   fn test_simple_ident_path() {
-    let result = parse_single("foo").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -64,15 +72,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_two_segment_path() {
-    let result = parse_single("foo::bar").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -88,15 +95,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_two_segment_path() {
-    let result = parse_single("::foo::bar").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::foo::bar",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -112,15 +118,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_three_segment_path() {
-    let result = parse_single("foo::bar::baz").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::baz",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -140,15 +145,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_three_segment_path() {
-    let result = parse_single("::foo::bar::baz").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::foo::bar::baz",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -168,7 +172,7 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
@@ -178,9 +182,8 @@ mod path_tests {
 
   #[test]
   fn test_self_path() {
-    let result = parse_single("self").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "self",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -190,15 +193,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_super_path() {
-    let result = parse_single("super").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "super",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -208,15 +210,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_crate_path() {
-    let result = parse_single("crate").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "crate",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -226,15 +227,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_dollar_crate_path() {
-    let result = parse_single("$crate").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "$crate",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -244,15 +244,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_with_segment() {
-    let result = parse_single("self::foo").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "self::foo",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -268,15 +267,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_super_with_segment() {
-    let result = parse_single("super::foo").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "super::foo",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -292,15 +290,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_crate_with_segment() {
-    let result = parse_single("crate::foo").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "crate::foo",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -316,15 +313,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_dollar_crate_with_segment() {
-    let result = parse_single("$crate::foo").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "$crate::foo",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -340,15 +336,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_dollar_crate() {
-    let result = parse_single("::$crate").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::$crate",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -358,15 +353,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_super_crate_chain() {
-    let result = parse_single("self::super::crate").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "self::super::crate",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -386,15 +380,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_self_super_crate_chain() {
-    let result = parse_single("::self::super::crate").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::self::super::crate",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -414,7 +407,7 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
@@ -424,9 +417,8 @@ mod path_tests {
 
   #[test]
   fn test_path_with_single_generic_arg() {
-    let result = parse_single("foo::bar::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::<T>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -450,15 +442,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_two_generic_args() {
-    let result = parse_single("foo::bar::<T, U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::<T, U>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -491,15 +482,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_three_generic_args() {
-    let result = parse_single("foo::bar::<T, U, V>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::<T, U, V>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -539,15 +529,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_path_with_generic_arg() {
-    let result = parse_single("::foo::bar::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::foo::bar::<T>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -571,15 +560,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_path_with_two_generic_args() {
-    let result = parse_single("::foo::bar::<T, U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::foo::bar::<T, U>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -612,15 +600,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_generic_on_first_segment() {
-    let result = parse_single("foo::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::<T>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -638,15 +625,14 @@ mod path_tests {
             }),
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_generic_then_segment() {
-    let result = parse_single("foo::<T>::bar").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::<T>::bar",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -670,15 +656,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_multiple_generic_segments() {
-    let result = parse_single("foo::<T>::bar::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::<T>::bar::<U>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -710,15 +695,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_generic_in_middle() {
-    let result = parse_single("foo::bar::<T>::baz").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::<T>::baz",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -746,15 +730,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_multiple_generics() {
-    let result = parse_single("foo::bar::<T>::baz::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::<T>::baz::<U>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -790,7 +773,7 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
@@ -800,9 +783,8 @@ mod path_tests {
 
   #[test]
   fn test_self_type_with_generic() {
-    let result = parse_single("Self::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "Self::<T>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -820,15 +802,14 @@ mod path_tests {
             }),
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_type_with_generic_and_assoc() {
-    let result = parse_single("Self::<T>::Assoc").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "Self::<T>::Assoc",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -852,15 +833,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_type_with_generic_and_nested_assoc() {
-    let result = parse_single("Self::<T>::Assoc::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "Self::<T>::Assoc::<U>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -892,15 +872,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_crate_type_with_generics() {
-    let result = parse_single("crate::Type::<T>::Assoc::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "crate::Type::<T>::Assoc::<U>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -936,15 +915,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_with_type() {
-    let result = parse_single("self::Type").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "self::Type",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -960,15 +938,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_super_with_type() {
-    let result = parse_single("super::Type").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "super::Type",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -984,15 +961,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_crate_with_type() {
-    let result = parse_single("crate::Type").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "crate::Type",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1008,15 +984,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_dollar_crate_with_type() {
-    let result = parse_single("$crate::Type").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "$crate::Type",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1032,15 +1007,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_type_with_generic_type() {
-    let result = parse_single("self::Type::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "self::Type::<T>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1064,15 +1038,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_super_type_with_generic_and_assoc() {
-    let result = parse_single("super::Type::<T>::Assoc").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "super::Type::<T>::Assoc",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1100,15 +1073,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_type_assoc() {
-    let result = parse_single("Self::Assoc").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "Self::Assoc",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1124,15 +1096,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_self_type_assoc_with_generic() {
-    let result = parse_single("Self::Assoc::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "Self::Assoc::<T>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1156,7 +1127,7 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
@@ -1166,9 +1137,8 @@ mod path_tests {
 
   #[test]
   fn test_qualified_path_simple() {
-    let result = parse_single("<T>::Item").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<T>::Item",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1187,15 +1157,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_generic() {
-    let result = parse_single("<T>::Item::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<T>::Item::<U>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1222,15 +1191,14 @@ mod path_tests {
             }),
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_self_type() {
-    let result = parse_single("<Self>::Assoc").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<Self>::Assoc",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::SelfType),
@@ -1243,15 +1211,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_dollar_crate_type() {
-    let result = parse_single("<$crate::Type>::Assoc").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<$crate::Type>::Assoc",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1276,15 +1243,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_trait() {
-    let result = parse_single("<crate::Type as Trait>::Item").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<crate::Type as Trait>::Item",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1315,15 +1281,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_trait_and_generic() {
-    let result = parse_single("<crate::Type as Trait>::Item::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<crate::Type as Trait>::Item::<U>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1362,15 +1327,14 @@ mod path_tests {
             }),
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_trait_and_sub_item() {
-    let result = parse_single("<super::Type as Trait>::Item::Sub").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<super::Type as Trait>::Item::Sub",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1407,15 +1371,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_self_trait() {
-    let result = parse_single("<Self as Trait>::Item::Assoc::Deep").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<Self as Trait>::Item::Assoc::Deep",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::SelfType),
@@ -1444,15 +1407,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_complex() {
-    let result = parse_single("<crate::Type as Trait>::Item::Assoc::Deep::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<crate::Type as Trait>::Item::Assoc::Deep::<U>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1501,15 +1463,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_leading_colon() {
-    let result = parse_single("<::foo as Trait>::Item").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<::foo as Trait>::Item",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1534,15 +1495,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_leading_colon_multi_segment() {
-    let result = parse_single("<::foo::bar as Trait>::Item").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<::foo::bar as Trait>::Item",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1573,15 +1533,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_leading_colon_crate() {
-    let result = parse_single("<::crate::Type as Trait>::Assoc").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<::crate::Type as Trait>::Assoc",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1612,15 +1571,14 @@ mod path_tests {
             args: None,
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_leading_colon_super() {
-    let result = parse_single("<::super::Type as Trait>::Assoc::<T>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<::super::Type as Trait>::Assoc::<T>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1659,15 +1617,14 @@ mod path_tests {
             }),
           }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_leading_colon_path_with_generics() {
-    let result = parse_single("::foo::<T>::bar::<U>::baz").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "::foo::<T>::bar::<U>::baz",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1703,15 +1660,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_deep_nesting() {
-    let result = parse_single("<T>::Item::Assoc::Deep::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<T>::Item::Assoc::Deep::<U>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1748,15 +1704,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_self_deep() {
-    let result = parse_single("<Self>::Assoc::Deep::Deeper").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<Self>::Assoc::Deep::Deeper",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::SelfType),
@@ -1779,15 +1734,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_complex_deep() {
-    let result = parse_single("<crate::Type as Trait>::Item::Assoc::Deep::Deeper::<U>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<crate::Type as Trait>::Item::Assoc::Deep::Deeper::<U>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1840,15 +1794,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_path_with_lifetime_generic() {
-    let result = parse_single("foo::bar::<'a>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "foo::bar::<'a>",
       ExprKind::Path {
         qself: None,
         path: Path {
@@ -1866,15 +1819,14 @@ mod path_tests {
             },
           ],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qualified_path_with_lifetime_generic() {
-    let result = parse_single("<T>::Item::<'a>").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<T>::Item::<'a>",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1893,17 +1845,16 @@ mod path_tests {
             args: Some(GenericArgs::AngleBracketed {
               args: vec![GenericArg::Lifetime("'a".to_string())],
             }),
-          },],
+          }],
         },
-      }
+      },
     );
   }
 
   #[test]
   fn test_qself_as_trait_with_lifetime_generic() {
-    let result = parse_single("<crate::Type as Trait<'a>>::Item").unwrap();
-    assert_eq!(
-      result,
+    assert_path(
+      "<crate::Type as Trait<'a>>::Item",
       ExprKind::Path {
         qself: Some(QSelf {
           self_ty: Box::new(Type::Path(Path {
@@ -1926,7 +1877,7 @@ mod path_tests {
               args: Some(GenericArgs::AngleBracketed {
                 args: vec![GenericArg::Lifetime("'a".to_string())],
               }),
-            },],
+            }],
           }),
         }),
         path: Path {
@@ -1934,9 +1885,9 @@ mod path_tests {
           segments: vec![PathSegment {
             kind: PathSegmentKind::Ident("Item".to_string()),
             args: None,
-          },],
+          }],
         },
-      }
+      },
     );
   }
 
@@ -1954,7 +1905,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -1974,7 +1925,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -1990,7 +1941,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2010,7 +1961,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2026,7 +1977,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2040,7 +1991,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2058,7 +2009,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2074,7 +2025,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2089,7 +2040,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2098,7 +2049,7 @@ mod path_tests {
     let cases = ["foo::$crate", "foo::bar::$crate", "<T as $crate>::Item"];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 
@@ -2113,7 +2064,7 @@ mod path_tests {
     ];
 
     for src in cases {
-      assert!(should_error(src), "expected error for `{}`", src);
+      assert_err(src);
     }
   }
 }

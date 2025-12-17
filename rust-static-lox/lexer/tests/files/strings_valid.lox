@@ -1,8 +1,0 @@
-"hello world"
-r#"raw world"#
-b"byte str"
-br#"raw byte data"#
-c"ffi\0ok"
-cr#"raw ffi string"# 
-'a'
-b'z'
