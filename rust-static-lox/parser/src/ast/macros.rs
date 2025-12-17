@@ -6,7 +6,7 @@ use diagnostic::Span;
 use crate::ast::{Delimiter, Path, TokenTree};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MacroInvocation {
+pub struct MacroInvocation {
   pub path: Path,
   pub delimiter: Delimiter,
   pub tokens: Vec<TokenTree>,
@@ -14,20 +14,20 @@ pub(crate) struct MacroInvocation {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MacroRulesDecl {
+pub struct MacroRulesDecl {
   pub name: String,
   pub rules: Vec<MacroRule>,
   pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MacroRule {
+pub struct MacroRule {
   pub matcher: TokenTree,     // Delimited(...)
   pub transcriber: TokenTree, // Delimited(...)
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Macro2Decl {
+pub struct Macro2Decl {
   pub name: String,
   pub params: Vec<String>,
   pub body: TokenTree, // Delimited(...)

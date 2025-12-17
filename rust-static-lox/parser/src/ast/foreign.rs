@@ -6,7 +6,7 @@ use diagnostic::Span;
 use crate::ast::{Attribute, FnSig, Ident, Mutability, Type, Visibility};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ForeignModDecl {
+pub struct ForeignModDecl {
   pub attributes: Vec<Attribute>,
   pub is_unsafe: bool,
   pub abi: Option<String>,
@@ -16,8 +16,9 @@ pub(crate) struct ForeignModDecl {
   pub span: Span,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum ForeignItem {
+pub enum ForeignItem {
   Function {
     attributes: Vec<Attribute>,
     visibility: Visibility,

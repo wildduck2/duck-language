@@ -4,7 +4,7 @@
 use crate::ast::generic::GenericArgs;
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Path {
+pub struct Path {
   pub leading_colon: bool,
   pub segments: Vec<PathSegment>,
 }
@@ -15,6 +15,7 @@ pub struct PathSegment {
   pub args: Option<GenericArgs>,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum PathSegmentKind {
   Ident(String),

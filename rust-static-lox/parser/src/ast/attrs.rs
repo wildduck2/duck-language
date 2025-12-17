@@ -7,27 +7,29 @@ use diagnostic::Span;
 
 use crate::ast::{Delimiter, Expr, Path, TokenTree};
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum AttrStyle {
+pub enum AttrStyle {
   Outer,
   Inner,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Attribute {
+pub struct Attribute {
   pub style: AttrStyle,
   pub input: AttrInput,
   pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct AttrInput {
+pub struct AttrInput {
   pub path: Path,
   pub args: Option<AttrArgs>,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum AttrArgs {
+pub enum AttrArgs {
   Delimited {
     delimiter: Delimiter,
     tokens: Vec<TokenTree>,

@@ -15,7 +15,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::And)`, `Ok(TokenKind::AndAnd)`, or `Ok(TokenKind::AndEq)`
-  pub(crate) fn lex_and(&mut self) -> Result<TokenKind, ()> {
+  pub fn lex_and(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
       return Ok(TokenKind::AndEq);
     }
@@ -33,7 +33,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Or)`, `Ok(TokenKind::OrOr)`, or `Ok(TokenKind::OrEq)`
-  pub(crate) fn lex_or(&mut self) -> Result<TokenKind, ()> {
+  pub fn lex_or(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
       return Ok(TokenKind::OrEq);
     }
@@ -48,7 +48,7 @@ impl Lexer {
   /// # Returns
   ///
   /// `Ok(TokenKind::Caret)` or `Ok(TokenKind::CaretEq)`
-  pub(crate) fn lex_caret(&mut self) -> Result<TokenKind, ()> {
+  pub fn lex_caret(&mut self) -> Result<TokenKind, ()> {
     if self.match_char('=') {
       return Ok(TokenKind::CaretEq);
     }

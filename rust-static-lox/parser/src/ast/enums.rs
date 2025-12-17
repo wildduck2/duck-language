@@ -5,7 +5,7 @@ use diagnostic::Span;
 use crate::ast::{Attribute, Expr, GenericParams, Visibility, WhereClause};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct EnumDecl {
+pub struct EnumDecl {
   pub name: String,
   pub generics: Option<GenericParams>,
   pub where_clause: Option<WhereClause>,
@@ -13,7 +13,7 @@ pub(crate) struct EnumDecl {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct EnumVariant {
+pub struct EnumVariant {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
   pub name: String,
@@ -22,8 +22,9 @@ pub(crate) struct EnumVariant {
   pub span: Span,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum EnumVariantKind {
+pub enum EnumVariantKind {
   Unit,
   Tuple { fields: Vec<crate::ast::TupleField> },
   Struct { fields: Vec<crate::ast::FieldDecl> },

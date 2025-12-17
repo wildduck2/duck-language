@@ -62,7 +62,7 @@ impl Lexer {
       "default" => Ok(TokenKind::KwDefault),
 
       // Modifier Keywords
-      "pub" => Ok(TokenKind::KwPub),
+      "pub" => Ok(TokenKind::Kwpub),
       "mut" => Ok(TokenKind::KwMut),
       "ref" => Ok(TokenKind::KwRef),
       "move" => Ok(TokenKind::KwMove),

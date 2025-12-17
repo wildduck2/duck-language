@@ -1,7 +1,8 @@
 // Small shared name types that show up everywhere.
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Ident {
+pub enum Ident {
   Name(String),
   Underscore,
 }
@@ -15,5 +16,5 @@ impl Ident {
   }
 }
 
-pub(crate) type Lifetime = String;
-pub(crate) type Label = String;
+pub type Lifetime = String;
+pub type Label = String;

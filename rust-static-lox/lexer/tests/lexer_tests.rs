@@ -351,7 +351,7 @@ mod lexer_tests {
       TokenKind::KwMacro,
       TokenKind::KwAuto,
       TokenKind::KwDefault,
-      TokenKind::KwPub,
+      TokenKind::Kwpub,
       TokenKind::KwMut,
       TokenKind::KwMove,
       TokenKind::KwUnsafe,

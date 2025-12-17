@@ -415,7 +415,7 @@ Implement individual lexing functions for each:
 
 ## Phase 14: API & Documentation  
 
-### 14.1 Public API
+### 14.1 public API
 - [x] Clean, ergonomic API for consumers:
   ```rust
   let mut lexer = Lexer::new(source);

@@ -388,7 +388,7 @@ pub enum TokenKind {
   KwDefault, // default (contextual in real Rust; treated as keyword here)
 
   // Modifier Keywords
-  KwPub,    // pub
+  Kwpub,    // pub
   KwMut,    // mut
   KwRef,    // ref
   KwMove,   // move
@@ -499,6 +499,17 @@ pub enum TokenKind {
 // ============================================================================
 
 impl TokenKind {
+  pub fn can_start_path(&self) -> bool {
+    matches!(
+      self,
+      Ident | KwSelf | KwSuper | KwCrate | Dollar | ColonColon | KwSelfType
+    )
+  }
+
+  pub fn can_start_path_and_not(&self, and: TokenKind) -> bool {
+    self.can_start_path() && *self != and
+  }
+
   /// Returns true if this token can start an expression.
   ///
   /// This is essentially the same as [`can_start_expr`], but used where
@@ -692,7 +703,7 @@ impl TokenKind {
         | KwMod
         | KwMove
         | KwMut
-        | KwPub
+        | Kwpub
         | KwRef
         | KwReturn
         | KwSelf

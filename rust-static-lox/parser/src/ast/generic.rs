@@ -6,13 +6,14 @@ use diagnostic::Span;
 use crate::ast::{Attribute, Expr, Path, Type};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct GenericParams {
+pub struct GenericParams {
   pub params: Vec<GenericParam>,
   pub span: Span,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum GenericParam {
+pub enum GenericParam {
   Type {
     attributes: Vec<Attribute>,
     name: String,
@@ -33,12 +34,13 @@ pub(crate) enum GenericParam {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct WhereClause {
+pub struct WhereClause {
   pub predicates: Vec<WherePredicate>,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum WherePredicate {
+pub enum WherePredicate {
   Lifetime {
     lifetime: String,
     bounds: Vec<String>,
@@ -57,16 +59,18 @@ pub(crate) enum WherePredicate {
   },
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum TraitBoundModifier {
+pub enum TraitBoundModifier {
   None,
   Maybe,      // ?
   Const,      // ~const
   MaybeConst, // ?~const
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum TypeBound {
+pub enum TypeBound {
   Lifetime {
     name: String,
   },
@@ -77,8 +81,9 @@ pub(crate) enum TypeBound {
   },
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum GenericArgs {
+pub enum GenericArgs {
   AngleBracketed {
     args: Vec<GenericArg>,
   },
@@ -88,8 +93,9 @@ pub(crate) enum GenericArgs {
   },
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum GenericArg {
+pub enum GenericArg {
   Lifetime(String),
   Type(Type),
   Const(Expr),

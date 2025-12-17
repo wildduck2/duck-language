@@ -1088,7 +1088,7 @@ impl Lexer {
   /// Helper that checks if the next two characters form a string prefix.
   ///
   /// Returns `true` if the current character plus lookahead are a string prefix.
-  pub(crate) fn is_string_prefix(&mut self, first: char) -> bool {
+  pub fn is_string_prefix(&mut self, first: char) -> bool {
     let next = self.peek();
     let next2 = self.peek_next(1);
 

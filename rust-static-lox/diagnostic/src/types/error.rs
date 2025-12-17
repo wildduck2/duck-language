@@ -49,6 +49,10 @@ pub enum DiagnosticError {
   InvalidVariadic,
   InvalidTraitBoundModifier,
   InvalidSelfParam,
+  EmptyGenericArgs,
+  InvalidTrailingComma,
+  InvalidPathSegment,
+  InvalidGenericArgs,
 }
 
 impl DiagnosticError {
@@ -93,6 +97,10 @@ impl DiagnosticError {
       Self::InvalidVariadic => "E0029",
       Self::InvalidTraitBoundModifier => "E0029",
       Self::InvalidSelfParam => "E0029",
+      Self::EmptyGenericArgs => "E0029",
+      Self::InvalidTrailingComma => "E0029",
+      Self::InvalidPathSegment => "E0029",
+      Self::InvalidGenericArgs => "E0029",
 
       Self::UndefinedVariable => "E0025",
       Self::MismatchedTypes => "E0026",

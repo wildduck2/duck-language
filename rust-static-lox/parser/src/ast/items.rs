@@ -9,22 +9,24 @@ use crate::ast::{
 // Item wrapper
 // ----------------------------------------------------------------------------
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Item {
+pub enum Item {
   Vis(VisItem),
   Macro(MacroItem),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct VisItem {
+pub struct VisItem {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
   pub kind: VisItemKind,
   pub span: Span,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum VisItemKind {
+pub enum VisItemKind {
   Function(FnDecl),
   Struct(StructDecl),
   Enum(EnumDecl),
@@ -46,14 +48,15 @@ pub(crate) enum VisItemKind {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MacroItem {
+pub struct MacroItem {
   pub attributes: Vec<Attribute>,
   pub kind: MacroItemKind,
   pub span: Span,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum MacroItemKind {
+pub enum MacroItemKind {
   Invocation(MacroInvocation),
   MacroRules(MacroRulesDecl),
   Macro2(Macro2Decl),
@@ -64,14 +67,14 @@ pub(crate) enum MacroItemKind {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ConstDecl {
+pub struct ConstDecl {
   pub name: crate::ast::Ident,
   pub ty: Type,
   pub value: crate::ast::Expr,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct StaticDecl {
+pub struct StaticDecl {
   pub name: crate::ast::Ident,
   pub ty: Type,
   pub mutability: Mutability,
@@ -83,7 +86,7 @@ pub(crate) struct StaticDecl {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct TypeAliasDecl {
+pub struct TypeAliasDecl {
   pub name: String,
   pub generics: Option<crate::ast::GenericParams>,
   pub bounds: Vec<crate::ast::TypeBound>,
@@ -96,13 +99,13 @@ pub(crate) struct TypeAliasDecl {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ModuleDecl {
+pub struct ModuleDecl {
   pub name: String,
   pub body: Option<ModuleBody>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ModuleBody {
+pub struct ModuleBody {
   pub inner_attributes: Vec<Attribute>,
   pub items: Vec<Item>,
   pub span: Span,
@@ -113,12 +116,13 @@ pub(crate) struct ModuleBody {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct UseDecl {
+pub struct UseDecl {
   pub tree: UseTree,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum UseTree {
+pub enum UseTree {
   Path {
     prefix: String,
     suffix: Box<UseTree>,
@@ -137,13 +141,13 @@ pub(crate) enum UseTree {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ExternCrateDecl {
+pub struct ExternCrateDecl {
   pub name: crate::ast::Ident,
   pub alias: Option<crate::ast::Ident>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ExternTypeDecl {
+pub struct ExternTypeDecl {
   pub name: String,
 }
 
@@ -152,7 +156,7 @@ pub(crate) struct ExternTypeDecl {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct UnionDecl {
+pub struct UnionDecl {
   pub name: String,
   pub generics: Option<crate::ast::GenericParams>,
   pub where_clause: Option<WhereClause>,
@@ -167,7 +171,7 @@ pub(crate) struct UnionDecl {
 // Those live on VisItem per grammar.
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct FnDecl {
+pub struct FnDecl {
   pub sig: FnSig,
 
   // None for extern functions and trait methods without a body
@@ -182,7 +186,7 @@ pub(crate) struct FnDecl {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct FnSig {
+pub struct FnSig {
   pub name: String,
   pub generics: Option<GenericParams>,
   pub params: Vec<Param>,
@@ -196,14 +200,15 @@ pub(crate) struct FnSig {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Param {
+pub struct Param {
   pub attributes: Vec<Attribute>,
   pub kind: ParamKind,
   pub span: Span,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum ParamKind {
+pub enum ParamKind {
   SelfParam(SelfParam),
   Normal {
     pattern: crate::ast::Pattern,
@@ -212,8 +217,9 @@ pub(crate) enum ParamKind {
   Variadic,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum SelfParam {
+pub enum SelfParam {
   Shorthand {
     reference: Option<SelfRef>,
     mutability: crate::ast::Mutability,
@@ -225,6 +231,6 @@ pub(crate) enum SelfParam {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct SelfRef {
+pub struct SelfRef {
   pub lifetime: Option<String>,
 }

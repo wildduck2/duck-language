@@ -22,7 +22,7 @@ impl Lexer {
   /// - For decimal / hex, also detects floats (fraction + exponent).
   /// - After lexing the numeric core, rejects leading/trailing `_` which
   ///   are not allowed in Rust (underscores must be **between digits**).
-  pub(crate) fn lex_number(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub fn lex_number(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
     let kind = if self.get_current_lexeme() == "0" {
       if self.match_char('b') {
         self.lex_binary(engine)

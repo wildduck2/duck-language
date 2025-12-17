@@ -531,14 +531,14 @@
 //// --- Unit struct ---
 //struct Empty;
 //
-//// --- Public named struct ---
+//// --- public named struct ---
 //pub struct Config {
 //    key: String,
 //    value: String,
 //}
 //
 //// --- Scoped visibility ---
-//pub(crate) struct InternalData;
+//pub struct InternalData;
 //pub(super) struct ChildOnly;
 //pub(self) struct SelfVisible;
 //pub(in crate::core::system) struct ScopedPath;
@@ -608,7 +608,7 @@
 //}
 //
 //// --- Tuple struct with visibility and generics ---
-//pub(crate) struct Vec2<T>(pub T, pub T);
+//pub struct Vec2<T>(pub T, pub T);
 //
 //// --- Unit struct with attribute ---
 //#[derive(Debug, Clone)]
