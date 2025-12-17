@@ -34,10 +34,10 @@ impl DiagnosticEngine {
     match diagnostic.code {
       DiagnosticCode::Error(_) => {
         self.error_count += 1;
-      }
+      },
       DiagnosticCode::Warning(_) => {
         self.warning_count += 1;
-      }
+      },
     }
 
     self.diagnostics.push(diagnostic);

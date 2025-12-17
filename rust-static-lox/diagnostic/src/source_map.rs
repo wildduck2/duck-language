@@ -124,8 +124,8 @@ impl SourceMap {
       Err(e) => {
         println!("{}", e.to_string());
         std::process::exit(64);
-      }
-      Ok(_) => {}
+      },
+      Ok(_) => {},
     }
 
     Ok(())

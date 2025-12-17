@@ -1,7 +1,8 @@
-//! Lexer for keywords and identifiers.
+//! Keyword and identifier lexer.
 //!
-//! Recognizes Rust keywords and distinguishes them from regular identifiers.
-//! Also handles raw identifiers (`r#type`) and invalid identifiers.
+//! This module recognizes every reserved word the language understands while
+//! still emitting ordinary identifiers (including `r#raw` forms) and reporting
+//! malformed ones with clear diagnostics.
 
 use diagnostic::{
   code::DiagnosticCode,
@@ -13,25 +14,24 @@ use diagnostic::{
 use crate::{token::TokenKind, Lexer};
 
 impl Lexer {
-  /// Lexes a keyword or identifier.
+  /// Lexes a keyword, identifier, or raw identifier.
   ///
-  /// Consumes alphanumeric characters and underscores to form a complete
-  /// identifier, then checks if it matches a known keyword. Also handles
-  /// raw identifiers (`r#...`) and detects invalid identifiers (starting with digits).
-  ///
-  /// # Returns
-  ///
-  /// `Some(TokenKind)` - Keyword token, `Ident`, `RawIdent`, or `InvalidIdent`
-  pub fn lex_keywords(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
-    // Consume valid identifier characters
-    while let Some(ch) = self.peek() {
-      if !ch.is_ascii_alphanumeric() && ch != '_' {
-        break;
-      }
-      self.advance();
-    }
+  /// The method consumes `[A-Za-z0-9_]` after the initial character and then
+  /// checks whether the resulting lexeme matches a reserved keyword. It also
+  /// understands `r#raw_ident` syntax and diagnoses identifiers that start
+  /// with digits.
+  pub(crate) fn lex_keywords(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+    self.consume_identifier_body();
 
-    match self.get_current_lexeme() {
+    let mut lexeme = self.get_current_lexeme();
+    if self.should_parse_raw_identifier(lexeme) {
+      self.advance(); // consume '#'
+      self.consume_identifier_body();
+      lexeme = self.get_current_lexeme();
+    }
+    let lexeme_owned = lexeme.to_string();
+
+    match lexeme_owned.as_str() {
       // Control Flow Keywords
       "if" => Ok(TokenKind::KwIf),
       "else" => Ok(TokenKind::KwElse),
@@ -103,12 +103,10 @@ impl Lexer {
         // Handles regular identifiers (foo, _bar, Baz) and raw identifiers (r#type, r#match)
         // according to Rust’s lexical rules.
 
-        let lexeme = self.get_current_lexeme();
-
-        if lexeme.starts_with("r#") && lexeme.len() > 2 {
+        if lexeme_owned.starts_with("r#") && lexeme_owned.len() > 2 {
           // r# followed by a valid identifier
           Ok(TokenKind::RawIdent)
-        } else if lexeme
+        } else if lexeme_owned
           .chars()
           .next()
           .map(|ch| ch.is_ascii_digit())
@@ -116,26 +114,47 @@ impl Lexer {
         {
           // Invalid identifier (starts with a digit)
 
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidIdentifier),
-            format!("Invalid identifier: {}", lexeme),
-            self.source.path.to_string(),
-          )
-          .with_label(
-            Span::new(self.start, self.current),
-            Some("Invalid identifier".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_help("Identifiers must start with a letter.".to_string());
-
-          engine.add(diagnostic);
-
-          return Err(());
+          self.report_invalid_identifier(lexeme_owned, engine)
         } else {
           // Normal identifier
           Ok(TokenKind::Ident)
         }
       },
     }
+  }
+
+  fn consume_identifier_body(&mut self) {
+    while let Some(ch) = self.peek() {
+      if ch.is_ascii_alphanumeric() || ch == '_' {
+        self.advance();
+      } else {
+        break;
+      }
+    }
+  }
+
+  fn should_parse_raw_identifier(&self, current_lexeme: &str) -> bool {
+    current_lexeme == "r" && self.peek() == Some('#')
+  }
+
+  fn report_invalid_identifier(
+    &mut self,
+    lexeme_owned: String,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<TokenKind, ()> {
+    let diagnostic = Diagnostic::new(
+      DiagnosticCode::Error(DiagnosticError::InvalidIdentifier),
+      format!("identifier `{lexeme_owned}` cannot start with a digit"),
+      self.source.path.to_string(),
+    )
+    .with_label(
+      Span::new(self.start, self.current),
+      Some("identifiers must start with a letter or `_`".to_string()),
+      LabelStyle::Primary,
+    )
+    .with_help("rename the item so the first character is alphabetic or `_`".to_string());
+
+    engine.add(diagnostic);
+    Err(())
   }
 }

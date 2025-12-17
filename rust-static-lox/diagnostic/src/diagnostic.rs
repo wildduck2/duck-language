@@ -243,7 +243,7 @@ impl Diagnostic {
                         // Wave effect: ^~~~
                         format!("^{}", "~".repeat(marker_len - 1))
                       }
-                    }
+                    },
                     LabelStyle::Secondary => "-".repeat(marker_len),
                   }
                 };
