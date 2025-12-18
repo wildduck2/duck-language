@@ -150,25 +150,21 @@ mod closure_tests {
   }
 
   #[test]
-  #[ignore = "parser currently accepts this invalid syntax"]
   fn closure_double_comma_errors() {
     assert_err("|x,, y| x");
   }
 
   #[test]
-  #[ignore = "parser currently accepts this invalid syntax"]
   fn closure_leading_comma_errors() {
     assert_err("|,x| x");
   }
 
   #[test]
-  #[ignore = "parser currently accepts this invalid syntax"]
   fn closure_missing_closing_pipe_errors() {
     assert_err("|x y| x");
   }
 
   #[test]
-  #[ignore = "parser currently accepts this invalid syntax"]
   fn closure_return_type_without_block_errors() {
     assert_err("|x| -> i32 x");
   }

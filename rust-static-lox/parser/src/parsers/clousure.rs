@@ -3,11 +3,15 @@ use crate::{
     expr::{ClosureParam, Expr, ExprKind},
     ty::Type,
   },
-  match_and_consume,
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::DiagnosticEngine;
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  DiagnosticEngine,
+};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -18,14 +22,10 @@ impl Parser {
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let (is_move, is_async) = self.parse_closure_flavors(engine)?;
-
-    self.expect(TokenKind::Or, engine)?;
     let params = self.parse_closure_params(context, engine)?;
-    self.expect(TokenKind::Or, engine)?;
 
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
       let body = self.parse_expression(vec![], context, engine)?;
-      token.span.merge(self.current_token().span);
       return Ok(Expr {
         attributes: vec![],
         kind: ExprKind::Closure {
@@ -35,15 +35,35 @@ impl Parser {
           return_type: None,
           body: Box::new(body),
         },
-        span: token.span,
+        span: *token.span.merge(self.current_token().span),
       });
     }
 
     self.expect(TokenKind::ThinArrow, engine)?;
     let return_type = self.parse_type(engine)?;
-    let body = self.parse_expression(vec![], context, engine)?;
+    let temp = self.current_token();
+    let body = match self.parse_expression(vec![], context, engine)? {
+      body @ Expr {
+        kind: ExprKind::Block { .. },
+        ..
+      } => body,
+      _ => {
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::ExpectedBlockAfterFlavor),
+          "expected block after closure flavors".to_string(),
+          self.source_file.path.clone(),
+        )
+        .with_label(
+          temp.span,
+          Some("expected block after closure flavors".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("expected block after closure flavors".to_string());
+        engine.add(diagnostic);
+        return Err(());
+      },
+    };
 
-    token.span.merge(self.current_token().span);
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Closure {
@@ -53,7 +73,7 @@ impl Parser {
         return_type: Some(return_type),
         body: Box::new(body),
       },
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -62,11 +82,32 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<ClosureParam>, ()> {
+    self.expect(TokenKind::Or, engine)?;
     let mut params = vec![];
+
+    if matches!(self.current_token().kind, TokenKind::Comma) {
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
+        "unexpected token".to_string(),
+        self.source_file.path.clone(),
+      )
+      .with_label(
+        self.current_token().span,
+        Some("unexpected token".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("unexpected token".to_string());
+      engine.add(diagnostic);
+      return Err(());
+    }
+
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::Or) {
       params.push(self.parse_closure_param(context, engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+      if !matches!(self.current_token().kind, TokenKind::Or) {
+        self.expect(TokenKind::Comma, engine)?;
+      }
     }
+    self.expect(TokenKind::Or, engine)?;
     Ok(params)
   }
 
