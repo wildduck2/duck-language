@@ -4,39 +4,11 @@ mod literal_tests {
   use crate::{
     ast::expr::{ExprKind, Lit},
     parser_utils::ExprContext,
+    tests::support::parse_primary_expr,
   };
 
-  // Helper function to parse a single expression from a string
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
-    use lexer::Lexer;
-    use std::path::PathBuf;
-
-    let mut engine = DiagnosticEngine::new();
-    let mut source_map = SourceMap::new();
-
-    // Create a source file directly from the input string
-    let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-      .join("tests")
-      .join("files")
-      .join("literal_test_temp.lox");
-    let path_str = test_file_path.to_str().unwrap().to_string();
-
-    let source_file = SourceFile::new(path_str.clone(), input.to_string());
-    source_map.add_file(&path_str, input);
-    engine.add_file(&path_str, input);
-
-    let mut lexer = Lexer::new(source_file.clone());
-    let _ = lexer.scan_tokens(&mut engine);
-
-    if engine.has_errors() {
-      return Err(());
-    }
-
-    let mut parser = crate::Parser::new(lexer.tokens, source_file);
-    parser
-      .parse_primary(ExprContext::Default, &mut engine)
-      .map(|expr| expr.kind)
+    parse_primary_expr(input, "literal_test_temp", ExprContext::Default)
   }
 
   fn assert_err(input: &str) {
@@ -441,6 +413,28 @@ mod literal_tests {
       ExprKind::Literal(Lit::Float {
         value: 1000.5,
         suffix: None,
+      }),
+    );
+  }
+
+  #[test]
+  fn test_hex_float_simple() {
+    assert_lit(
+      "0x1p+4",
+      ExprKind::Literal(Lit::Float {
+        value: 16.0,
+        suffix: None,
+      }),
+    );
+  }
+
+  #[test]
+  fn test_hex_float_with_fraction_and_suffix() {
+    assert_lit(
+      "0x1.fp1f32",
+      ExprKind::Literal(Lit::Float {
+        value: 3.875,
+        suffix: Some("f32".to_string()),
       }),
     );
   }

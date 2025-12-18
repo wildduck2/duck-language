@@ -1,4 +1,4 @@
-use crate::{ast::*, parser_utils::ExprContext, Parser};
+use crate::{ast::*, match_and_consume, parser_utils::ExprContext, Parser};
 use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
@@ -12,17 +12,12 @@ impl Parser {
     self.advance(engine); // consume "match"
 
     let scrutinee = self.parse_expression(vec![], context, engine)?;
-
     self.expect(TokenKind::OpenBrace, engine)?;
-
     let mut arms = Vec::new();
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
       arms.push(self.parse_match_arm(context, engine)?);
-
-      if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(engine);
-      }
+      match_and_consume!(self, engine, TokenKind::Comma)?;
     }
 
     self.expect(TokenKind::CloseBrace, engine)?;
@@ -44,12 +39,7 @@ impl Parser {
   ) -> Result<MatchArm, ()> {
     let mut token = self.current_token();
 
-    let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_outer_attributes(engine)?
-    } else {
-      Vec::new()
-    };
-
+    let attributes = self.parse_outer_attributes(engine)?;
     let pattern = self.parse_pattern_with_or(context, engine)?;
 
     let guard = if matches!(self.current_token().kind, TokenKind::KwIf) {

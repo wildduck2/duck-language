@@ -11,6 +11,7 @@ impl Parser {
     &mut self,
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
+    context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
@@ -36,6 +37,7 @@ impl Parser {
     &mut self,
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
+    context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
@@ -64,6 +66,7 @@ impl Parser {
     &mut self,
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
+    context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();

@@ -6,39 +6,12 @@ mod path_tests {
       expr::ExprKind, GenericArg, GenericArgs, Path, PathSegment, PathSegmentKind, QSelf, Type,
     },
     parser_utils::ExprContext,
+    tests::support::parse_primary_expr,
   };
 
   // Helper function to parse a single expression from a string
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
-    use lexer::Lexer;
-    use std::path::PathBuf;
-
-    let mut engine = DiagnosticEngine::new();
-    let mut source_map = SourceMap::new();
-
-    // Create a source file directly from the input string
-    let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-      .join("tests")
-      .join("files")
-      .join("path_test_temp.lox");
-    let path_str = test_file_path.to_str().unwrap().to_string();
-
-    let source_file = SourceFile::new(path_str.clone(), input.to_string());
-    source_map.add_file(&path_str, input);
-    engine.add_file(&path_str, input);
-
-    let mut lexer = Lexer::new(source_file.clone());
-    let _ = lexer.scan_tokens(&mut engine);
-
-    if engine.has_errors() {
-      return Err(());
-    }
-
-    let mut parser = crate::Parser::new(lexer.tokens, source_file);
-    parser
-      .parse_primary(ExprContext::Default, &mut engine)
-      .map(|expr| expr.kind)
+    parse_primary_expr(input, "path_test_temp", ExprContext::Default)
   }
 
   fn assert_path(input: &str, expected: ExprKind) {
@@ -192,6 +165,33 @@ mod path_tests {
             kind: PathSegmentKind::Self_,
             args: None,
           }],
+        },
+      },
+    );
+  }
+
+  #[test]
+  fn test_self_type_mid_path_segment() {
+    assert_path(
+      "foo::Self::bar",
+      ExprKind::Path {
+        qself: None,
+        path: Path {
+          leading_colon: false,
+          segments: vec![
+            PathSegment {
+              kind: PathSegmentKind::Ident("foo".to_string()),
+              args: None,
+            },
+            PathSegment {
+              kind: PathSegmentKind::SelfType,
+              args: None,
+            },
+            PathSegment {
+              kind: PathSegmentKind::Ident("bar".to_string()),
+              args: None,
+            },
+          ],
         },
       },
     );
