@@ -16,13 +16,14 @@ pub enum ExprContext {
   Match,
   LetElse,
   LoopCondition,
-  Struct,
+  ForCondition,
   WhileCondition,
-  Trait,
-  Impl,
+  Struct,
   Block,
   Function,
   Closure,
+  Trait,
+  Impl,
   Macro,
 }
 
@@ -172,37 +173,41 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
-    let label = self.parse_label(engine)?;
+    let label = self.parse_label(true, engine)?;
 
     match self.current_token().kind {
       TokenKind::KwIf => self.parse_if_expression(ExprContext::IfCondition, engine),
 
       TokenKind::KwMatch => self.parse_match_expression(ExprContext::Match, engine),
-      TokenKind::Or => self.parse_closure(context, engine),
+      TokenKind::Or => self.parse_closure(ExprContext::Closure, engine),
       TokenKind::KwMove | TokenKind::KwAsync if self.can_start_closure() => {
-        self.parse_closure(context, engine)
+        self.parse_closure(ExprContext::Closure, engine)
       },
-      TokenKind::OpenBrace => {
-        self.parse_block(label, ExprContext::Default, outer_attributes, engine)
-      },
+      TokenKind::OpenBrace => self.parse_block(label, ExprContext::Block, outer_attributes, engine),
       TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry
         if self.can_start_block_expression() =>
       {
-        self.parse_block(label, ExprContext::Default, outer_attributes, engine)
+        self.parse_block(label, ExprContext::Block, outer_attributes, engine)
       },
       TokenKind::KwContinue => self.parse_continue_expression(context, engine),
       TokenKind::KwBreak => self.parse_break_expression(context, engine),
       TokenKind::KwReturn => self.parse_return_expression(context, engine),
-      TokenKind::KwLoop => self.parse_loop_expression(label, outer_attributes, engine),
-      TokenKind::KwWhile => self.parse_while_expression(label, outer_attributes, engine),
-      TokenKind::KwFor => self.parse_for_expression(label, outer_attributes, engine),
+      TokenKind::KwLoop => {
+        self.parse_loop_expression(label, outer_attributes, ExprContext::LoopCondition, engine)
+      },
+      TokenKind::KwWhile => {
+        self.parse_while_expression(label, outer_attributes, ExprContext::WhileCondition, engine)
+      },
+      TokenKind::KwFor => {
+        self.parse_for_expression(label, outer_attributes, ExprContext::ForCondition, engine)
+      },
       _ => self.parse_assignment_expr(context, engine),
     }
   }
 
   pub(crate) fn parse_primary(
     &mut self,
-    _context: ExprContext,
+    context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let token = self.current_token();
@@ -222,16 +227,16 @@ impl Parser {
       TokenKind::Lt => self.parse_qualified_path(engine),
 
       TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
-        self.parse_path_expr(true, engine)
+        self.parse_path_expr(context, true, engine)
       },
 
-      TokenKind::ColonColon => self.parse_path_expr(true, engine),
+      TokenKind::ColonColon => self.parse_path_expr(context, true, engine),
 
       TokenKind::Ident
       | TokenKind::KwSelf
       | TokenKind::KwSuper
       | TokenKind::KwCrate
-      | TokenKind::KwSelfType => self.parse_path_expr(true, engine),
+      | TokenKind::KwSelfType => self.parse_path_expr(context, true, engine),
 
       // grouped and tuple expressions
       TokenKind::OpenParen => self.parse_grouped_and_tuple_expr(engine),

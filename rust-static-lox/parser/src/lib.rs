@@ -12,6 +12,8 @@ pub mod ast;
 mod decoder;
 mod parser_utils;
 mod parsers;
+#[cfg(test)]
+mod tests;
 
 #[macro_use]
 mod macros;
@@ -224,6 +226,3 @@ impl Parser {
     }
   }
 }
-
-#[cfg(test)]
-mod tests;

@@ -555,8 +555,7 @@ groupedExpr                -> "(" expression ")" ;  [x]
 arrayExpr                  -> "[" arrayElements? "]" ;                                [x]
 arrayElements              -> expression (";" expression | ("," expression)* ","?) ;  [x]
 
-tupleExpr                  -> "(" tupleElements? ")" ;         [x]
-tupleElements              -> (expression ",")+ expression? ;   [x]
+tupleExpr                  -> "(" (expression ("," expression)* ","?)? ")" ;  [x]
 
 structExpr                 -> structExprStruct       [x]
                            | structExprTuple        [x]
@@ -573,8 +572,9 @@ structBase                  -> ".." expression ;  [x]
 structExprTuple             -> pathInExpression "(" (expression ("," expression)* ","?)? ")" ;  [x]
 structExprUnit              -> pathInExpression ;  [x]
 
-closureExpr                 -> "move"? "async"? ("||" | "|" closureParams? "|")
-                               (expression | "->" typeNoBounds blockExpr) ;  [x]
+closureExpr                 -> closureFlavors ("||" | "|" closureParams? "|")
+                               (expression | "->" typeNoBounds blockExpr) ;  [-]
+closureFlavors              -> ("move" "async"? | "async" "move"? | ε) ;             [x]
 closureParams               -> closureParam ("," closureParam)* ","? ;        [x]
 closureParam                -> outerAttr* patternNoTopAlt (":" type)? ;       [x]
 
@@ -604,6 +604,7 @@ scrutinee                   -> expression ;  [x]
 
 ifExpr                      -> "if" expression blockExpr
                                ("else" (blockExpr | ifExpr | ifLetExpr))? ;  [x]
+
 ifLetExpr                   -> "if" "let" pattern "=" scrutinee blockExpr
                                ("else" (blockExpr | ifExpr | ifLetExpr))? ;  [x]
 
@@ -681,4 +682,3 @@ tokenTree                   -> tokenExceptDelims
                            | delimTokenTree ;
 
 tupleIndex                  -> INTEGER ;
-

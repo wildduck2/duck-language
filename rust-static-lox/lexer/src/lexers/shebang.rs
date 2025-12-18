@@ -51,9 +51,9 @@ impl Lexer {
       // Anything else is invalid for a shebang
       _ => {
         let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidShebang),
-            "invalid shebang".to_string(),
-            self.source.path.to_string(),
+          DiagnosticCode::Error(DiagnosticError::InvalidShebang),
+          "invalid shebang".to_string(),
+          self.source.path.to_string(),
         )
         .with_label(
           Span::new(self.start, self.current),

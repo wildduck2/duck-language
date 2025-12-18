@@ -4,7 +4,7 @@ use crate::ast::{
   r#struct::*, Attribute, Expr, ExprKind, FieldName, Item, VisItem, VisItemKind, Visibility,
 };
 use crate::parser_utils::ExprContext;
-use crate::{match_and_consume, Parser};
+use crate::Parser;
 use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
@@ -86,15 +86,28 @@ impl Parser {
     engine: &mut DiagnosticEngine,
   ) -> Result<Vec<FieldDecl>, ()> {
     self.expect(TokenKind::OpenBrace, engine)?; // consume '{'
-
     let mut fields = vec![];
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
-      fields.push(self.parse_record_field(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+    loop {
+      match self.current_token().kind {
+        TokenKind::CloseBrace => {
+          self.advance(engine); // consume '}'
+          break;
+        },
+        _ if self.is_eof() => {
+          self.expect(TokenKind::CloseBrace, engine)?;
+          break;
+        },
+        _ => {
+          fields.push(self.parse_record_field(engine)?);
+          if matches!(self.current_token().kind, TokenKind::CloseBrace) {
+            self.advance(engine);
+            break;
+          }
+          self.expect(TokenKind::Comma, engine)?;
+        },
+      }
     }
-
-    self.expect(TokenKind::CloseBrace, engine)?; // consume '}'
     Ok(fields)
   }
 
@@ -132,12 +145,26 @@ impl Parser {
     let mut fields = vec![];
     self.expect(TokenKind::OpenParen, engine)?; // consume '('
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-      fields.push(self.parse_tuple_field(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+    loop {
+      match self.current_token().kind {
+        TokenKind::CloseParen => {
+          self.advance(engine);
+          break;
+        },
+        _ if self.is_eof() => {
+          self.expect(TokenKind::CloseParen, engine)?;
+          break;
+        },
+        _ => {
+          fields.push(self.parse_tuple_field(engine)?);
+          if matches!(self.current_token().kind, TokenKind::CloseParen) {
+            self.advance(engine);
+            break;
+          }
+          self.expect(TokenKind::Comma, engine)?;
+        },
+      }
     }
-
-    self.expect(TokenKind::CloseParen, engine)?; // consume ')'
     Ok(fields)
   }
 
@@ -219,20 +246,36 @@ impl Parser {
   ) -> Result<(Vec<FieldInit>, Option<Box<Expr>>), ()> {
     self.expect(TokenKind::OpenBrace, engine)?; // consume '{'
     let mut fields = vec![];
+    let mut base = None;
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
-      if matches!(self.current_token().kind, TokenKind::DotDot) {
-        self.advance(engine);
-        let base = self.parse_expression(vec![], ExprContext::Struct, engine)?;
-        self.expect(TokenKind::CloseBrace, engine)?;
-        return Ok((fields, Some(Box::new(base))));
+    loop {
+      match self.current_token().kind {
+        TokenKind::CloseBrace => {
+          self.advance(engine);
+          break;
+        },
+        TokenKind::DotDot => {
+          self.advance(engine);
+          let base_expr = self.parse_expression(vec![], ExprContext::Struct, engine)?;
+          self.expect(TokenKind::CloseBrace, engine)?;
+          base = Some(Box::new(base_expr));
+          break;
+        },
+        _ if self.is_eof() => {
+          self.expect(TokenKind::CloseBrace, engine)?;
+          break;
+        },
+        _ => {
+          fields.push(self.parse_struct_record_init_field(engine)?);
+          if matches!(self.current_token().kind, TokenKind::CloseBrace) {
+            self.advance(engine);
+            break;
+          }
+          self.expect(TokenKind::Comma, engine)?;
+        },
       }
-
-      fields.push(self.parse_struct_record_init_field(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
     }
-    self.expect(TokenKind::CloseBrace, engine)?; // consume '}'
-    Ok((fields, None))
+    Ok((fields, base))
   }
 
   fn parse_struct_tuple_init_fields(
@@ -242,11 +285,26 @@ impl Parser {
     let mut elements = vec![];
     self.expect(TokenKind::OpenParen, engine)?; // consume '('
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-      elements.push(self.parse_struct_tuple_init_field(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+    loop {
+      match self.current_token().kind {
+        TokenKind::CloseParen => {
+          self.advance(engine);
+          break;
+        },
+        _ if self.is_eof() => {
+          self.expect(TokenKind::CloseParen, engine)?;
+          break;
+        },
+        _ => {
+          elements.push(self.parse_struct_tuple_init_field(engine)?);
+          if matches!(self.current_token().kind, TokenKind::CloseParen) {
+            self.advance(engine);
+            break;
+          }
+          self.expect(TokenKind::Comma, engine)?;
+        },
+      }
     }
-    self.expect(TokenKind::CloseParen, engine)?; // consume ')'
     Ok(elements)
   }
 

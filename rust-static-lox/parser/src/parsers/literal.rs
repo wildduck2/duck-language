@@ -133,9 +133,11 @@ impl Parser {
 
     let value_str = &src[token.span.start..suffix_start];
 
+    let cleaned = value_str.replace('_', "");
     let parsed = match base {
-      lexer::token::Base::Decimal => value_str.replace('_', "").parse::<f64>(),
-      _ => Err(())?, // hex/other floats disallowed
+      lexer::token::Base::Decimal => cleaned.parse::<f64>().map_err(|_| ()),
+      lexer::token::Base::Hexadecimal => Self::parse_hex_float_literal(&cleaned),
+      _ => Err(()),
     };
 
     let value = match parsed {
@@ -161,6 +163,54 @@ impl Parser {
       kind: ExprKind::Literal(Lit::Float { value, suffix }),
       span: *token.span.merge(self.current_token().span),
     })
+  }
+
+  fn parse_hex_float_literal(value: &str) -> Result<f64, ()> {
+    let mut parts = value.split(['p', 'P']);
+    let mantissa = parts.next().ok_or(())?;
+    let exponent_part = parts.next().ok_or(())?;
+    if parts.next().is_some() {
+      return Err(());
+    }
+
+    if mantissa.len() <= 2 || !mantissa.starts_with("0x") && !mantissa.starts_with("0X") {
+      return Err(());
+    }
+
+    let exponent: i32 = exponent_part.parse().map_err(|_| ())?;
+
+    let digits = &mantissa[2..];
+    let mut seen_digit = false;
+    let mut seen_dot = false;
+    let mut int_part = 0f64;
+    let mut frac_part = 0f64;
+    let mut frac_weight = 1f64;
+
+    for ch in digits.chars() {
+      if ch == '.' {
+        if seen_dot {
+          return Err(());
+        }
+        seen_dot = true;
+        continue;
+      }
+
+      let digit = ch.to_digit(16).ok_or(())? as f64;
+      seen_digit = true;
+      if !seen_dot {
+        int_part = int_part * 16.0 + digit;
+      } else {
+        frac_weight /= 16.0;
+        frac_part += digit * frac_weight;
+      }
+    }
+
+    if !seen_digit {
+      return Err(());
+    }
+
+    let mantissa_value = int_part + frac_part;
+    Ok(mantissa_value * 2f64.powi(exponent))
   }
 
   fn parser_string(

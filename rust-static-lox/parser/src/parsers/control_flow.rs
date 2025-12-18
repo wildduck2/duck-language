@@ -18,6 +18,10 @@ impl Parser {
     context: ExprContext,
     engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
+    if self.peek(1).kind == TokenKind::KwLet {
+      return self.parse_if_let_expression(context, engine);
+    }
+
     let mut token = self.current_token();
     self.advance(engine); // consume the "if"
     let condition = self.parse_expression(vec![], context, engine)?;
@@ -47,7 +51,6 @@ impl Parser {
       else_branch = Some(self.parse_expression(vec![], context, engine)?);
     }
 
-    token.span.merge(self.current_token().span);
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::If {
@@ -55,7 +58,40 @@ impl Parser {
         then_branch: Box::new(then_branch),
         else_branch: else_branch.map(Box::new),
       },
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
+    })
+  }
+
+  pub(crate) fn parse_if_let_expression(
+    &mut self,
+    context: ExprContext,
+    engine: &mut DiagnosticEngine,
+  ) -> Result<Expr, ()> {
+    let mut token = self.current_token();
+    self.advance(engine); // consume "if"
+    self.expect(TokenKind::KwLet, engine)?;
+
+    let pattern = self.parse_pattern(context, engine)?;
+    self.expect(TokenKind::Eq, engine)?;
+    let scrutinee = self.parse_expression(vec![], context, engine)?;
+
+    let then_branch = self.parse_expression(vec![], context, engine)?;
+
+    let mut else_branch = None;
+    if matches!(self.current_token().kind, TokenKind::KwElse) {
+      self.advance(engine); // consume "else"
+      else_branch = Some(self.parse_expression(vec![], context, engine)?);
+    }
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::IfLet {
+        scrutinee: Box::new(scrutinee),
+        pattern,
+        then_branch: Box::new(then_branch),
+        else_branch: else_branch.map(Box::new),
+      },
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -99,14 +135,35 @@ impl Parser {
 
     self.advance(engine);
 
-    let label = self.parse_label(engine)?;
+    let label = self.parse_label(false, engine)?;
 
-    token.span.merge(self.current_token().span);
+    if !matches!(
+      self.current_token().kind,
+      TokenKind::Colon | TokenKind::CloseBrace
+    ) {
+      let lexeme = self.get_token_lexeme(&self.current_token());
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
+        "expected a label to be followed by a colon or closing brace".to_string(),
+        self.source_file.path.clone(),
+      )
+      .with_label(
+        self.current_token().span,
+        Some(format!(
+          "expected a label to be followed by a colon or closing brace, found `{lexeme}`"
+        )),
+        LabelStyle::Primary,
+      )
+      .with_help("labels must be followed by a colon or closing brace".to_string());
+
+      engine.add(diagnostic);
+      return Err(());
+    }
 
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Continue { label },
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -150,7 +207,7 @@ impl Parser {
 
     self.advance(engine);
 
-    let label = self.parse_label(engine)?;
+    let label = self.parse_label(false, engine)?;
 
     let value = if !matches!(
       self.current_token().kind,
@@ -161,14 +218,36 @@ impl Parser {
       None
     };
 
-    token.span.merge(self.current_token().span);
+    if !matches!(
+      self.current_token().kind,
+      TokenKind::Semi | TokenKind::CloseBrace
+    ) {
+      let lexeme = self.get_token_lexeme(&self.current_token());
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
+        "expected a label to be followed by a colon or closing brace".to_string(),
+        self.source_file.path.clone(),
+      )
+      .with_label(
+        self.current_token().span,
+        Some(format!(
+          "expected a label to be followed by a colon or closing brace, found `{lexeme}`"
+        )),
+        LabelStyle::Primary,
+      )
+      .with_help("labels must be followed by a colon or closing brace".to_string());
+
+      engine.add(diagnostic);
+      return Err(());
+    }
+
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Break {
         value: value.map(Box::new),
         label,
       },
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -181,7 +260,11 @@ impl Parser {
 
     let allowed = matches!(
       context,
-      ExprContext::Function | ExprContext::IfCondition | ExprContext::Match | ExprContext::LetElse
+      ExprContext::Function
+        | ExprContext::IfCondition
+        | ExprContext::Match
+        | ExprContext::LetElse
+        | ExprContext::Block
     );
 
     if !allowed {
@@ -221,14 +304,34 @@ impl Parser {
       None
     };
 
-    token.span.merge(self.current_token().span);
+    if !matches!(
+      self.current_token().kind,
+      TokenKind::Semi | TokenKind::CloseBrace
+    ) {
+      let lexeme = self.get_token_lexeme(&self.current_token());
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
+        "expected a label to be followed by a colon or closing brace".to_string(),
+        self.source_file.path.clone(),
+      )
+      .with_label(
+        self.current_token().span,
+        Some(format!(
+          "expected a label to be followed by a colon or closing brace, found `{lexeme}`"
+        )),
+        LabelStyle::Primary,
+      )
+      .with_help("labels must be followed by a colon or closing brace".to_string());
+      engine.add(diagnostic);
+      return Err(());
+    }
 
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Return {
         value: value.map(Box::new),
       },
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 
@@ -276,6 +379,7 @@ impl Parser {
 
   pub(crate) fn parse_label(
     &mut self,
+    start: bool,
     engine: &mut DiagnosticEngine,
   ) -> Result<Option<String>, ()> {
     let token = self.current_token();
@@ -283,7 +387,9 @@ impl Parser {
       return Ok(None);
     }
 
-    self.expect(TokenKind::Colon, engine)?;
+    if start {
+      self.expect(TokenKind::Colon, engine)?;
+    }
     Ok(Some(self.get_token_lexeme(&token)))
   }
 }
