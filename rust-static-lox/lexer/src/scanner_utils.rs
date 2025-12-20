@@ -34,11 +34,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind)` for successfully lexed tokens, or `Err(())` after emitting
   /// a diagnostic for malformed input.
-  pub(crate) fn lex_tokens(
-    &mut self,
-    c: char,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_tokens(&mut self, c: char) -> Result<TokenKind, ()> {
     match c {
       // punctuation and delimiters
       ';' => self.lex_semicolon(),
@@ -51,7 +47,7 @@ impl Lexer {
       '[' => self.lex_open_bracket(),
       ']' => self.lex_close_bracket(),
       '@' => self.lex_at(),
-      '#' => self.lex_pound(engine),
+      '#' => self.lex_pound(),
       '~' => self.lex_tilde(),
       '?' => self.lex_question(),
       ':' => self.lex_colon(),
@@ -84,24 +80,24 @@ impl Lexer {
       '\r' | '\t' | ' ' => self.lex_whitespace(),
 
       // String and character literals
-      '\'' => self.lex_string(engine), // Character literal
+      '\'' => self.lex_string(), // Character literal
 
       // Handles b"", br"", b'c', etc.
-      'b' if self.is_string_prefix('b') => self.lex_string(engine),
+      'b' if self.is_string_prefix('b') => self.lex_string(),
 
       // Handles c"", cr"", etc.
-      'c' if self.is_string_prefix('c') => self.lex_string(engine),
+      'c' if self.is_string_prefix('c') => self.lex_string(),
 
       // Handles r"", r#"..."#, etc.
-      'r' if self.is_string_prefix('r') => self.lex_string(engine),
+      'r' if self.is_string_prefix('r') => self.lex_string(),
 
       // Normal string
-      '"' => self.lex_string(engine), // Regular string
+      '"' => self.lex_string(), // Regular string
 
       // Numbers
-      '0'..='9' => self.lex_number(engine),
+      '0'..='9' => self.lex_number(),
       // Keywords
-      'A'..='Z' | 'a'..='z' | '_' => self.lex_keywords(engine),
+      'A'..='Z' | 'a'..='z' | '_' => self.lex_keywords(),
 
       _ => {
         let diagnostic = Diagnostic::new(
@@ -115,7 +111,7 @@ impl Lexer {
           LabelStyle::Primary,
         );
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         Err(())
       },
     }

@@ -2,7 +2,6 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 
 use crate::{token::TokenKind, Lexer};
@@ -13,7 +12,7 @@ impl Lexer {
   /// Supports common forms such as `'a`, `'static`, and `'_`, trims trailing
   /// punctuation like commas, and emits diagnostics for lone `'` tokens or
   /// lifetimes that begin with a digit.
-  pub(crate) fn lex_lifetime(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_lifetime(&mut self) -> Result<TokenKind, ()> {
     let chars: Vec<char> = self.get_current_lexeme().chars().collect();
 
     // Walk the collected characters to trim trailing punctuation so `'a,`
@@ -56,7 +55,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("try providing a name like `'a` or use `'_`".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -80,7 +79,7 @@ impl Lexer {
       )
       .with_help("rename the lifetime so it begins with a letter or `_`".to_string());
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       Err(())
     } else {
       // Return lifetime token directly no diagnostics at this stage

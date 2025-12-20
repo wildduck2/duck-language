@@ -8,7 +8,7 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine, Span,
+  Span,
 };
 
 use crate::{token::TokenKind, Lexer};
@@ -20,7 +20,7 @@ impl Lexer {
   /// checks whether the resulting lexeme matches a reserved keyword. It also
   /// understands `r#raw_ident` syntax and diagnoses identifiers that start
   /// with digits.
-  pub(crate) fn lex_keywords(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_keywords(&mut self) -> Result<TokenKind, ()> {
     self.consume_identifier_body();
 
     let mut lexeme = self.get_current_lexeme();
@@ -114,7 +114,7 @@ impl Lexer {
         {
           // Invalid identifier (starts with a digit)
 
-          self.report_invalid_identifier(lexeme_owned, engine)
+          self.report_invalid_identifier(lexeme_owned)
         } else {
           // Normal identifier
           Ok(TokenKind::Ident)
@@ -137,11 +137,7 @@ impl Lexer {
     current_lexeme == "r" && self.peek() == Some('#')
   }
 
-  fn report_invalid_identifier(
-    &mut self,
-    lexeme_owned: String,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<TokenKind, ()> {
+  fn report_invalid_identifier(&mut self, lexeme_owned: String) -> Result<TokenKind, ()> {
     let diagnostic = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::InvalidIdentifier),
       format!("identifier `{lexeme_owned}` cannot start with a digit"),
@@ -154,7 +150,7 @@ impl Lexer {
     )
     .with_help("rename the item so the first character is alphabetic or `_`".to_string());
 
-    engine.add(diagnostic);
+    self.engine.borrow_mut().add(diagnostic);
     Err(())
   }
 }

@@ -4,7 +4,6 @@
 //! and multi-character sequences like `::` and `..=`.
 
 use crate::{token::TokenKind, Lexer};
-use diagnostic::DiagnosticEngine;
 
 impl Lexer {
   /// Lexes a semicolon (`;`).
@@ -136,14 +135,14 @@ impl Lexer {
   ///
   /// # Arguments
   ///
-  /// * `engine` - Diagnostic engine for error reporting
+  /// * `` - Diagnostic engine for error reporting
   ///
   /// # Returns
   ///
   /// `Ok(TokenKind::Pound)` or `Some(TokenKind::Shebang)`, or `None` for invalid shebang
-  pub(crate) fn lex_pound(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_pound(&mut self) -> Result<TokenKind, ()> {
     if self.start == 0 && self.match_char('!') {
-      return self.lex_shebang(engine);
+      return self.lex_shebang();
     }
 
     Ok(TokenKind::Pound)

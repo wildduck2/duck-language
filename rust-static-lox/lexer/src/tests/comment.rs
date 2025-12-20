@@ -4,11 +4,13 @@ mod comment_tests {
     token::{DocStyle, TokenKind},
     Lexer,
   };
-  use diagnostic::SourceFile;
+  use diagnostic::{DiagnosticEngine, SourceFile};
+  use std::{cell::RefCell, rc::Rc};
 
   fn lexer_for(input: &str) -> Lexer {
     let source = SourceFile::new("comment_test.lox".to_string(), input.to_string());
-    Lexer::new(source)
+    let engine = Rc::new(RefCell::new(DiagnosticEngine::new()));
+    Lexer::new(source, engine)
   }
 
   fn lex_comment_token(input: &str) -> TokenKind {

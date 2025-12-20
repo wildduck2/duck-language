@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use diagnostic::{DiagnosticEngine, SourceMap};
 use lexer::Lexer;
 use parser::Parser;
@@ -14,24 +16,26 @@ impl Runner {
   pub fn run_file(
     &mut self,
     path: &str,
-    engine: &mut DiagnosticEngine,
+    engine: Rc<RefCell<DiagnosticEngine>>,
   ) -> Result<(), std::io::Error> {
     let mut source_map = SourceMap::new();
     source_map.add_wd(path)?;
 
     for source_file in source_map.files.values() {
-      engine.add_file(source_file.path.as_str(), source_file.src.as_str());
+      engine
+        .borrow_mut()
+        .add_file(source_file.path.as_str(), source_file.src.as_str());
       println!("\n============== READ =================\n");
 
       println!("{}", &source_file.src);
 
       println!("\n============= SCANNED ===============\n");
 
-      let mut lexer = Lexer::new(source_file.clone());
-      lexer.scan_tokens(engine);
+      let mut lexer = Lexer::new(source_file.clone(), engine.clone());
+      lexer.scan_tokens();
 
-      if engine.has_errors() {
-        engine.print_diagnostics();
+      if engine.borrow().has_errors() {
+        engine.borrow().print_diagnostics();
         return Err(std::io::Error::other("lexing error"));
       }
 
@@ -40,11 +44,11 @@ impl Runner {
 
       println!("\n============= PARSED ===============\n");
 
-      let mut parser = Parser::new(lexer.tokens, source_file.clone());
-      parser.parse(engine);
+      let mut parser = Parser::new(lexer.tokens, source_file.clone(), engine.clone());
+      parser.parse();
 
-      if engine.has_errors() {
-        engine.print_diagnostics();
+      if engine.borrow().has_errors() {
+        engine.borrow().print_diagnostics();
         return Err(std::io::Error::other("parsing error"));
       }
     }

@@ -53,6 +53,8 @@ pub enum DiagnosticError {
   InvalidTrailingComma,
   InvalidPathSegment,
   InvalidGenericArgs,
+  InvalidWhereClause,
+  InvalidTraitBound,
 }
 
 impl DiagnosticError {
@@ -101,6 +103,8 @@ impl DiagnosticError {
       Self::InvalidTrailingComma => "E0029",
       Self::InvalidPathSegment => "E0029",
       Self::InvalidGenericArgs => "E0029",
+      Self::InvalidWhereClause => "E0029",
+      Self::InvalidTraitBound => "E0029",
 
       Self::UndefinedVariable => "E0025",
       Self::MismatchedTypes => "E0026",

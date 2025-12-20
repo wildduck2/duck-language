@@ -4,9 +4,9 @@ mod arithmetic_tests {
 
   fn lex_single(input: &str) -> TokenKind {
     use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
-    use std::path::PathBuf;
+    use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-    let mut engine = DiagnosticEngine::new();
+    let engine = Rc::new(RefCell::new(DiagnosticEngine::new()));
     let mut _source_map = SourceMap::new();
 
     let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -17,13 +17,13 @@ mod arithmetic_tests {
 
     let source_file = SourceFile::new(path_str.clone(), input.to_string());
     _source_map.add_file(&path_str, input);
-    engine.add_file(&path_str, input);
+    engine.borrow_mut().add_file(&path_str, input);
 
-    let mut lexer = Lexer::new(source_file);
-    let _ = lexer.scan_tokens(&mut engine);
+    let mut lexer = Lexer::new(source_file, engine.clone());
+    let _ = lexer.scan_tokens();
 
     assert!(
-      !engine.has_errors(),
+      !engine.borrow().has_errors(),
       "unexpected diagnostic lexing {input:?}"
     );
 

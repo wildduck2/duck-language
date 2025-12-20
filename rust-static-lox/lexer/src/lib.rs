@@ -13,6 +13,8 @@
 //! UTF-8 handling. It maintains state for the current position (`current`),
 //! token start position (`start`), and line/column tracking.
 
+use std::{cell::RefCell, rc::Rc};
+
 use crate::token::{LiteralKind, Token, TokenKind};
 use diagnostic::{
   code::DiagnosticCode,
@@ -37,6 +39,7 @@ pub struct Lexer {
   pub current: usize, // Current byte offset in source
   pub line: usize,    // Current line (1-indexed)
   pub column: usize,  // Current column (1-indexed)
+  pub engine: Rc<RefCell<DiagnosticEngine>>,
 }
 
 impl Lexer {
@@ -55,7 +58,7 @@ impl Lexer {
   /// let source = SourceFile::new("main.rs".to_string(), "fn main() {}".to_string());
   /// let mut lexer = Lexer::new(source);
   /// ```
-  pub fn new(source: SourceFile) -> Self {
+  pub fn new(source: SourceFile, engine: Rc<RefCell<DiagnosticEngine>>) -> Self {
     Self {
       source,
       tokens: Vec::new(),
@@ -63,6 +66,7 @@ impl Lexer {
       current: 0,
       line: 0,
       column: 0,
+      engine,
     }
   }
 
@@ -83,12 +87,12 @@ impl Lexer {
   /// lexer.scan_tokens(&mut engine);
   /// // lexer.tokens now contains all tokens from the source
   /// ```
-  pub fn scan_tokens(&mut self, engine: &mut DiagnosticEngine) -> Result<(), std::io::Error> {
+  pub fn scan_tokens(&mut self) -> Result<(), std::io::Error> {
     while !self.is_eof() {
       self.start = self.current;
       let c = self.advance();
 
-      let token = match self.lex_tokens(c, engine) {
+      let token = match self.lex_tokens(c) {
         Ok(token) => token,
         Err(_) => {
           let diagnostic = Diagnostic::new(
@@ -101,7 +105,7 @@ impl Lexer {
             Some("invalid character".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           return Err(std::io::Error::other("invalid character"));
         },
       };

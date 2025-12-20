@@ -1,12 +1,7 @@
-use std::{
-  fs,
-  rc::Rc,
-  sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, rc::Rc};
 
 use diagnostic::{
   code::DiagnosticCode, diagnostic::Diagnostic, types::error::DiagnosticError, DiagnosticEngine,
-  SourceMap,
 };
 
 use crate::runner::Runner;
@@ -18,21 +13,21 @@ fn main() -> Result<(), std::io::Error> {
   let args = std::env::args().collect::<Vec<_>>();
   let mut runner = Runner::new();
 
-  let mut diagnostic_engine = DiagnosticEngine::new();
+  let diagnostic_engine = Rc::new(RefCell::new(DiagnosticEngine::new()));
 
   match args.len() {
     1 => {
-      println!("{}", "Running the interactive mode");
-      runner.run_interactive_mode(&mut diagnostic_engine);
+      println!("Running the interactive mode");
+      // runner.run_interactive_mode(&mut diagnostic_engine);
     },
     2 => {
       println!("{}", format!("Running file: {}", args[1]).cyan().bold());
-      match runner.run_file(args[1].as_str(), &mut diagnostic_engine) {
+      match runner.run_file(args[1].as_str(), diagnostic_engine.clone()) {
         Ok(_) => {
           println!("\n{}", "Compiled Successfully [0] ".green().bold());
         },
         Err(e) => {
-          println!("{}", e.to_string());
+          println!("{}", e);
           std::process::exit(64);
         },
       };
@@ -46,14 +41,14 @@ fn main() -> Result<(), std::io::Error> {
       )
       .with_help("Usage: lox [script]".to_string());
 
-      diagnostic_engine.add(diagnostic);
-      diagnostic_engine.print_diagnostics();
+      diagnostic_engine.borrow_mut().add(diagnostic);
+      diagnostic_engine.borrow().print_diagnostics();
       std::process::exit(64);
     },
   }
 
   // Check if compilation had errors
-  if diagnostic_engine.has_errors() {
+  if diagnostic_engine.borrow().has_errors() {
     std::process::exit(65);
   }
 

@@ -73,7 +73,7 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine, Span,
+  Span,
 };
 
 use crate::{
@@ -94,13 +94,13 @@ impl Lexer {
   /// For prefixes like `f`, `cf`, `rf`, we emit “reserved / unknown prefix”
   /// diagnostics (this is a language extension; Rust itself would just lex
   /// identifiers in those cases).
-  pub(crate) fn lex_string(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_string(&mut self) -> Result<TokenKind, ()> {
     let first = self.get_current_lexeme(); // e.g. "b", "c", "r", "\"", or "'"
     let second = self.peek(); // next char, e.g. 'r', '"', etc.
 
     // Character / lifetime literals are handled separately.
     if first == "'" {
-      return self.lex_char(engine);
+      return self.lex_char();
     }
 
     // Combine prefix (1–2 chars, e.g. "b", "br", "c", "cr").
@@ -129,7 +129,7 @@ impl Lexer {
           LabelStyle::Primary,
         )
         .with_help("This prefix is reserved for future use.".to_string());
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         return Err(());
       }
 
@@ -145,7 +145,7 @@ impl Lexer {
           LabelStyle::Primary,
         )
         .with_help("Valid prefixes: b, br, c, cr, r.".to_string());
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         return Err(());
       }
     }
@@ -154,13 +154,13 @@ impl Lexer {
     // - `self.current` is just after the first char of the prefix (`b`, `c`, `r`, or `"`),
     // - `second` is the next character.
     match (first, second) {
-      ("b", Some('"')) => self.lex_bstr(engine),     // b"..."
-      ("b", Some('r')) => self.lex_bstr(engine),     // br"..."
-      ("b", Some('\'')) => self.lex_bchar(engine),   // b'X'
-      ("c", Some('"')) => self.lex_cstr(engine),     // c"..."
-      ("c", Some('r')) => self.lex_craw_str(engine), // cr"..."
-      ("r", Some('"')) | ("r", Some('#')) => self.lex_raw_str(engine), // r"..." or r#"..."#
-      ("\"", _) => self.lex_str(engine),             // "..."
+      ("b", Some('"')) => self.lex_bstr(),     // b"..."
+      ("b", Some('r')) => self.lex_bstr(),     // br"..."
+      ("b", Some('\'')) => self.lex_bchar(),   // b'X'
+      ("c", Some('"')) => self.lex_cstr(),     // c"..."
+      ("c", Some('r')) => self.lex_craw_str(), // cr"..."
+      ("r", Some('"')) | ("r", Some('#')) => self.lex_raw_str(), // r"..." or r#"..."#
+      ("\"", _) => self.lex_str(),             // "..."
       _ => Err(()),
     }
   }
@@ -169,7 +169,7 @@ impl Lexer {
   ///
   /// Counts `#` fences, requires an opening `"`, then scans until a matching
   /// closing `"###…###`. No escapes are processed.
-  fn lex_craw_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  fn lex_craw_str(&mut self) -> Result<TokenKind, ()> {
     // The 'c' prefix has been consumed; we're currently at 'r'.
     self.advance(); // consume 'r'
 
@@ -196,7 +196,7 @@ impl Lexer {
         Some("Too many '#' characters here".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
       n_hashes = MAX_HASHES;
     }
 
@@ -216,7 +216,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Raw C strings must start with cr\"...\", cr#\"...\"#, etc.".to_string());
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
 
       return Err(());
     }
@@ -240,14 +240,13 @@ impl Lexer {
           Some("remove this '\\r' or use an escape".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         self.advance();
         return Err(());
       }
 
       if c == '\0' {
         self.report_nul_in_string(
-          engine,
           "raw C string",
           diagnostic::Span::new(self.current, self.current + 1),
         );
@@ -294,7 +293,7 @@ impl Lexer {
         "Raw C strings must end with \"{h}\" (e.g., cr{h}\"...\"{h}).",
         h = "#".repeat(n_hashes),
       ));
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
     }
 
     Ok(TokenKind::Literal {
@@ -306,7 +305,7 @@ impl Lexer {
   ///
   /// Counts `#` fences, requires an opening `"`, then scans until a matching
   /// closing `"###…###`. Escapes are not processed.
-  fn lex_raw_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  fn lex_raw_str(&mut self) -> Result<TokenKind, ()> {
     const MAX_HASHES: usize = 255;
 
     // We're just after the 'r' and at zero or more '#'.
@@ -330,7 +329,7 @@ impl Lexer {
         Some("Too many '#' characters here".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
       n_hashes = MAX_HASHES;
     }
 
@@ -352,7 +351,7 @@ impl Lexer {
       .with_help(
         "Raw strings must start with r\"...\", r#\"...\"#, r##\"...\"##, etc.".to_string(),
       );
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
 
       return Err(());
     }
@@ -376,7 +375,7 @@ impl Lexer {
           Some("remove this '\\r' or use an escape".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         self.advance();
         return Err(());
       }
@@ -448,7 +447,7 @@ impl Lexer {
         "Raw strings must end with \"{h}\" (e.g., r{h}\"...\"{h}).",
         h = "#".repeat(n_hashes),
       ));
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
 
       return Err(());
     }
@@ -464,11 +463,11 @@ impl Lexer {
   /// - Supports `\\`, `\"`, `\n`, `\r`, `\t`, `\0`, `\xNN` (ASCII), `\u{...}`.
   /// - Supports line-continuation escapes: `\` + LF + following whitespace.
   /// - Allows LF inside the literal, but rejects bare CR outside continuation.
-  fn lex_cstr(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  fn lex_cstr(&mut self) -> Result<TokenKind, ()> {
     // The 'c' prefix has been consumed; we're at the opening '"'.
     self.advance(); // consume '"'
 
-    let terminated = self.scan_string_body(engine, "C string", true, true);
+    let terminated = self.scan_string_body("C string", true, true);
 
     if !terminated {
       let diagnostic = Diagnostic::new(
@@ -482,7 +481,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("C strings must end with a closing '\"'.".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -500,7 +499,7 @@ impl Lexer {
   ///
   /// For `br...`:
   /// - Acts like a raw string; bytes are taken verbatim.
-  fn lex_bstr(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  fn lex_bstr(&mut self) -> Result<TokenKind, ()> {
     // The 'b' prefix has already been consumed.
     if self.peek() == Some('r') {
       // --- RAW BYTE STRING: br"..." or br#"..."# ---
@@ -528,7 +527,7 @@ impl Lexer {
           Some("Too many '#' characters here".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         n_hashes = MAX_HASHES;
       }
 
@@ -547,7 +546,7 @@ impl Lexer {
           LabelStyle::Primary,
         )
         .with_help("Raw byte strings must start with br\"...\", br#\"...\"#, etc.".to_string());
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         return Ok(TokenKind::Literal {
           kind: LiteralKind::RawByteStr { n_hashes },
         });
@@ -569,7 +568,7 @@ impl Lexer {
             Some("remove this '\\r' or use an escape".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diag);
+          self.engine.borrow_mut().add(diag);
           self.advance();
           return Err(());
         }
@@ -586,7 +585,7 @@ impl Lexer {
             Some("non-ASCII character here".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diag);
+          self.engine.borrow_mut().add(diag);
           self.advance();
           return Err(());
         }
@@ -628,7 +627,7 @@ impl Lexer {
           "Raw byte strings must end with \"{h}\" (e.g., br{h}\"...\"{h}).",
           h = "#".repeat(n_hashes)
         ));
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
       }
 
       return Ok(TokenKind::Literal {
@@ -649,7 +648,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Byte strings must start with b\"...\" or br\"...\".".to_string());
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
       return Err(());
     }
 
@@ -691,7 +690,7 @@ impl Lexer {
                   "Invalid \\x escape: needs two hex digits".to_string(),
                   self.source.path.to_string(),
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
                 return Err(());
               }
             },
@@ -702,7 +701,7 @@ impl Lexer {
                 "Unicode escapes (\\u{...}) are not allowed in byte strings".to_string(),
                 self.source.path.to_string(),
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
               return Err(());
             },
             _ => {
@@ -717,7 +716,7 @@ impl Lexer {
                 Some("Unknown escape".to_string()),
                 LabelStyle::Primary,
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -741,7 +740,7 @@ impl Lexer {
             Some("Remove this '\\r'".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diag);
+          self.engine.borrow_mut().add(diag);
           return Err(());
         },
         _ => {
@@ -753,7 +752,7 @@ impl Lexer {
                 .to_string(),
               self.source.path.to_string(),
             );
-            engine.add(diag);
+            self.engine.borrow_mut().add(diag);
             return Err(());
           }
         },
@@ -775,7 +774,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Byte strings must end with a closing '\"'.".to_string());
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
       return Err(());
     }
 
@@ -789,7 +788,7 @@ impl Lexer {
   /// - Must encode exactly one byte.
   /// - Content must be ASCII.
   /// - Allowed escapes: `\\`, `\'`, `\n`, `\r`, `\t`, `\0`, `\xNN`.
-  fn lex_bchar(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  fn lex_bchar(&mut self) -> Result<TokenKind, ()> {
     // We are just after 'b'; expect opening `'`.
     if self.peek() != Some('\'') {
       let diagnostic = Diagnostic::new(
@@ -802,7 +801,7 @@ impl Lexer {
         Some("Expected opening quote here".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -843,7 +842,7 @@ impl Lexer {
                   "Invalid \\x escape in byte char literal: needs two hex digits".to_string(),
                   self.source.path.to_string(),
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
               } else {
                 produced_bytes = produced_bytes.saturating_add(1);
               }
@@ -854,7 +853,7 @@ impl Lexer {
                 "Unicode escapes (\\u{...}) are not allowed in byte char literals".to_string(),
                 self.source.path.to_string(),
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
 
               // Recovery: consume until '}' or newline.
               self.advance(); // 'u'
@@ -873,7 +872,7 @@ impl Lexer {
                 "Line continuation escapes are not supported in byte char literals".to_string(),
                 self.source.path.to_string(),
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
               self.advance();
             },
             _ => {
@@ -887,7 +886,7 @@ impl Lexer {
                 Some("Unknown escape".to_string()),
                 LabelStyle::Primary,
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -905,7 +904,7 @@ impl Lexer {
               "Byte char literals must be ASCII.".to_string(),
               self.source.path.to_string(),
             );
-            engine.add(diag);
+            self.engine.borrow_mut().add(diag);
           }
           self.advance();
           produced_bytes = produced_bytes.saturating_add(1);
@@ -928,7 +927,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Byte char literals must look like b'X' or b'\\xNN'.".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
 
       return Err(());
     }
@@ -945,7 +944,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Byte char literals must encode exactly one ASCII byte.".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
 
       return Err(());
     }
@@ -965,7 +964,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Byte char literals may only encode a single byte.".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
 
       return Err(());
     }
@@ -980,7 +979,7 @@ impl Lexer {
   /// - Validates escapes and reports errors for unterminated forms or bad escapes.
   /// - If no closing `'` is found, falls back to `lex_lifetime` (`'a`, `'static`, etc.).
   /// - Ensures there is at most one Unicode scalar value (or a single escape).
-  fn lex_char(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  fn lex_char(&mut self) -> Result<TokenKind, ()> {
     let mut terminated = false;
 
     // The opening `'` has already been consumed by the caller (`lex_string`),
@@ -1019,7 +1018,7 @@ impl Lexer {
                   "Invalid \\x escape: needs two hex digits".to_string(),
                   self.source.path.to_string(),
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
                 return Err(());
               } else if value > 0x7F {
                 let diag = Diagnostic::new(
@@ -1032,7 +1031,7 @@ impl Lexer {
                   Some("value is greater than 0x7F".to_string()),
                   LabelStyle::Primary,
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
                 return Err(());
               }
             },
@@ -1060,7 +1059,7 @@ impl Lexer {
                       "Invalid Unicode escape: non-hex digit".to_string(),
                       self.source.path.to_string(),
                     );
-                    engine.add(diag);
+                    self.engine.borrow_mut().add(diag);
                     self.advance();
                     return Err(());
                   },
@@ -1078,7 +1077,7 @@ impl Lexer {
                     "Invalid Unicode escape code point".to_string(),
                     self.source.path.to_string(),
                   );
-                  engine.add(diag);
+                  self.engine.borrow_mut().add(diag);
                   return Err(());
                 }
               } else {
@@ -1087,7 +1086,7 @@ impl Lexer {
                   "Unterminated Unicode escape, missing '}'".to_string(),
                   self.source.path.to_string(),
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
                 return Err(());
               }
             },
@@ -1097,7 +1096,7 @@ impl Lexer {
                 "Unknown escape sequence in char literal".to_string(),
                 self.source.path.to_string(),
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -1117,7 +1116,7 @@ impl Lexer {
             LabelStyle::Primary,
           )
           .with_help("character literals must fit on a single line".to_string());
-          engine.add(diag);
+          self.engine.borrow_mut().add(diag);
           self.advance();
           return Err(());
         },
@@ -1147,14 +1146,14 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("Character literals must be a single Unicode scalar value.".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
 
       return Err(());
     }
 
     if !terminated {
       // Treat as a lifetime token (`'a`, `'static`, etc.).
-      return self.lex_lifetime(engine);
+      return self.lex_lifetime();
     }
 
     // Ensure at most one scalar (or a single escape) between the quotes.
@@ -1174,7 +1173,7 @@ impl Lexer {
         .with_help(
           "Character literals must be a single Unicode scalar or a single escape.".to_string(),
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       }
     }
@@ -1190,8 +1189,8 @@ impl Lexer {
   /// - Supports the usual escapes plus `\xNN` (ASCII) and `\u{...}`.
   /// - Supports line-continuation escapes (`\` + LF + following whitespace).
   /// - Allows LF, forbids bare CR.
-  fn lex_str(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
-    let terminated = self.scan_string_body(engine, "string", false, false);
+  fn lex_str(&mut self) -> Result<TokenKind, ()> {
+    let terminated = self.scan_string_body("string", false, false);
 
     if !terminated {
       let diagnostic = Diagnostic::new(
@@ -1205,7 +1204,7 @@ impl Lexer {
         LabelStyle::Primary,
       )
       .with_help("String literals must end with a closing '\"'.".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -1258,7 +1257,7 @@ impl Lexer {
   /// Returns `true` if a closing `"` was found, `false` on EOF.
   fn scan_string_body(
     &mut self,
-    engine: &mut DiagnosticEngine,
+
     context: &str,
     forbid_nul: bool,
     allow_full_byte_hex: bool,
@@ -1288,11 +1287,8 @@ impl Lexer {
               let esc = self.peek().unwrap();
               self.advance();
               if forbid_nul && esc == '0' {
-                self.report_nul_in_string(
-                  engine,
-                  context,
-                  diagnostic::Span::new(escape_start, self.current),
-                );
+                self
+                  .report_nul_in_string(context, diagnostic::Span::new(escape_start, self.current));
               }
             },
             Some('x') => {
@@ -1315,13 +1311,10 @@ impl Lexer {
                   format!("Invalid \\x escape in {} literal", context),
                   self.source.path.to_string(),
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
               } else if forbid_nul && value == 0 {
-                self.report_nul_in_string(
-                  engine,
-                  context,
-                  diagnostic::Span::new(escape_start, self.current),
-                );
+                self
+                  .report_nul_in_string(context, diagnostic::Span::new(escape_start, self.current));
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
@@ -1347,7 +1340,7 @@ impl Lexer {
                       format!("Invalid Unicode escape in {} literal", context),
                       self.source.path.to_string(),
                     );
-                    engine.add(diag);
+                    self.engine.borrow_mut().add(diag);
                     self.advance();
                     break;
                   },
@@ -1359,7 +1352,7 @@ impl Lexer {
                   "Unterminated Unicode escape, missing '}'".to_string(),
                   self.source.path.to_string(),
                 );
-                engine.add(diag);
+                self.engine.borrow_mut().add(diag);
               } else {
                 self.advance(); // consume '}'
                 if digits == 0
@@ -1372,11 +1365,10 @@ impl Lexer {
                     "Invalid Unicode escape code point".to_string(),
                     self.source.path.to_string(),
                   );
-                  engine.add(diag);
+                  self.engine.borrow_mut().add(diag);
                 }
                 if forbid_nul && value == 0 {
                   self.report_nul_in_string(
-                    engine,
                     context,
                     diagnostic::Span::new(escape_start, self.current),
                   );
@@ -1389,7 +1381,7 @@ impl Lexer {
                 format!("Unknown escape sequence in {} literal", context),
                 self.source.path.to_string(),
               );
-              engine.add(diag);
+              self.engine.borrow_mut().add(diag);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -1406,13 +1398,12 @@ impl Lexer {
             ),
             self.source.path.to_string(),
           );
-          engine.add(diag);
+          self.engine.borrow_mut().add(diag);
           self.advance();
         },
         _ => {
           if forbid_nul && c == '\0' {
             self.report_nul_in_string(
-              engine,
               context,
               diagnostic::Span::new(self.current, self.current + 1),
             );
@@ -1425,13 +1416,8 @@ impl Lexer {
     terminated
   }
 
-  fn report_nul_in_string(
-    &self,
-    engine: &mut DiagnosticEngine,
-    context: &str,
-    span: diagnostic::Span,
-  ) {
-    engine.add(
+  fn report_nul_in_string(&self, context: &str, span: diagnostic::Span) {
+    self.engine.borrow_mut().add(
       Diagnostic::new(
         DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
         format!("{context} literal cannot contain interior NUL bytes"),

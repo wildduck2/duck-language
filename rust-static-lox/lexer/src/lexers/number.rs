@@ -2,7 +2,6 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 
 use crate::{
@@ -22,26 +21,26 @@ impl Lexer {
   /// - For decimal / hex, also detects floats (fraction + exponent).
   /// - After lexing the numeric core, rejects leading/trailing `_` which
   ///   are not allowed in Rust (underscores must be **between digits**).
-  pub(crate) fn lex_number(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_number(&mut self) -> Result<TokenKind, ()> {
     let kind = if self.get_current_lexeme() == "0" {
       if self.match_char('b') {
-        self.lex_binary(engine)
+        self.lex_binary()
       } else if self.match_char('o') {
-        self.lex_octal(engine)
+        self.lex_octal()
       } else if self.match_char('x') {
-        self.lex_hexadecimal(engine)
+        self.lex_hexadecimal()
       } else {
-        self.lex_decimal(engine)
+        self.lex_decimal()
       }
     } else {
-      self.lex_decimal(engine)
+      self.lex_decimal()
     };
 
     let number = self.get_current_lexeme();
     if number.starts_with('_') || number.ends_with('_') {
       let bad_span = diagnostic::Span::new(self.start, self.current);
 
-      let diag = Diagnostic::new(
+      let diagnostic = Diagnostic::new(
         DiagnosticCode::Error(DiagnosticError::InvalidInteger),
         "invalid integer literal".to_string(),
         self.source.path.to_string(),
@@ -57,7 +56,7 @@ impl Lexer {
       .with_note("examples of valid literals: `1_000`, `0xFF_A0`, `123`".to_string())
       .with_note("examples of invalid literals: `_123`, `123_`, `0x_12`".to_string());
 
-      engine.add(diag);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -68,7 +67,7 @@ impl Lexer {
   ///
   /// Accepts `_` separators (not doubled). Records `empty_int` if no
   /// digits follow `0b`. Also probes for an optional integer suffix.
-  fn lex_binary(&mut self, engine: &mut DiagnosticEngine) -> LiteralKind {
+  fn lex_binary(&mut self) -> LiteralKind {
     let mut empty_int = false;
     let mut suffix_start = 0;
     while let Some(c) = self.peek() {
@@ -87,7 +86,7 @@ impl Lexer {
             Some("remove this underscore".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           break;
         }
         self.advance();
@@ -103,11 +102,11 @@ impl Lexer {
           Some("consecutive underscores are not allowed".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         break;
       } else {
         if c == 'u' || c == 'i' {
-          self.check_suffix_type(c, &mut suffix_start, false, engine);
+          self.check_suffix_type(c, &mut suffix_start, false);
         } else {
           let diagnostic = Diagnostic::new(
             DiagnosticCode::Error(DiagnosticError::InvalidInteger),
@@ -119,7 +118,7 @@ impl Lexer {
             Some("expected `0` or `1` here".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
         }
         break;
       }
@@ -140,7 +139,7 @@ impl Lexer {
         Some("expected at least one binary digit here".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
     }
 
     LiteralKind::Integer {
@@ -154,7 +153,7 @@ impl Lexer {
   ///
   /// Accepts `_` separators (not doubled). Records `empty_int` if no
   /// digits follow `0o`. Also probes for an optional integer suffix.
-  fn lex_octal(&mut self, engine: &mut DiagnosticEngine) -> LiteralKind {
+  fn lex_octal(&mut self) -> LiteralKind {
     let mut empty_int = false;
     let mut suffix_start = 0;
     while let Some(c) = self.peek() {
@@ -173,7 +172,7 @@ impl Lexer {
             Some("remove this underscore".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           break;
         }
         self.advance();
@@ -189,11 +188,11 @@ impl Lexer {
           Some("consecutive underscores are not allowed".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         break;
       } else {
         if c == 'u' || c == 'i' {
-          self.check_suffix_type(c, &mut suffix_start, false, engine);
+          self.check_suffix_type(c, &mut suffix_start, false);
         } else {
           let diagnostic = Diagnostic::new(
             DiagnosticCode::Error(DiagnosticError::InvalidInteger),
@@ -205,7 +204,7 @@ impl Lexer {
             Some("expected digits in 0-7 here".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
         }
         break;
       }
@@ -226,7 +225,7 @@ impl Lexer {
         Some("expected at least one octal digit here".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
     }
 
     LiteralKind::Integer {
@@ -248,7 +247,7 @@ impl Lexer {
   ///
   /// Uses a lookahead around `.` so that `1.foo` / `1._foo` lex as
   /// `1` `.` `foo` (not a float literal).
-  fn lex_decimal(&mut self, engine: &mut DiagnosticEngine) -> LiteralKind {
+  fn lex_decimal(&mut self) -> LiteralKind {
     let mut has_dot = false;
     let mut has_exponent = false;
     let mut suffix_start = 0;
@@ -313,7 +312,7 @@ impl Lexer {
           }
         }
       } else {
-        self.check_suffix_type(c, &mut suffix_start, has_dot || has_exponent, engine);
+        self.check_suffix_type(c, &mut suffix_start, has_dot || has_exponent);
         break;
       }
     }
@@ -344,13 +343,7 @@ impl Lexer {
   ///
   /// Returns `true` if a valid suffix was fully consumed, `false` otherwise.
   /// Emits a diagnostic only when a *recognized* suffix (`u`/`i`) is malformed.
-  fn check_suffix_type(
-    &mut self,
-    c: char,
-    suffix_start: &mut usize,
-    is_float: bool,
-    engine: &mut DiagnosticEngine,
-  ) -> bool {
+  fn check_suffix_type(&mut self, c: char, suffix_start: &mut usize, is_float: bool) -> bool {
     *suffix_start = self.current;
 
     // Float suffix: f32 / f64
@@ -388,12 +381,12 @@ impl Lexer {
         Some("remove this suffix".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return false;
     }
 
     if c == 'u' || c == 'i' {
-      let ok = self.inner_check_suffix_type(c, suffix_start, engine);
+      let ok = self.inner_check_suffix_type(c, suffix_start);
       return ok;
     }
 
@@ -405,12 +398,7 @@ impl Lexer {
   ///
   /// Consumes characters after the leading `u`/`i`. Returns `true` on success.
   /// On failure, emits a focused diagnostic pointing at the suffix span.
-  fn inner_check_suffix_type(
-    &mut self,
-    c: char,
-    suffix_start: &mut usize,
-    engine: &mut DiagnosticEngine,
-  ) -> bool {
+  fn inner_check_suffix_type(&mut self, c: char, suffix_start: &mut usize) -> bool {
     // consume 'u' or 'i'
     self.advance();
 
@@ -439,7 +427,7 @@ impl Lexer {
           }
         }
 
-        self.report_invalid_suffix(c, *suffix_start, engine);
+        self.report_invalid_suffix(c, *suffix_start);
         false
       },
 
@@ -452,7 +440,7 @@ impl Lexer {
           return true;
         }
 
-        self.report_invalid_suffix(c, *suffix_start, engine);
+        self.report_invalid_suffix(c, *suffix_start);
         false
       },
 
@@ -465,7 +453,7 @@ impl Lexer {
           return true;
         }
 
-        self.report_invalid_suffix(c, *suffix_start, engine);
+        self.report_invalid_suffix(c, *suffix_start);
         false
       },
 
@@ -485,20 +473,20 @@ impl Lexer {
           }
         }
 
-        self.report_invalid_suffix(c, *suffix_start, engine);
+        self.report_invalid_suffix(c, *suffix_start);
         false
       },
 
       _ => {
         // Only emit a diagnostic because we *know* we're in a `u`/`i` suffix;
         // otherwise this would just be another token.
-        self.report_invalid_suffix(c, *suffix_start, engine);
+        self.report_invalid_suffix(c, *suffix_start);
         false
       },
     }
   }
 
-  fn report_invalid_suffix(&mut self, c: char, suffix_start: usize, engine: &mut DiagnosticEngine) {
+  fn report_invalid_suffix(&mut self, c: char, suffix_start: usize) {
     let diagnostic = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
       format!("Invalid character in numeric suffix after `{c}`"),
@@ -511,7 +499,7 @@ impl Lexer {
     )
     .with_help("expected one of: 8, 16, 32, 64, 128, size".to_string());
 
-    engine.add(diagnostic);
+    self.engine.borrow_mut().add(diagnostic);
   }
 
   /// Lex a hexadecimal number (`0x`/`0X`), supporting **ints and hex floats**.
@@ -523,7 +511,7 @@ impl Lexer {
   /// - exponent is base-2 (`p` / `P`)
   /// - optional `+` / `-` sign
   /// - underscores allowed inside digits
-  fn lex_hexadecimal(&mut self, engine: &mut DiagnosticEngine) -> LiteralKind {
+  fn lex_hexadecimal(&mut self) -> LiteralKind {
     let mut empty_int = false;
     let mut has_dot = false;
     let mut has_exponent = false;
@@ -547,7 +535,7 @@ impl Lexer {
             Some("remove this underscore".to_string()),
             LabelStyle::Primary,
           );
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           break;
         }
         self.advance();
@@ -562,7 +550,7 @@ impl Lexer {
           Some("consecutive underscores are not allowed".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         break;
       } else if c == '.' && !has_dot {
         has_dot = true;
@@ -603,7 +591,7 @@ impl Lexer {
             "Invalid hexadecimal float: missing exponent digits".to_string(),
             self.source.path.to_string(),
           );
-          engine.add(diag);
+          self.engine.borrow_mut().add(diag);
         }
       }
     }
@@ -611,7 +599,7 @@ impl Lexer {
     // suffix check (like u8 or f64)
     if let Some(c) = self.peek() {
       if c == 'u' || c == 'i' || (c == 'f' && (has_dot || has_exponent)) {
-        self.check_suffix_type(c, &mut suffix_start, has_dot || has_exponent, engine);
+        self.check_suffix_type(c, &mut suffix_start, has_dot || has_exponent);
       } else if c != 'p' && c != 'P' {
         let diagnostic = Diagnostic::new(
           DiagnosticCode::Error(DiagnosticError::InvalidInteger),
@@ -623,7 +611,7 @@ impl Lexer {
           Some("expected hexadecimal digits, suffix, or exponent here".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
       }
     }
 
@@ -643,7 +631,7 @@ impl Lexer {
         Some("expected at least one hexadecimal digit here".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
     }
 
     if has_dot || has_exponent {
