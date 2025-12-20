@@ -7,7 +7,7 @@ use crate::{
 };
 use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
 use lexer::Lexer;
-use std::path::PathBuf;
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 fn test_file_path(stem: &str) -> String {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -20,27 +20,27 @@ fn test_file_path(stem: &str) -> String {
 
 pub(crate) fn run_parser<F, T>(input: &str, file_stem: &str, mut parse_fn: F) -> Result<T, ()>
 where
-  F: FnMut(&mut Parser, &mut DiagnosticEngine) -> Result<T, ()>,
+  F: FnMut(&mut Parser) -> Result<T, ()>,
 {
-  let mut engine = DiagnosticEngine::new();
+  let engine = Rc::new(RefCell::new(DiagnosticEngine::new()));
   let mut source_map = SourceMap::new();
 
   let path_str = test_file_path(file_stem);
   let source_file = SourceFile::new(path_str.clone(), input.to_string());
   source_map.add_file(&path_str, input);
-  engine.add_file(&path_str, input);
+  engine.borrow_mut().add_file(&path_str, input);
 
-  let mut lexer = Lexer::new(source_file.clone());
-  let _ = lexer.scan_tokens(&mut engine);
+  let mut lexer = Lexer::new(source_file.clone(), engine.clone());
+  let _ = lexer.scan_tokens();
 
-  if engine.has_errors() {
+  if engine.borrow().has_errors() {
     return Err(());
   }
 
-  let mut parser = Parser::new(lexer.tokens, source_file);
-  let result = parse_fn(&mut parser, &mut engine)?;
+  let mut parser = Parser::new(lexer.tokens, source_file, engine.clone());
+  let result = parse_fn(&mut parser)?;
 
-  if engine.has_errors() {
+  if engine.borrow().has_errors() {
     return Err(());
   }
 
@@ -56,8 +56,8 @@ pub(crate) fn parse_primary_expr(
   file_stem: &str,
   context: ExprContext,
 ) -> Result<ExprKind, ()> {
-  run_parser(input, file_stem, |parser, engine| {
-    parser.parse_primary(context, engine).map(|expr| expr.kind)
+  run_parser(input, file_stem, |parser| {
+    parser.parse_primary(context).map(|expr| expr.kind)
   })
 }
 
@@ -66,9 +66,9 @@ pub(crate) fn parse_expression_expr(
   file_stem: &str,
   context: ExprContext,
 ) -> Result<ExprKind, ()> {
-  run_parser(input, file_stem, |parser, engine| {
+  run_parser(input, file_stem, |parser| {
     parser
-      .parse_expression(Vec::<Attribute>::new(), context, engine)
+      .parse_expression(Vec::<Attribute>::new(), context)
       .map(|expr| expr.kind)
   })
 }

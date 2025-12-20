@@ -1,26 +1,21 @@
 use crate::{ast::*, match_and_consume, parser_utils::ExprContext, Parser};
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_match_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_match_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.advance(engine); // consume "match"
+    self.advance(); // consume "match"
 
-    let scrutinee = self.parse_expression(vec![], context, engine)?;
-    self.expect(TokenKind::OpenBrace, engine)?;
+    let scrutinee = self.parse_expression(vec![], context)?;
+    self.expect(TokenKind::OpenBrace)?;
     let mut arms = Vec::new();
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
-      arms.push(self.parse_match_arm(context, engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+      arms.push(self.parse_match_arm(context)?);
+      match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseBrace, engine)?;
+    self.expect(TokenKind::CloseBrace)?;
 
     Ok(Expr {
       attributes: Vec::new(),
@@ -32,25 +27,21 @@ impl Parser {
     })
   }
 
-  fn parse_match_arm(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<MatchArm, ()> {
+  fn parse_match_arm(&mut self, context: ExprContext) -> Result<MatchArm, ()> {
     let mut token = self.current_token();
 
-    let attributes = self.parse_outer_attributes(engine)?;
-    let pattern = self.parse_pattern_with_or(context, engine)?;
+    let attributes = self.parse_outer_attributes()?;
+    let pattern = self.parse_pattern_with_or(context)?;
 
     let guard = if matches!(self.current_token().kind, TokenKind::KwIf) {
-      self.advance(engine); // consume "if"
-      Some(self.parse_expression(vec![], context, engine)?)
+      self.advance(); // consume "if"
+      Some(self.parse_expression(vec![], context)?)
     } else {
       None
     };
 
-    self.expect(TokenKind::FatArrow, engine)?;
-    let body = self.parse_expression(vec![], ExprContext::Default, engine)?;
+    self.expect(TokenKind::FatArrow)?;
+    let body = self.parse_expression(vec![], ExprContext::Default)?;
 
     Ok(MatchArm {
       attributes,

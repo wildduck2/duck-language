@@ -2,7 +2,6 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::{LiteralKind, Token};
 
@@ -13,48 +12,41 @@ use crate::{
 };
 
 impl Parser {
-  pub(crate) fn parser_literal(
-    &mut self,
-    kind: LiteralKind,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parser_literal(&mut self, kind: LiteralKind) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.advance(engine);
+    self.advance();
 
     match kind {
       LiteralKind::Integer {
         suffix_start,
         base,
         empty_int,
-      } => self.parser_integer(engine, &mut token, empty_int, suffix_start, base),
+      } => self.parser_integer(&mut token, empty_int, suffix_start, base),
 
       LiteralKind::Float { suffix_start, base } => {
-        self.parser_float(engine, &mut token, suffix_start, base)
+        self.parser_float(&mut token, suffix_start, base)
       },
 
-      LiteralKind::Str => self.parser_string(engine, &mut token),
+      LiteralKind::Str => self.parser_string(&mut token),
 
-      LiteralKind::RawStr { n_hashes } => self.parser_raw_string(engine, &mut token, n_hashes),
+      LiteralKind::RawStr { n_hashes } => self.parser_raw_string(&mut token, n_hashes),
 
-      LiteralKind::ByteStr => self.parser_byte_string(engine, &mut token),
+      LiteralKind::ByteStr => self.parser_byte_string(&mut token),
 
-      LiteralKind::RawByteStr { n_hashes } => {
-        self.parser_raw_byte_string(engine, &mut token, n_hashes)
-      },
+      LiteralKind::RawByteStr { n_hashes } => self.parser_raw_byte_string(&mut token, n_hashes),
 
-      LiteralKind::CStr => self.parser_c_string(engine, &mut token),
+      LiteralKind::CStr => self.parser_c_string(&mut token),
 
-      LiteralKind::RawCStr { n_hashes } => self.parser_raw_c_string(engine, &mut token, n_hashes),
+      LiteralKind::RawCStr { n_hashes } => self.parser_raw_c_string(&mut token, n_hashes),
 
-      LiteralKind::Char => self.parser_char(engine, &mut token),
+      LiteralKind::Char => self.parser_char(&mut token),
 
-      LiteralKind::Byte => self.parser_byte(engine, &mut token),
+      LiteralKind::Byte => self.parser_byte(&mut token),
     }
   }
 
   fn parser_integer(
     &mut self,
-    engine: &mut DiagnosticEngine,
     token: &mut Token,
     empty_int: bool,
     suffix_start: usize,
@@ -71,7 +63,7 @@ impl Parser {
         Some("Integer literal has no digits".into()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -105,7 +97,7 @@ impl Parser {
           Some("Integer literal is too large or malformed".into()),
           LabelStyle::Primary,
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       },
     };
@@ -119,7 +111,6 @@ impl Parser {
 
   fn parser_float(
     &mut self,
-    engine: &mut DiagnosticEngine,
     token: &mut Token,
     suffix_start: usize,
     base: lexer::token::Base,
@@ -153,7 +144,7 @@ impl Parser {
           Some("Float literal is too large or malformed".into()),
           LabelStyle::Primary,
         );
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       },
     };
@@ -213,13 +204,14 @@ impl Parser {
     Ok(mantissa_value * 2f64.powi(exponent))
   }
 
-  fn parser_string(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-    token: &mut Token,
-  ) -> Result<Expr, ()> {
+  fn parser_string(&mut self, token: &mut Token) -> Result<Expr, ()> {
     let value = self.get_token_lexeme(token);
-    let value = Decoder::decode_string(&value, &self.source_file.path.clone(), token.span, engine)?;
+    let value = Decoder::decode_string(
+      &value,
+      &self.source_file.path.clone(),
+      token.span,
+      &mut self.engine.borrow_mut(),
+    )?;
 
     Ok(Expr {
       attributes: vec![],
@@ -231,14 +223,14 @@ impl Parser {
     })
   }
 
-  fn parser_byte_string(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-    token: &mut Token,
-  ) -> Result<Expr, ()> {
+  fn parser_byte_string(&mut self, token: &mut Token) -> Result<Expr, ()> {
     let value = self.get_token_lexeme(token);
-    let value =
-      Decoder::decode_byte_string(&value, &self.source_file.path.clone(), token.span, engine)?;
+    let value = Decoder::decode_byte_string(
+      &value,
+      &self.source_file.path.clone(),
+      token.span,
+      &mut self.engine.borrow_mut(),
+    )?;
 
     Ok(Expr {
       attributes: vec![],
@@ -250,13 +242,14 @@ impl Parser {
     })
   }
 
-  fn parser_c_string(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-    token: &mut Token,
-  ) -> Result<Expr, ()> {
+  fn parser_c_string(&mut self, token: &mut Token) -> Result<Expr, ()> {
     let value = self.get_token_lexeme(token);
-    let value = Decoder::decode_string(&value, &self.source_file.path.clone(), token.span, engine)?;
+    let value = Decoder::decode_string(
+      &value,
+      &self.source_file.path.clone(),
+      token.span,
+      &mut self.engine.borrow_mut(),
+    )?;
 
     Ok(Expr {
       attributes: vec![],
@@ -268,12 +261,7 @@ impl Parser {
     })
   }
 
-  fn parser_raw_string(
-    &mut self,
-    _engine: &mut DiagnosticEngine,
-    token: &mut Token,
-    n_hashes: usize,
-  ) -> Result<Expr, ()> {
+  fn parser_raw_string(&mut self, token: &mut Token, n_hashes: usize) -> Result<Expr, ()> {
     let value = self.get_token_lexeme(token);
     Ok(Expr {
       attributes: vec![],
@@ -285,12 +273,7 @@ impl Parser {
     })
   }
 
-  fn parser_raw_byte_string(
-    &mut self,
-    _engine: &mut DiagnosticEngine,
-    token: &mut Token,
-    n_hashes: usize,
-  ) -> Result<Expr, ()> {
+  fn parser_raw_byte_string(&mut self, token: &mut Token, n_hashes: usize) -> Result<Expr, ()> {
     let value = self.get_token_lexeme(token);
 
     Ok(Expr {
@@ -303,12 +286,7 @@ impl Parser {
     })
   }
 
-  fn parser_raw_c_string(
-    &mut self,
-    _engine: &mut DiagnosticEngine,
-    token: &mut Token,
-    n_hashes: usize,
-  ) -> Result<Expr, ()> {
+  fn parser_raw_c_string(&mut self, token: &mut Token, n_hashes: usize) -> Result<Expr, ()> {
     let value = self.get_token_lexeme(token);
 
     Ok(Expr {
@@ -321,9 +299,14 @@ impl Parser {
     })
   }
 
-  fn parser_char(&mut self, engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
+  fn parser_char(&mut self, token: &mut Token) -> Result<Expr, ()> {
     let char = self.get_token_lexeme(token);
-    let char = Decoder::decode_char(&char, &self.source_file.path.clone(), token.span, engine)?;
+    let char = Decoder::decode_char(
+      &char,
+      &self.source_file.path.clone(),
+      token.span,
+      &mut self.engine.borrow_mut(),
+    )?;
 
     Ok(Expr {
       attributes: vec![],
@@ -332,9 +315,14 @@ impl Parser {
     })
   }
 
-  fn parser_byte(&mut self, engine: &mut DiagnosticEngine, token: &mut Token) -> Result<Expr, ()> {
+  fn parser_byte(&mut self, token: &mut Token) -> Result<Expr, ()> {
     let byte = self.get_token_lexeme(token);
-    let byte = Decoder::decode_byte(&byte, &self.source_file.path.clone(), token.span, engine)?;
+    let byte = Decoder::decode_byte(
+      &byte,
+      &self.source_file.path.clone(),
+      token.span,
+      &mut self.engine.borrow_mut(),
+    )?;
 
     Ok(Expr {
       attributes: vec![],
@@ -343,10 +331,10 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parser_bool(&mut self, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
+  pub(crate) fn parser_bool(&mut self) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let value = self.get_token_lexeme(&token).parse::<bool>().unwrap();
-    self.advance(engine);
+    self.advance();
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::Bool(value)),

@@ -3,7 +3,6 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -12,15 +11,14 @@ impl Parser {
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
     context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
       token.span.merge(outer_attributes[0].span);
     }
 
-    self.advance(engine); // consume the "loop"
-    let body = self.parse_block(None, ExprContext::LoopCondition, outer_attributes, engine)?;
+    self.advance(); // consume the "loop"
+    let body = self.parse_block(None, ExprContext::LoopCondition, outer_attributes)?;
 
     token.span.merge(self.current_token().span);
     Ok(Expr {
@@ -38,18 +36,17 @@ impl Parser {
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
     context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
       token.span.merge(outer_attributes[0].span);
     }
 
-    self.advance(engine); // consume the "while"
+    self.advance(); // consume the "while"
 
-    let condition = self.parse_expression(vec![], ExprContext::Default, engine)?;
+    let condition = self.parse_expression(vec![], ExprContext::Default)?;
 
-    let body = self.parse_block(None, ExprContext::Default, outer_attributes, engine)?;
+    let body = self.parse_block(None, ExprContext::Default, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -67,19 +64,18 @@ impl Parser {
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
     context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
       token.span.merge(outer_attributes[0].span);
     }
 
-    self.advance(engine); // consume the "for"
+    self.advance(); // consume the "for"
 
-    let pattern = self.parse_pattern(ExprContext::Default, engine)?;
-    self.expect(TokenKind::KwIn, engine)?;
-    let iterator = self.parse_expression(vec![], ExprContext::Default, engine)?;
-    let body = self.parse_block(None, ExprContext::Default, outer_attributes, engine)?;
+    let pattern = self.parse_pattern(ExprContext::Default)?;
+    self.expect(TokenKind::KwIn)?;
+    let iterator = self.parse_expression(vec![], ExprContext::Default)?;
+    let body = self.parse_block(None, ExprContext::Default, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],

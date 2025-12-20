@@ -1,7 +1,6 @@
 use diagnostic::code::DiagnosticCode;
 use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
@@ -9,19 +8,15 @@ use crate::parser_utils::ExprContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_logical_or(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_logical_and(context, engine)?;
+  pub(crate) fn parse_logical_or(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_logical_and(context)?;
 
     loop {
       let token = self.current_token();
       match token.kind {
         TokenKind::Or if self.peek(1).kind == TokenKind::Or => {
-          self.advance(engine); //
-          self.advance(engine); // consume the "||"
+          self.advance(); //
+          self.advance(); // consume the "||"
 
           if !self.current_token().kind.can_start_expression() {
             let bad = self.current_token();
@@ -44,11 +39,11 @@ impl Parser {
             )
             .with_note("examples: x || y, flags || MASK, (a && b) || c".to_string());
 
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           }
 
-          let rhs = self.parse_logical_and(context, engine)?;
+          let rhs = self.parse_logical_and(context)?;
           lhs = Expr {
             attributes: vec![],
             kind: ExprKind::Binary {
@@ -66,19 +61,15 @@ impl Parser {
     Ok(lhs)
   }
 
-  pub(crate) fn parse_logical_and(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_comparison(context, engine)?;
+  pub(crate) fn parse_logical_and(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_comparison(context)?;
 
     loop {
       let token = self.current_token();
       match token.kind {
         TokenKind::And if self.peek(1).kind == TokenKind::And => {
-          self.advance(engine);
-          self.advance(engine);
+          self.advance();
+          self.advance();
 
           if !self.current_token().kind.can_start_expression() {
             let bad = self.current_token();
@@ -101,11 +92,11 @@ impl Parser {
             )
             .with_note("examples: x && y, flags && MASK, (a || b) && c".to_string());
 
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           }
 
-          let rhs = self.parse_comparison(context, engine)?;
+          let rhs = self.parse_comparison(context)?;
 
           lhs = Expr {
             attributes: vec![],

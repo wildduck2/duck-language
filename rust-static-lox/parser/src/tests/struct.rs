@@ -13,15 +13,15 @@ mod struct_decl_tests {
   };
 
   fn parse_struct_item(input: &str) -> Result<VisItem, ()> {
-    run_parser(input, "struct_decl_test_temp", |parser, engine| {
+    run_parser(input, "struct_decl_test_temp", |parser| {
       let attributes = if matches!(parser.current_token().kind, TokenKind::Pound) {
-        parser.parse_outer_attributes(engine)?
+        parser.parse_outer_attributes()?
       } else {
         vec![]
       };
 
-      let visibility = parser.parse_visibility(engine)?;
-      let item = parser.parse_struct_decl(attributes, visibility, engine)?;
+      let visibility = parser.parse_visibility()?;
+      let item = parser.parse_struct_decl(attributes, visibility)?;
 
       match item {
         Item::Vis(vis) => Ok(vis),

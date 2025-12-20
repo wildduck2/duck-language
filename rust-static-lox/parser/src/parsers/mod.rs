@@ -10,7 +10,6 @@ mod r#enum;
 mod factor;
 mod r#fn;
 mod generic;
-mod identifier;
 mod lifetime;
 mod literal;
 mod logical;

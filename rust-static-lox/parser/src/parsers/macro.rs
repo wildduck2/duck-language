@@ -7,7 +7,6 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::TokenKind;
 
@@ -16,13 +15,10 @@ use lexer::token::TokenKind;
 // Keep it as is until you implement full macro parsing.
 
 impl Parser {
-  pub(crate) fn parse_macro_invocation_statement(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Stmt, ()> {
+  pub(crate) fn parse_macro_invocation_statement(&mut self) -> Result<Stmt, ()> {
     let mut token = self.current_token();
 
-    let expr = self.parse_macro_invocation_expression(engine)?;
+    let expr = self.parse_macro_invocation_expression()?;
     let mac = match expr.kind {
       ExprKind::Macro { mac } => mac,
       _ => unreachable!(),
@@ -34,16 +30,13 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_macro_invocation_expression(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_macro_invocation_expression(&mut self) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
-    let path = self.parse_path(true, engine)?;
+    let path = self.parse_path(true)?;
 
-    self.expect(TokenKind::Bang, engine)?;
-    let mac = self.parse_macro_invocation(path, engine)?;
+    self.expect(TokenKind::Bang)?;
+    let mac = self.parse_macro_invocation(path)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -52,11 +45,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_macro_invocation(
-    &mut self,
-    path: Path,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<MacroInvocation, ()> {
+  pub(crate) fn parse_macro_invocation(&mut self, path: Path) -> Result<MacroInvocation, ()> {
     let mut token = self.current_token();
 
     let (open_kind, delimiter, close_kind) = match token.kind {
@@ -88,14 +77,14 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("Macro invocations must be followed by a delimited token tree.".to_string());
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       },
     };
 
-    self.expect(open_kind, engine)?;
-    let tokens = self.parse_macro_tokens(engine)?;
-    self.expect(close_kind, engine)?;
+    self.expect(open_kind)?;
+    let tokens = self.parse_macro_tokens()?;
+    self.expect(close_kind)?;
 
     Ok(MacroInvocation {
       path,
@@ -105,7 +94,7 @@ impl Parser {
     })
   }
 
-  fn parse_macro_tokens(&mut self, engine: &mut DiagnosticEngine) -> Result<Vec<TokenTree>, ()> {
+  fn parse_macro_tokens(&mut self) -> Result<Vec<TokenTree>, ()> {
     let mut tokens = vec![];
 
     while !self.is_eof()
@@ -114,19 +103,19 @@ impl Parser {
         TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace
       )
     {
-      tokens.push(self.parse_token_tree(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+      tokens.push(self.parse_token_tree()?);
+      match_and_consume!(self, TokenKind::Comma)?;
     }
 
     Ok(tokens)
   }
 
-  fn parse_token_tree(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenTree, ()> {
+  fn parse_token_tree(&mut self) -> Result<TokenTree, ()> {
     let token = self.current_token();
 
     match token.kind {
       TokenKind::Ident | TokenKind::Literal { .. } | TokenKind::KwTrue | TokenKind::KwFalse => {
-        self.advance(engine);
+        self.advance();
         Ok(TokenTree::Token(self.get_token_lexeme(&token)))
       },
 
@@ -138,20 +127,20 @@ impl Parser {
           _ => unreachable!(),
         };
 
-        self.advance(engine); // consume open
-        let tokens = self.parse_macro_tokens(engine)?;
+        self.advance(); // consume open
+        let tokens = self.parse_macro_tokens()?;
 
         match delimiter {
-          Delimiter::Paren => self.expect(TokenKind::CloseParen, engine)?,
-          Delimiter::Bracket => self.expect(TokenKind::CloseBracket, engine)?,
-          Delimiter::Brace => self.expect(TokenKind::CloseBrace, engine)?,
+          Delimiter::Paren => self.expect(TokenKind::CloseParen)?,
+          Delimiter::Bracket => self.expect(TokenKind::CloseBracket)?,
+          Delimiter::Brace => self.expect(TokenKind::CloseBrace)?,
         };
 
         Ok(TokenTree::Delimited { delimiter, tokens })
       },
 
       TokenKind::DotDot => {
-        self.advance(engine);
+        self.advance();
 
         let kind = match self.current_token().kind {
           TokenKind::DotDot => RepeatKind::ZeroOrMore,
@@ -180,7 +169,7 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("This macro parser is currently syntax only.".to_string());
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         Err(())
       },
     }

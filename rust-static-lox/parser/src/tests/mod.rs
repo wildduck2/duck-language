@@ -1,11 +1,18 @@
 mod array;
+mod bitwise;
 mod block;
 mod clousure;
 mod control_flow;
 mod literal;
+mod logical;
 mod r#loop;
 mod r#match;
 mod path;
+mod postfix;
+mod range;
+mod shift;
 mod r#struct;
 pub(crate) mod support;
 mod tuple;
+mod unary;
+mod r#where;
