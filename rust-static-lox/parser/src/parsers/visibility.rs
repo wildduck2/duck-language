@@ -1,16 +1,12 @@
 use diagnostic::code::DiagnosticCode;
 use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::{ast::Visibility, Parser};
 
 impl Parser {
-  pub(crate) fn parse_visibility(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Visibility, ()> {
+  pub(crate) fn parse_visibility(&mut self) -> Result<Visibility, ()> {
     let token = self.current_token();
 
     // not `pub` means private visibility
@@ -18,14 +14,14 @@ impl Parser {
       return Ok(Visibility::Private);
     }
 
-    self.advance(engine); // consume `pub`
+    self.advance(); // consume `pub`
 
     // restricted form: pub(...)
     if matches!(self.current_token().kind, TokenKind::OpenParen) {
-      self.advance(engine); // consume '('
+      self.advance(); // consume '('
 
       let restriction = self.current_token();
-      self.advance(engine); // consume keyword or `in`
+      self.advance(); // consume keyword or `in`
 
       let visibility = match restriction.kind {
         TokenKind::KwCrate => Ok(Visibility::PublicCrate),
@@ -33,7 +29,7 @@ impl Parser {
         TokenKind::KwSuper => Ok(Visibility::PublicSuper),
 
         TokenKind::KwIn => {
-          let path = self.parse_path(false, engine)?;
+          let path = self.parse_path(false)?;
           Ok(Visibility::PublicIn(path))
         },
 
@@ -56,12 +52,12 @@ impl Parser {
             "valid forms are: pub, pub(self), pub(super), pub(in path::to::module)".to_string(),
           );
 
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           return Err(());
         },
       };
 
-      self.expect(TokenKind::CloseParen, engine)?;
+      self.expect(TokenKind::CloseParen)?;
       visibility
     } else {
       // plain `pub`

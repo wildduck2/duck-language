@@ -2,7 +2,6 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::{LiteralKind, TokenKind};
 
@@ -13,14 +12,10 @@ use crate::{
 };
 
 impl Parser {
-  pub(crate) fn parse_postfix(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let expr = self.parse_primary(context, engine)?;
+  pub(crate) fn parse_postfix(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let expr = self.parse_primary(context)?;
 
-    self.parse_postfix_chain(expr, context, engine)
+    self.parse_postfix_chain(expr, context)
   }
 
   /// Continues parsing postfix operators for an already parsed expression.
@@ -28,25 +23,24 @@ impl Parser {
     &mut self,
     mut expr: Expr,
     context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     loop {
       match self.current_token().kind {
         TokenKind::OpenParen => {
-          expr = self.parse_call(context, expr, engine)?;
+          expr = self.parse_call(context, expr)?;
         },
         TokenKind::Dot => {
           if self.peek(1).kind == TokenKind::KwAwait {
-            expr = self.parse_await(expr, engine)?;
+            expr = self.parse_await(expr)?;
           } else {
-            expr = self.parse_field_or_method(context, expr, engine)?;
+            expr = self.parse_field_or_method(context, expr)?;
           }
         },
         TokenKind::OpenBracket => {
-          expr = self.parse_index(context, expr, engine)?;
+          expr = self.parse_index(context, expr)?;
         },
         TokenKind::Question => {
-          expr = self.parse_try(expr, engine)?;
+          expr = self.parse_try(expr)?;
         },
         _ => break,
       }
@@ -55,14 +49,10 @@ impl Parser {
     Ok(expr)
   }
 
-  pub(crate) fn parse_await(
-    &mut self,
-    expr: Expr,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    self.expect(TokenKind::Dot, engine)?;
+  pub(crate) fn parse_await(&mut self, expr: Expr) -> Result<Expr, ()> {
+    self.expect(TokenKind::Dot)?;
     let mut token = self.current_token();
-    self.advance(engine); // consume `await`
+    self.advance(); // consume `await`
 
     Ok(Expr {
       attributes: vec![],
@@ -73,9 +63,9 @@ impl Parser {
     })
   }
 
-  fn parse_try(&mut self, expr: Expr, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
+  fn parse_try(&mut self, expr: Expr) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.expect(TokenKind::Question, engine)?;
+    self.expect(TokenKind::Question)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -86,16 +76,11 @@ impl Parser {
     })
   }
 
-  fn parse_index(
-    &mut self,
-    context: ExprContext,
-    object: Expr,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  fn parse_index(&mut self, context: ExprContext, object: Expr) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.expect(TokenKind::OpenBracket, engine)?;
-    let index = self.parse_expression(vec![], context, engine)?;
-    self.expect(TokenKind::CloseBracket, engine)?;
+    self.expect(TokenKind::OpenBracket)?;
+    let index = self.parse_expression(vec![], context)?;
+    self.expect(TokenKind::CloseBracket)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -107,26 +92,21 @@ impl Parser {
     })
   }
 
-  fn parse_field_or_method(
-    &mut self,
-    context: ExprContext,
-    object: Expr,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    self.expect(TokenKind::Dot, engine)?;
+  fn parse_field_or_method(&mut self, context: ExprContext, object: Expr) -> Result<Expr, ()> {
+    self.expect(TokenKind::Dot)?;
     let mut token = self.current_token();
 
     match &token.kind {
       // Named field or method access
       TokenKind::Ident => {
         let name = self.get_token_lexeme(&token);
-        self.advance(engine); // consume identifier
+        self.advance(); // consume identifier
 
         // `.method(args)`
         if self.current_token().kind == TokenKind::OpenParen {
-          self.expect(TokenKind::OpenParen, engine)?;
-          let args = self.parse_call_params(context, engine)?;
-          self.expect(TokenKind::CloseParen, engine)?;
+          self.expect(TokenKind::OpenParen)?;
+          let args = self.parse_call_params(context)?;
+          self.expect(TokenKind::CloseParen)?;
 
           return Ok(Expr {
             attributes: vec![],
@@ -157,7 +137,7 @@ impl Parser {
       } => {
         let value_str = self.get_token_lexeme(&token);
         let index = value_str.parse::<usize>().unwrap_or(0);
-        self.advance(engine);
+        self.advance();
 
         Ok(Expr {
           attributes: vec![],
@@ -183,22 +163,17 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("Examples: `.foo`, `.0`, `.await`, or `.method(args)`.".to_string());
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         Err(())
       },
     }
   }
 
-  fn parse_call(
-    &mut self,
-    context: ExprContext,
-    callee: Expr,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  fn parse_call(&mut self, context: ExprContext, callee: Expr) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.expect(TokenKind::OpenParen, engine)?;
-    let args = self.parse_call_params(context, engine)?;
-    self.expect(TokenKind::CloseParen, engine)?;
+    self.expect(TokenKind::OpenParen)?;
+    let args = self.parse_call_params(context)?;
+    self.expect(TokenKind::CloseParen)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -210,19 +185,15 @@ impl Parser {
     })
   }
 
-  fn parse_call_params(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<Expr>, ()> {
+  fn parse_call_params(&mut self, context: ExprContext) -> Result<Vec<Expr>, ()> {
     let mut args = vec![];
 
     while !self.is_eof() && self.current_token().kind != TokenKind::CloseParen {
-      let expr = self.parse_expression(vec![], context, engine)?;
+      let expr = self.parse_expression(vec![], context)?;
       args.push(expr);
 
       if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(engine); // consume comma
+        self.advance(); // consume comma
       } else {
         break;
       }

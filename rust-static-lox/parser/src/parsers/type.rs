@@ -5,7 +5,7 @@ use crate::{
   },
   match_and_consume,
   parser_utils::ExprContext,
-  DiagnosticEngine, Parser,
+  Parser,
 };
 use diagnostic::{
   code::DiagnosticCode,
@@ -19,16 +19,15 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
-    self.expect(TokenKind::KwType, engine)?; // consume the "type"
-    let name = self.parse_name(false, engine)?;
-    let generics = self.parse_generic_params(&mut token, engine)?;
-    let bounds = self.parse_trait_bounds(engine)?;
-    let where_clause = self.parse_where_clause(engine)?;
-    self.expect(TokenKind::Eq, engine)?; // consume '='
-    let ty = self.parse_type(engine)?;
+    self.expect(TokenKind::KwType)?; // consume the "type"
+    let name = self.parse_name(false)?;
+    let generics = self.parse_generic_params(&mut token)?;
+    let bounds = self.parse_trait_bounds()?;
+    let where_clause = self.parse_where_clause()?;
+    self.expect(TokenKind::Eq)?; // consume '='
+    let ty = self.parse_type()?;
 
     Ok(Item::Vis(VisItem {
       attributes,
@@ -44,16 +43,14 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
+  pub(crate) fn parse_type(&mut self) -> Result<Type, ()> {
     let mut token = self.current_token();
     let lexeme = self.get_token_lexeme(&token);
-    self.advance(engine); // consume the first token of the type
+    self.advance(); // consume the first token of the type
 
     match token.kind {
-      TokenKind::KwFn | TokenKind::KwFor | TokenKind::KwUnsafe => {
-        self.parse_bare_function_type(engine)
-      },
-      TokenKind::Lt => self.parse_qpath_type(engine),
+      TokenKind::KwFn | TokenKind::KwFor | TokenKind::KwUnsafe => self.parse_bare_function_type(),
+      TokenKind::Lt => self.parse_qpath_type(),
 
       TokenKind::Bang => Ok(Type::Never),
 
@@ -91,22 +88,22 @@ impl Parser {
           _ => {
             // Reset position so parse_path can consume the ident or crate token
             self.current -= 1;
-            Ok(Type::Path(self.parse_path(true, engine)?))
+            Ok(Type::Path(self.parse_path(true)?))
           },
         }
       },
 
       // Tuple and parenthesized types: (T, U, V)
-      TokenKind::OpenParen => self.parse_tuple_or_parenthesized_type(engine),
+      TokenKind::OpenParen => self.parse_tuple_or_parenthesized_type(),
 
       // Array type: [ T ; expr ]
-      TokenKind::OpenBracket => self.parse_array_type(engine),
+      TokenKind::OpenBracket => self.parse_array_type(),
 
       // Raw pointer: *const T or *mut T
-      TokenKind::Star => self.parse_raw_pointer_type(engine),
+      TokenKind::Star => self.parse_raw_pointer_type(),
 
       // Reference types: &T, &'a T, &mut T, &'a mut T
-      TokenKind::And => self.parse_reference_type(engine),
+      TokenKind::And => self.parse_reference_type(),
 
       TokenKind::KwSelfType => Ok(Type::SelfType),
 
@@ -131,7 +128,7 @@ impl Parser {
             .to_string(),
         );
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         Err(())
       },
 
@@ -158,13 +155,13 @@ impl Parser {
           lexeme
         ));
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         Err(())
       },
     }
   }
 
-  fn parse_reference_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
+  fn parse_reference_type(&mut self) -> Result<Type, ()> {
     // Forbid patterns like &const T which are not valid reference types.
     if matches!(self.current_token().kind, TokenKind::KwConst) {
       let diagnostic = Diagnostic::new(
@@ -185,7 +182,7 @@ impl Parser {
         "Use *const T for a raw const pointer, or &T for an immutable reference.".to_string(),
       );
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -194,23 +191,23 @@ impl Parser {
       return Ok(Type::Reference {
         lifetime: None,
         mutability: Mutability::Immutable,
-        inner: Box::new(self.parse_type(engine)?),
+        inner: Box::new(self.parse_type()?),
       });
     }
 
     // Optional lifetime right after &
-    let lifetime = self.parse_type_lifetime(engine)?;
+    let lifetime = self.parse_type_lifetime()?;
     // Optional mut after lifetime: &mut T or &'a mut T
-    let mutability = self.parse_mutability(engine)?;
+    let mutability = self.parse_mutability()?;
 
     Ok(Type::Reference {
       lifetime,
       mutability,
-      inner: Box::new(self.parse_type(engine)?),
+      inner: Box::new(self.parse_type()?),
     })
   }
 
-  fn parse_raw_pointer_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
+  fn parse_raw_pointer_type(&mut self) -> Result<Type, ()> {
     // If we see *T directly, this is missing the const or mut qualifier.
     if matches!(self.current_token().kind, TokenKind::Ident) {
       let diagnostic = Diagnostic::new(
@@ -231,31 +228,31 @@ impl Parser {
         "Use *const T for an immutable raw pointer, or *mut T for a mutable one.".to_string(),
       );
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
     // Reuse Mutability for pointer mutability:
     // *const T  maps to Mutability::Immutable
     // *mut T    maps to Mutability::Mutable
-    let mutability = self.parse_mutability(engine)?;
+    let mutability = self.parse_mutability()?;
 
     Ok(Type::RawPointer {
       mutability,
-      inner: Box::new(self.parse_type(engine)?),
+      inner: Box::new(self.parse_type()?),
     })
   }
 
-  fn parse_array_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
-    let element = self.parse_type(engine)?;
+  fn parse_array_type(&mut self) -> Result<Type, ()> {
+    let element = self.parse_type()?;
     if !matches!(self.current_token().kind, TokenKind::Semi) {
-      self.expect(TokenKind::CloseBracket, engine)?; // consume ']'
+      self.expect(TokenKind::CloseBracket)?; // consume ']'
       return Ok(Type::Slice(Box::new(element)));
     }
 
-    self.expect(TokenKind::Semi, engine)?; // consume ';'
-    let size = self.parse_expression(vec![], ExprContext::Default, engine)?;
-    self.expect(TokenKind::CloseBracket, engine)?; // consume ']'
+    self.expect(TokenKind::Semi)?; // consume ';'
+    let size = self.parse_expression(vec![], ExprContext::Default)?;
+    self.expect(TokenKind::CloseBracket)?; // consume ']'
 
     Ok(Type::Array {
       element: Box::new(element),
@@ -263,34 +260,31 @@ impl Parser {
     })
   }
 
-  fn parse_tuple_or_parenthesized_type(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Type, ()> {
+  fn parse_tuple_or_parenthesized_type(&mut self) -> Result<Type, ()> {
     let mut types = vec![];
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-      types.push(self.parse_type(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+      types.push(self.parse_type()?);
+      match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseParen, engine)?;
+    self.expect(TokenKind::CloseParen)?;
     Ok(Type::Tuple(types))
   }
 
-  fn parse_bare_function_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
+  fn parse_bare_function_type(&mut self) -> Result<Type, ()> {
     self.current -= 1;
-    let for_lifetimes = self.parse_for_lifetimes(engine)?;
+    let for_lifetimes = self.parse_for_lifetimes()?;
 
-    let (.., is_unsafe, _, abi) = self.parse_function_flavors(engine)?;
-    self.expect(TokenKind::KwFn, engine)?;
-    self.expect(TokenKind::OpenParen, engine)?;
-    let (params, is_variadic) = self.parse_bare_function_type_params(engine)?;
-    self.expect(TokenKind::CloseParen, engine)?;
+    let (.., is_unsafe, _, abi) = self.parse_function_flavors()?;
+    self.expect(TokenKind::KwFn)?;
+    self.expect(TokenKind::OpenParen)?;
+    let (params, is_variadic) = self.parse_bare_function_type_params()?;
+    self.expect(TokenKind::CloseParen)?;
 
     let return_type = if matches!(self.current_token().kind, TokenKind::ThinArrow) {
-      self.advance(engine); // consume `->`
-      Some(self.parse_type(engine)?)
+      self.advance(); // consume `->`
+      Some(self.parse_type()?)
     } else {
       None
     };
@@ -308,15 +302,12 @@ impl Parser {
     })
   }
 
-  fn parse_bare_function_type_params(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<(Vec<Type>, bool), ()> {
+  fn parse_bare_function_type_params(&mut self) -> Result<(Vec<Type>, bool), ()> {
     let mut params = vec![];
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
       if matches!(self.current_token().kind, TokenKind::DotDot) {
-        self.expect(TokenKind::DotDot, engine)?; // consume `..`
-        self.expect(TokenKind::Dot, engine)?; // consume `.`
+        self.expect(TokenKind::DotDot)?; // consume `..`
+        self.expect(TokenKind::Dot)?; // consume `.`
 
         if !matches!(self.current_token().kind, TokenKind::CloseParen) {
           let bad = self.current_token();
@@ -332,47 +323,41 @@ impl Parser {
             LabelStyle::Primary,
           )
           .with_help("variadic parameters are only allowed in extern functions".to_string());
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           return Err(());
         }
 
         return Ok((params, true));
       }
 
-      params.push(self.parse_type(engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+      params.push(self.parse_type()?);
+      match_and_consume!(self, TokenKind::Comma)?;
     }
     Ok((params, false))
   }
 
-  fn parse_qpath_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Type, ()> {
+  fn parse_qpath_type(&mut self) -> Result<Type, ()> {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
-    let qself = self.parse_qself_type_header(engine)?;
-    let path = self.parse_path(false, engine)?;
+    let qself = self.parse_qself_type_header()?;
+    let path = self.parse_path(false)?;
 
     Ok(Type::QualifiedPath { qself, path })
   }
 
-  pub(crate) fn parse_type_lifetime(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Option<String>, ()> {
+  pub(crate) fn parse_type_lifetime(&mut self) -> Result<Option<String>, ()> {
     if matches!(self.current_token().kind, TokenKind::Lifetime { .. })
       && matches!(self.peek_prev(0).kind, TokenKind::And)
     {
       let token = self.current_token();
-      self.advance(engine); // consume the lifetime token
+      self.advance(); // consume the lifetime token
       Ok(Some(self.get_token_lexeme(&token)))
     } else {
       Ok(None)
     }
   }
 
-  pub(crate) fn parse_qself_type_header(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<QSelf, ()> {
+  pub(crate) fn parse_qself_type_header(&mut self) -> Result<QSelf, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt)
       || !matches!(
         self.peek(1).kind,
@@ -399,16 +384,16 @@ impl Parser {
       .with_help(format!(
         "If `{lexeme}` is a custom type, declare it or bring it into scope before use.",
       ));
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
 
       return Err(());
     }
 
     // assumes current token is `<`
-    self.expect(TokenKind::Lt, engine)?;
-    let self_ty = Box::new(self.parse_type(engine)?);
+    self.expect(TokenKind::Lt)?;
+    let self_ty = Box::new(self.parse_type()?);
 
-    let as_trait = if match_and_consume!(self, engine, TokenKind::KwAs)?
+    let as_trait = if match_and_consume!(self, TokenKind::KwAs)?
       && !matches!(
         self.peek(1).kind,
         TokenKind::Dollar
@@ -417,13 +402,13 @@ impl Parser {
           | TokenKind::KwSuper
           | TokenKind::KwSelfType
       ) {
-      Some(self.parse_path(true, engine)?)
+      Some(self.parse_path(true)?)
     } else {
       None
     };
 
-    self.expect(TokenKind::Gt, engine)?;
-    self.expect(TokenKind::ColonColon, engine)?;
+    self.expect(TokenKind::Gt)?;
+    self.expect(TokenKind::ColonColon)?;
 
     Ok(QSelf { as_trait, self_ty })
   }

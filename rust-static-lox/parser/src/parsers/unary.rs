@@ -7,16 +7,12 @@ use crate::parser_utils::ExprContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_unary(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_unary(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     match token.kind {
       TokenKind::Minus | TokenKind::Bang | TokenKind::Star => {
-        self.advance(engine); // consume operator
+        self.advance(); // consume operator
 
         let op = match token.kind {
           TokenKind::Minus => UnaryOp::Neg,
@@ -25,7 +21,7 @@ impl Parser {
           _ => unreachable!(),
         };
 
-        let rhs = self.parse_unary(context, engine)?;
+        let rhs = self.parse_unary(context)?;
         token.span.merge(self.current_token().span);
 
         Ok(Expr {
@@ -38,16 +34,16 @@ impl Parser {
         })
       },
       TokenKind::And => {
-        self.advance(engine); // consume the first '&'
+        self.advance(); // consume the first '&'
 
         let mut depth = 1;
-        while !self.is_eof() && match_and_consume!(self, engine, TokenKind::And)? {
+        while !self.is_eof() && match_and_consume!(self, TokenKind::And)? {
           depth += 1;
         }
 
-        let mutability = self.parse_mutability(engine)?;
+        let mutability = self.parse_mutability()?;
 
-        let rhs = self.parse_unary(context, engine)?;
+        let rhs = self.parse_unary(context)?;
         token.span.merge(self.current_token().span);
 
         Ok(Expr {
@@ -65,7 +61,7 @@ impl Parser {
         //   span: token.span,
         // })
       },
-      _ => self.parse_postfix(context, engine),
+      _ => self.parse_postfix(context),
     }
   }
 }

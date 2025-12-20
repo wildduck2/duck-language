@@ -2,13 +2,9 @@ use crate::{
   ast::{pattern::Pattern, *},
   match_and_consume,
   parser_utils::ExprContext,
-  DiagnosticEngine, Parser,
+  Diagnostic, Parser,
 };
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{code::DiagnosticCode, diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
 
 impl Parser {
@@ -16,19 +12,18 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
 
-    let (is_async, is_const, is_unsafe, is_extern, abi) = self.parse_function_flavors(engine)?;
-    self.advance(engine); // consume the "fn"
+    let (is_async, is_const, is_unsafe, is_extern, abi) = self.parse_function_flavors()?;
+    self.advance(); // consume the "fn"
 
-    let name = self.parse_name(false, engine)?;
-    let generics = self.parse_generic_params(&mut token, engine)?;
-    let params = self.parse_function_params(is_extern, ExprContext::Function, engine)?;
-    let return_type = self.parse_return_type(engine)?;
-    let where_clause = self.parse_where_clause(engine)?;
-    let body = Some(self.parse_block(None, ExprContext::Default, vec![], engine)?);
+    let name = self.parse_name(false)?;
+    let generics = self.parse_generic_params(&mut token)?;
+    let params = self.parse_function_params(is_extern, ExprContext::Function)?;
+    let return_type = self.parse_return_type()?;
+    let where_clause = self.parse_where_clause()?;
+    let body = Some(self.parse_block(None, ExprContext::Default, vec![])?);
 
     Ok(Item::Vis(VisItem {
       attributes,
@@ -92,28 +87,27 @@ impl Parser {
 
   pub(crate) fn parse_function_flavors(
     &mut self,
-    engine: &mut DiagnosticEngine,
   ) -> Result<(bool, bool, bool, bool, Option<String>), ()> {
     //  const? async? unsafe? extern abi? fn
     let mut flavor = (false, false, false, false, None);
 
     if matches!(self.current_token().kind, TokenKind::KwConst) {
-      self.advance(engine); // consume "const"
+      self.advance(); // consume "const"
       flavor.0 = true;
     }
 
     if matches!(self.current_token().kind, TokenKind::KwAsync) {
-      self.advance(engine); // consume "async"
+      self.advance(); // consume "async"
       flavor.1 = true;
     }
 
     if matches!(self.current_token().kind, TokenKind::KwUnsafe) {
-      self.advance(engine); // consume "unsafe"
+      self.advance(); // consume "unsafe"
       flavor.2 = true;
     }
 
     if matches!(self.current_token().kind, TokenKind::KwExtern) {
-      self.advance(engine); // consume "extern"
+      self.advance(); // consume "extern"
       flavor.3 = true;
       if matches!(
         self.current_token().kind,
@@ -136,10 +130,10 @@ impl Parser {
             LabelStyle::Primary,
           )
           .with_help("ABI must be either C or C-like".to_string());
-          engine.add(diagnostic);
+          self.engine.borrow_mut().add(diagnostic);
           return Err(());
         }
-        self.advance(engine); // consume "abi"
+        self.advance(); // consume "abi"
         flavor.4 = Some(name);
       }
     }
@@ -151,28 +145,22 @@ impl Parser {
     &mut self,
     is_extern: bool,
     context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Vec<Param>, ()> {
     let mut params = vec![];
 
-    self.expect(TokenKind::OpenParen, engine)?; // consume '('
+    self.expect(TokenKind::OpenParen)?; // consume '('
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
-      params.push(self.parse_function_param(is_extern, context, engine)?);
-      match_and_consume!(self, engine, TokenKind::Comma)?;
+      params.push(self.parse_function_param(is_extern, context)?);
+      match_and_consume!(self, TokenKind::Comma)?;
     }
-    self.expect(TokenKind::CloseParen, engine)?; // consume ')'
+    self.expect(TokenKind::CloseParen)?; // consume ')'
 
     Ok(params)
   }
 
-  fn parse_function_param(
-    &mut self,
-    is_extern: bool,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Param, ()> {
+  fn parse_function_param(&mut self, is_extern: bool, context: ExprContext) -> Result<Param, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_outer_attributes(engine)?;
+    let attributes = self.parse_outer_attributes()?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::DotDot) {
       if !is_extern {
@@ -191,25 +179,25 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("variadic parameters are only allowed in extern functions".to_string());
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       }
 
-      self.expect(TokenKind::DotDot, engine)?;
-      self.expect(TokenKind::Dot, engine)?;
+      self.expect(TokenKind::DotDot)?;
+      self.expect(TokenKind::Dot)?;
       ParamKind::Variadic
     } else {
-      let pattern = self.parse_pattern(context, engine)?;
+      let pattern = self.parse_pattern(context)?;
 
       let type_annotation = if matches!(self.current_token().kind, TokenKind::Colon) {
-        self.advance(engine);
-        Some(self.parse_type(engine)?)
+        self.advance();
+        Some(self.parse_type()?)
       } else {
         None
       };
 
       if let Some(self_param) =
-        self.lower_self_param(&pattern, type_annotation.as_ref(), context, engine)?
+        self.lower_self_param(&pattern, type_annotation.as_ref(), context)?
       {
         ParamKind::SelfParam(self_param)
       } else {
@@ -232,7 +220,6 @@ impl Parser {
     pattern: &Pattern,
     type_annotation: Option<&Type>,
     _context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Option<SelfParam>, ()> {
     use crate::ast::{Mutability, Pattern};
 
@@ -255,7 +242,7 @@ impl Parser {
               self.source_file.path.clone(),
             )
             .with_help("use `&self` or `&mut self`, not `ref self`".to_string());
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           },
         };
@@ -299,7 +286,7 @@ impl Parser {
               self.source_file.path.clone(),
             )
             .with_help("use `self: Type` or `&self` syntax, not both".to_string());
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           }
 
@@ -321,13 +308,13 @@ impl Parser {
     Ok(None)
   }
 
-  fn parse_return_type(&mut self, engine: &mut DiagnosticEngine) -> Result<Option<Type>, ()> {
+  fn parse_return_type(&mut self) -> Result<Option<Type>, ()> {
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
       return Ok(None);
     }
 
-    self.expect(TokenKind::ThinArrow, engine)?; // consume the "->"
-    let return_type = self.parse_type(engine)?;
+    self.expect(TokenKind::ThinArrow)?; // consume the "->"
+    let return_type = self.parse_type()?;
 
     Ok(Some(return_type))
   }

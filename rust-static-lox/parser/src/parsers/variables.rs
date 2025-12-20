@@ -1,4 +1,3 @@
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::{
@@ -13,21 +12,20 @@ impl Parser {
     &mut self,
     context: ExprContext,
     attributes: Vec<Attribute>,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Stmt, ()> {
     let token = self.current_token();
-    self.advance(engine); // consume `let`
+    self.advance(); // consume `let`
 
-    let pattern = self.parse_pattern_with_or(context, engine)?;
+    let pattern = self.parse_pattern_with_or(context)?;
 
-    let ty = if match_and_consume!(self, engine, TokenKind::Colon)? {
-      Some(self.parse_type(engine)?)
+    let ty = if match_and_consume!(self, TokenKind::Colon)? {
+      Some(self.parse_type()?)
     } else {
       None
     };
 
-    let init = if match_and_consume!(self, engine, TokenKind::Eq)? {
-      Some(self.parse_expression(vec![], ExprContext::Default, engine)?)
+    let init = if match_and_consume!(self, TokenKind::Eq)? {
+      Some(self.parse_expression(vec![], ExprContext::Default)?)
     } else {
       None
     };
@@ -38,8 +36,8 @@ impl Parser {
       ExprContext::LetElse
     };
 
-    let else_block = if match_and_consume!(self, engine, TokenKind::KwElse)? {
-      Some(self.parse_block(None, context, vec![], engine)?)
+    let else_block = if match_and_consume!(self, TokenKind::KwElse)? {
+      Some(self.parse_block(None, context, vec![])?)
     } else {
       None
     };
@@ -54,12 +52,8 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_assignment_expr(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_range_expr(context, engine)?;
+  pub(crate) fn parse_assignment_expr(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_range_expr(context)?;
 
     let token = self.current_token();
 
@@ -77,9 +71,9 @@ impl Parser {
         | TokenKind::ShiftLeftEq
         | TokenKind::ShiftRightEq
     ) {
-      self.advance(engine); // consume assignment operator
+      self.advance(); // consume assignment operator
 
-      let rhs = self.parse_range_expr(context, engine)?;
+      let rhs = self.parse_range_expr(context)?;
 
       // TODO: split Assign vs AssignOp when you lower compound operators
       lhs = Expr {

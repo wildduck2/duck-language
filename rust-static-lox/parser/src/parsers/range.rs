@@ -7,46 +7,36 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_range_expr(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_range_expr(&mut self, context: ExprContext) -> Result<Expr, ()> {
     // Case 1: a range begins directly with ".." or "..="
     if matches!(
       self.current_token().kind,
       TokenKind::DotDot | TokenKind::DotDotEq
     ) {
-      return self.parse_range(context, None, engine);
+      return self.parse_range(context, None);
     }
 
     // Case 2: range may follow a left-hand side expression
-    let lhs = self.parse_logical_or(context, engine)?;
+    let lhs = self.parse_logical_or(context)?;
 
     // At most one range operator is allowed
     if matches!(
       self.current_token().kind,
       TokenKind::DotDot | TokenKind::DotDotEq
     ) {
-      self.parse_range(context, Some(lhs), engine)
+      self.parse_range(context, Some(lhs))
     } else {
       Ok(lhs)
     }
   }
 
-  fn parse_range(
-    &mut self,
-    context: ExprContext,
-    start: Option<Expr>,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  fn parse_range(&mut self, context: ExprContext, start: Option<Expr>) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.advance(engine); // consume ".." or "..="
+    self.advance(); // consume ".." or "..="
 
     // Determine whether an expression follows the operator
     let has_end = !matches!(
@@ -59,7 +49,7 @@ impl Parser {
     );
 
     let end = if has_end {
-      Some(Box::new(self.parse_logical_or(context, engine)?))
+      Some(Box::new(self.parse_logical_or(context)?))
     } else {
       None
     };
@@ -95,7 +85,7 @@ impl Parser {
       .with_help("only one `..` or `..=` may appear in a range expression".to_string())
       .with_note("`a..b..c` is invalid; use `(a..b)` or `(b..c)` instead".to_string());
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 

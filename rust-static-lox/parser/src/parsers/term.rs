@@ -1,4 +1,3 @@
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
@@ -6,18 +5,14 @@ use crate::parser_utils::ExprContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_term(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_factor(context, engine)?;
+  pub(crate) fn parse_term(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_factor(context)?;
 
     'term_find: while !self.is_eof() {
       let mut token = self.current_token();
       match token.kind {
         TokenKind::Plus | TokenKind::Minus => {
-          self.advance(engine); // consume the operator
+          self.advance(); // consume the operator
 
           let op = match token.kind {
             TokenKind::Plus => BinaryOp::Add,
@@ -25,7 +20,7 @@ impl Parser {
             _ => unreachable!(),
           };
 
-          let rhs = self.parse_factor(context, engine)?;
+          let rhs = self.parse_factor(context)?;
 
           lhs = Expr {
             attributes: vec![],

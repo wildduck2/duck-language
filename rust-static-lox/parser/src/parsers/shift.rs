@@ -1,7 +1,6 @@
 use diagnostic::code::DiagnosticCode;
 use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, Expr, ExprKind};
@@ -9,12 +8,8 @@ use crate::parser_utils::ExprContext;
 use crate::Parser;
 
 impl Parser {
-  pub(crate) fn parse_shift(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_term(context, engine)?;
+  pub(crate) fn parse_shift(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_term(context)?;
 
     while !self.is_eof() {
       let mut token = self.current_token();
@@ -33,10 +28,10 @@ impl Parser {
       }
 
       // Consume both characters (`<<` or `>>`)
-      self.advance(engine);
-      self.advance(engine);
+      self.advance();
+      self.advance();
 
-      let rhs = self.parse_term(context, engine)?;
+      let rhs = self.parse_term(context)?;
 
       // Reject invalid chaining with range operators after shifting
       if matches!(
@@ -59,7 +54,7 @@ impl Parser {
         .with_help("only one `..` or `..=` may appear in a range expression".to_string())
         .with_note("`a..b..c` is invalid; use `(a..b)` or `(b..c)` instead".to_string());
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       }
 

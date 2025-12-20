@@ -8,23 +8,18 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_if_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_if_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
     if self.peek(1).kind == TokenKind::KwLet {
-      return self.parse_if_let_expression(context, engine);
+      return self.parse_if_let_expression(context);
     }
 
     let mut token = self.current_token();
-    self.advance(engine); // consume the "if"
-    let condition = self.parse_expression(vec![], context, engine)?;
+    self.advance(); // consume the "if"
+    let condition = self.parse_expression(vec![], context)?;
 
     if !self.is_valid_condition(&condition) {
       token.span.merge(self.current_token().span);
@@ -40,15 +35,15 @@ impl Parser {
       )
       .with_help("a condition must be a normal expression that evaluates to a value".to_string());
 
-      engine.add(diag);
+      self.engine.borrow_mut().add(diag);
       return Err(());
     }
 
-    let then_branch = self.parse_expression(vec![], context, engine)?;
+    let then_branch = self.parse_expression(vec![], context)?;
 
     let mut else_branch = None;
-    if match_and_consume!(self, engine, TokenKind::KwElse)? {
-      else_branch = Some(self.parse_expression(vec![], context, engine)?);
+    if match_and_consume!(self, TokenKind::KwElse)? {
+      else_branch = Some(self.parse_expression(vec![], context)?);
     }
 
     Ok(Expr {
@@ -62,25 +57,21 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_if_let_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_if_let_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.advance(engine); // consume "if"
-    self.expect(TokenKind::KwLet, engine)?;
+    self.advance(); // consume "if"
+    self.expect(TokenKind::KwLet)?;
 
-    let pattern = self.parse_pattern(context, engine)?;
-    self.expect(TokenKind::Eq, engine)?;
-    let scrutinee = self.parse_expression(vec![], context, engine)?;
+    let pattern = self.parse_pattern(context)?;
+    self.expect(TokenKind::Eq)?;
+    let scrutinee = self.parse_expression(vec![], context)?;
 
-    let then_branch = self.parse_expression(vec![], context, engine)?;
+    let then_branch = self.parse_expression(vec![], context)?;
 
     let mut else_branch = None;
     if matches!(self.current_token().kind, TokenKind::KwElse) {
-      self.advance(engine); // consume "else"
-      else_branch = Some(self.parse_expression(vec![], context, engine)?);
+      self.advance(); // consume "else"
+      else_branch = Some(self.parse_expression(vec![], context)?);
     }
 
     Ok(Expr {
@@ -95,11 +86,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_continue_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_continue_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     let allowed = matches!(
@@ -129,13 +116,13 @@ impl Parser {
           .to_string(),
       );
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
-    self.advance(engine);
+    self.advance();
 
-    let label = self.parse_label(false, engine)?;
+    let label = self.parse_label(false)?;
 
     if !matches!(
       self.current_token().kind,
@@ -156,7 +143,7 @@ impl Parser {
       )
       .with_help("labels must be followed by a colon or closing brace".to_string());
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -167,11 +154,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_break_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_break_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     let allowed = matches!(
@@ -201,19 +184,19 @@ impl Parser {
           .to_string(),
       );
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
-    self.advance(engine);
+    self.advance();
 
-    let label = self.parse_label(false, engine)?;
+    let label = self.parse_label(false)?;
 
     let value = if !matches!(
       self.current_token().kind,
       TokenKind::Semi | TokenKind::CloseBrace
     ) {
-      Some(self.parse_expression(vec![], ExprContext::Default, engine)?)
+      Some(self.parse_expression(vec![], ExprContext::Default)?)
     } else {
       None
     };
@@ -237,7 +220,7 @@ impl Parser {
       )
       .with_help("labels must be followed by a colon or closing brace".to_string());
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -251,11 +234,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_return_expression(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_return_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     let allowed = matches!(
@@ -289,17 +268,17 @@ impl Parser {
           .to_string(),
       );
 
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
-    self.advance(engine);
+    self.advance();
 
     let value = if !matches!(
       self.current_token().kind,
       TokenKind::Semi | TokenKind::CloseBrace
     ) {
-      Some(self.parse_expression(vec![], ExprContext::Default, engine)?)
+      Some(self.parse_expression(vec![], ExprContext::Default)?)
     } else {
       None
     };
@@ -322,7 +301,7 @@ impl Parser {
         LabelStyle::Primary,
       )
       .with_help("labels must be followed by a colon or closing brace".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -377,18 +356,14 @@ impl Parser {
     }
   }
 
-  pub(crate) fn parse_label(
-    &mut self,
-    start: bool,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Option<String>, ()> {
+  pub(crate) fn parse_label(&mut self, start: bool) -> Result<Option<String>, ()> {
     let token = self.current_token();
-    if !match_and_consume!(self, engine, TokenKind::Lifetime { .. })? {
+    if !match_and_consume!(self, TokenKind::Lifetime { .. })? {
       return Ok(None);
     }
 
     if start {
-      self.expect(TokenKind::Colon, engine)?;
+      self.expect(TokenKind::Colon)?;
     }
     Ok(Some(self.get_token_lexeme(&token)))
   }

@@ -1,7 +1,6 @@
 use diagnostic::code::DiagnosticCode;
 use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
@@ -9,13 +8,9 @@ use crate::parser_utils::ExprContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_factor(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_factor(&mut self, context: ExprContext) -> Result<Expr, ()> {
     // start with the next higher-precedence expression
-    let mut lhs = self.parse_cast(context, engine)?;
+    let mut lhs = self.parse_cast(context)?;
 
     loop {
       let mut token = self.current_token();
@@ -27,7 +22,7 @@ impl Parser {
         _ => break, // not a factor operator
       };
 
-      self.advance(engine); // consume operator
+      self.advance(); // consume operator
 
       if !self.current_token().kind.can_start_expression() {
         let bad = self.current_token();
@@ -51,12 +46,12 @@ impl Parser {
           "Rust parses `a * b * c` as `(a * b) * c`, which is almost always incorrect".to_string(),
         );
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       }
 
       // parse the next cast-level expression (not parse_factor)
-      let rhs = self.parse_cast(context, engine)?;
+      let rhs = self.parse_cast(context)?;
 
       lhs = Expr {
         attributes: vec![], // TODO: implement attributes
