@@ -1,7 +1,6 @@
 use diagnostic::code::DiagnosticCode;
 use diagnostic::diagnostic::{Diagnostic, LabelStyle};
 use diagnostic::types::error::DiagnosticError;
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::ast::expr::{BinaryOp, Expr, ExprKind};
@@ -9,13 +8,9 @@ use crate::parser_utils::ExprContext;
 use crate::Parser;
 
 impl Parser {
-  pub(crate) fn parse_comparison(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_comparison(&mut self, context: ExprContext) -> Result<Expr, ()> {
     // first parse the next higher precedence level
-    let mut lhs = self.parse_bitwise_or(context, engine)?;
+    let mut lhs = self.parse_bitwise_or(context)?;
     loop {
       if matches!(self.peek(1).kind, TokenKind::Colon) {
         break;
@@ -31,10 +26,10 @@ impl Parser {
         TokenKind::Ge => BinaryOp::GreaterEq,
         _ => break, // no more comparison operators
       };
-      self.advance(engine); // consume operator
+      self.advance(); // consume operator
 
       // parse the right side with the same precedence level beneath comparison
-      let rhs = self.parse_bitwise_or(context, engine)?;
+      let rhs = self.parse_bitwise_or(context)?;
 
       let _token = self.current_token().kind;
       if !_token.can_start_expression()
@@ -62,7 +57,7 @@ impl Parser {
           "Rust parses `a < b < c` as `(a < b) < c`, which is almost always incorrect".to_string(),
         );
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       }
 

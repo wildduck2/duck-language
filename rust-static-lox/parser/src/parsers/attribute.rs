@@ -1,13 +1,3 @@
-// TODO
-// 1) parse_outer_attributes and parse_inner_attributes both trigger on just '#'. If you call the
-//    wrong one at the wrong site, it can accidentally parse the other style. Consider checking
-//    the next token: '#[' for outer and '#![' for inner.
-// 2) Attribute tails in Rust are either a delimited token tree or '= expression'. The old version
-//    tried to parse expressions inside delimited token trees. Token trees should be raw tokens,
-//    not parsed expressions. This file now captures raw tokens into TokenTree.
-// 3) If you want to match rustc more closely, keep parsing permissive here and do feature gating
-//    or validation later.
-
 use crate::{
   ast::{
     attrs::{AttrArgs, AttrInput, AttrStyle, Attribute},
@@ -21,40 +11,33 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_outer_attributes(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<Attribute>, ()> {
+  pub(crate) fn parse_outer_attributes(&mut self) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
     while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
-      attr.push(self.parse_outer_attribute(engine)?);
+      attr.push(self.parse_outer_attribute()?);
     }
     Ok(attr)
   }
 
-  pub(crate) fn parse_inner_attributes(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<Attribute>, ()> {
+  pub(crate) fn parse_inner_attributes(&mut self) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
     while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
-      attr.push(self.parse_inner_attribute(engine)?);
+      attr.push(self.parse_inner_attribute()?);
     }
     Ok(attr)
   }
 
-  fn parse_outer_attribute(&mut self, engine: &mut DiagnosticEngine) -> Result<Attribute, ()> {
+  fn parse_outer_attribute(&mut self) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
-    self.expect(TokenKind::Pound, engine)?;
-    self.expect(TokenKind::OpenBracket, engine)?;
-    let input = self.parse_attribute_input(engine)?;
-    self.expect(TokenKind::CloseBracket, engine)?;
+    self.expect(TokenKind::Pound)?;
+    self.expect(TokenKind::OpenBracket)?;
+    let input = self.parse_attribute_input()?;
+    self.expect(TokenKind::CloseBracket)?;
 
     Ok(Attribute {
       style: AttrStyle::Outer,
@@ -63,14 +46,14 @@ impl Parser {
     })
   }
 
-  fn parse_inner_attribute(&mut self, engine: &mut DiagnosticEngine) -> Result<Attribute, ()> {
+  fn parse_inner_attribute(&mut self) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
-    self.expect(TokenKind::Pound, engine)?;
-    self.expect(TokenKind::Bang, engine)?;
-    self.expect(TokenKind::OpenBracket, engine)?;
-    let input = self.parse_attribute_input(engine)?;
-    self.expect(TokenKind::CloseBracket, engine)?;
+    self.expect(TokenKind::Pound)?;
+    self.expect(TokenKind::Bang)?;
+    self.expect(TokenKind::OpenBracket)?;
+    let input = self.parse_attribute_input()?;
+    self.expect(TokenKind::CloseBracket)?;
 
     Ok(Attribute {
       style: AttrStyle::Inner,
@@ -79,17 +62,17 @@ impl Parser {
     })
   }
 
-  fn parse_attribute(&mut self, engine: &mut DiagnosticEngine) -> Result<Attribute, ()> {
+  fn parse_attribute(&mut self) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     let attr_style = match self.current_token().kind {
       TokenKind::Pound if self.peek(1).kind == TokenKind::Bang => {
-        self.advance(engine);
-        self.advance(engine);
+        self.advance();
+        self.advance();
         AttrStyle::Inner
       },
       TokenKind::Pound => {
-        self.advance(engine);
+        self.advance();
         AttrStyle::Outer
       },
       _ => {
@@ -113,14 +96,14 @@ impl Parser {
           &self.current_token(),
         ));
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       },
     };
 
-    self.expect(TokenKind::OpenBracket, engine)?;
-    let input = self.parse_attribute_input(engine)?;
-    self.expect(TokenKind::CloseBracket, engine)?;
+    self.expect(TokenKind::OpenBracket)?;
+    let input = self.parse_attribute_input()?;
+    self.expect(TokenKind::CloseBracket)?;
 
     Ok(Attribute {
       style: attr_style,
@@ -130,25 +113,22 @@ impl Parser {
   }
 
   // Parses attribute metadata like `derive(Debug)` or `path = value`.
-  fn parse_attribute_input(&mut self, engine: &mut DiagnosticEngine) -> Result<AttrInput, ()> {
+  fn parse_attribute_input(&mut self) -> Result<AttrInput, ()> {
     // Kept as-is: parse_path(true) means "allow generic args" in your parser.
-    let path = self.parse_path(true, engine)?;
-    let args = self.parse_attribute_input_tail(engine)?;
+    let path = self.parse_path(true)?;
+    let args = self.parse_attribute_input_tail()?;
 
     Ok(AttrInput { path, args })
   }
 
   // Parses the attribute tail: either '= expression' or a delimited token tree.
-  fn parse_attribute_input_tail(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Option<AttrArgs>, ()> {
+  fn parse_attribute_input_tail(&mut self) -> Result<Option<AttrArgs>, ()> {
     if self.current_token().kind == TokenKind::Eq {
-      self.advance(engine);
+      self.advance();
 
       // Matches grammar: attrInputTail -> "=" expression
       // NOTE: expression attrs and cfg eval happen later, parsing stays permissive.
-      let expr = self.parse_expression(vec![], ExprContext::Default, engine)?;
+      let expr = self.parse_expression(vec![], ExprContext::Default)?;
       return Ok(Some(AttrArgs::NameValue {
         value: Box::new(expr),
       }));
@@ -159,7 +139,7 @@ impl Parser {
       self.current_token().kind,
       TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace
     ) {
-      let tree = self.parse_delim_token_tree(engine)?;
+      let tree = self.parse_delim_token_tree()?;
       return Ok(Some(AttrArgs::Delimited {
         delimiter: tree.delimiter(),
         tokens: tree.tokens(),
@@ -170,7 +150,7 @@ impl Parser {
   }
 
   // Recursively parses a delimited token tree into TokenTree.
-  fn parse_delim_token_tree(&mut self, engine: &mut DiagnosticEngine) -> Result<TokenTree, ()> {
+  fn parse_delim_token_tree(&mut self) -> Result<TokenTree, ()> {
     let open = self.current_token();
 
     let delimiter = match open.kind {
@@ -188,12 +168,12 @@ impl Parser {
           Some("not a delimiter start".to_string()),
           LabelStyle::Primary,
         );
-        engine.add(diag);
+        self.engine.borrow_mut().add(diag);
         return Err(());
       },
     };
 
-    self.advance(engine);
+    self.advance();
 
     let mut tokens = Vec::new();
 
@@ -208,7 +188,7 @@ impl Parser {
       );
 
       if is_close {
-        self.advance(engine);
+        self.advance();
         break;
       }
 
@@ -216,14 +196,14 @@ impl Parser {
         token.kind,
         TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace
       ) {
-        let nested = self.parse_delim_token_tree(engine)?;
+        let nested = self.parse_delim_token_tree()?;
         tokens.push(nested);
         continue;
       }
 
       let lexeme = self.get_token_lexeme(&token);
       tokens.push(TokenTree::Token(lexeme));
-      self.advance(engine);
+      self.advance();
     }
 
     Ok(TokenTree::Delimited { delimiter, tokens })

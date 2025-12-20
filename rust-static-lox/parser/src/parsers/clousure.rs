@@ -10,22 +10,17 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_closure(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_closure(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    let (is_move, is_async) = self.parse_closure_flavors(engine)?;
-    let params = self.parse_closure_params(context, engine)?;
+    let (is_move, is_async) = self.parse_closure_flavors()?;
+    let params = self.parse_closure_params(context)?;
 
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
-      let body = self.parse_expression(vec![], context, engine)?;
+      let body = self.parse_expression(vec![], context)?;
       return Ok(Expr {
         attributes: vec![],
         kind: ExprKind::Closure {
@@ -39,10 +34,10 @@ impl Parser {
       });
     }
 
-    self.expect(TokenKind::ThinArrow, engine)?;
-    let return_type = self.parse_type(engine)?;
+    self.expect(TokenKind::ThinArrow)?;
+    let return_type = self.parse_type()?;
     let temp = self.current_token();
-    let body = match self.parse_expression(vec![], context, engine)? {
+    let body = match self.parse_expression(vec![], context)? {
       body @ Expr {
         kind: ExprKind::Block { .. },
         ..
@@ -59,7 +54,7 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("expected block after closure flavors".to_string());
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       },
     };
@@ -77,12 +72,8 @@ impl Parser {
     })
   }
 
-  fn parse_closure_params(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Vec<ClosureParam>, ()> {
-    self.expect(TokenKind::Or, engine)?;
+  fn parse_closure_params(&mut self, context: ExprContext) -> Result<Vec<ClosureParam>, ()> {
+    self.expect(TokenKind::Or)?;
     let mut params = vec![];
 
     if matches!(self.current_token().kind, TokenKind::Comma) {
@@ -97,32 +88,28 @@ impl Parser {
         LabelStyle::Primary,
       )
       .with_help("unexpected token".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::Or) {
-      params.push(self.parse_closure_param(context, engine)?);
+      params.push(self.parse_closure_param(context)?);
       if !matches!(self.current_token().kind, TokenKind::Or) {
-        self.expect(TokenKind::Comma, engine)?;
+        self.expect(TokenKind::Comma)?;
       }
     }
-    self.expect(TokenKind::Or, engine)?;
+    self.expect(TokenKind::Or)?;
     Ok(params)
   }
 
-  fn parse_closure_param(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<ClosureParam, ()> {
+  fn parse_closure_param(&mut self, context: ExprContext) -> Result<ClosureParam, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_outer_attributes(engine)?;
-    let pattern = self.parse_pattern(context, engine)?;
+    let attributes = self.parse_outer_attributes()?;
+    let pattern = self.parse_pattern(context)?;
 
     let ty = if matches!(self.current_token().kind, TokenKind::Colon) {
-      self.advance(engine); // consume ':'
-      Some(self.parse_type(engine)?)
+      self.advance(); // consume ':'
+      Some(self.parse_type()?)
     } else {
       Some(Type::Infer)
     };
@@ -135,7 +122,7 @@ impl Parser {
     })
   }
 
-  fn parse_closure_flavors(&mut self, engine: &mut DiagnosticEngine) -> Result<(bool, bool), ()> {
+  fn parse_closure_flavors(&mut self) -> Result<(bool, bool), ()> {
     let mut is_move = false;
     let mut is_async = false;
 
@@ -144,11 +131,11 @@ impl Parser {
       match self.current_token().kind {
         TokenKind::KwAsync if !is_async => {
           is_async = true;
-          self.advance(engine);
+          self.advance();
         },
         TokenKind::KwMove if !is_move => {
           is_move = true;
-          self.advance(engine);
+          self.advance();
         },
         _ => break,
       }

@@ -1,4 +1,3 @@
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::{
@@ -8,20 +7,16 @@ use crate::{
 };
 
 impl Parser {
-  pub(crate) fn parse_cast(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
+  pub(crate) fn parse_cast(&mut self, context: ExprContext) -> Result<Expr, ()> {
     // First parse the next higher precedence level: unary
-    let mut lhs = self.parse_unary(context, engine)?;
+    let mut lhs = self.parse_unary(context)?;
 
     loop {
       match self.current_token().kind {
         TokenKind::KwAs => {
           let mut token = self.current_token();
-          self.advance(engine); // consume `as`
-          let ty = self.parse_type(engine)?;
+          self.advance(); // consume `as`
+          let ty = self.parse_type()?;
           token.span.merge(self.current_token().span);
           lhs = Expr {
             attributes: vec![], // TODO: implement attributes
@@ -33,7 +28,7 @@ impl Parser {
           };
         },
         TokenKind::OpenParen | TokenKind::Dot | TokenKind::OpenBracket | TokenKind::Question => {
-          lhs = self.parse_postfix_chain(lhs, context, engine)?;
+          lhs = self.parse_postfix_chain(lhs, context)?;
         },
         _ => break,
       }

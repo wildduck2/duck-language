@@ -8,15 +8,15 @@ use lexer::token::TokenKind;
 use crate::{
   ast::expr::{Expr, ExprKind},
   parser_utils::ExprContext,
-  DiagnosticEngine, Parser,
+  Parser,
 };
 
 impl Parser {
-  pub(crate) fn parse_array_expr(&mut self, engine: &mut DiagnosticEngine) -> Result<Expr, ()> {
+  pub(crate) fn parse_array_expr(&mut self) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.advance(engine); // consume '['
+    self.advance(); // consume '['
 
-    let (elements, repeat) = self.parse_array_elements(engine)?;
+    let (elements, repeat) = self.parse_array_elements()?;
     token.span.merge(self.current_token().span);
 
     Ok(Expr {
@@ -29,24 +29,21 @@ impl Parser {
     })
   }
 
-  fn parse_array_elements(
-    &mut self,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<(Vec<Expr>, Option<Expr>), ()> {
+  fn parse_array_elements(&mut self) -> Result<(Vec<Expr>, Option<Expr>), ()> {
     let mut elements = vec![];
 
     // Case 1: Empty array: `[]`
     if self.current_token().kind == TokenKind::CloseBracket {
-      self.advance(engine);
+      self.advance();
       return Ok((elements, None));
     }
 
     // First element
-    elements.push(self.parse_expression(vec![], ExprContext::Default, engine)?);
+    elements.push(self.parse_expression(vec![], ExprContext::Default)?);
 
     // Case 2: Repeat array form `[value; count]`
     if matches!(self.current_token().kind, TokenKind::Semi) {
-      self.advance(engine); // consume `;`
+      self.advance(); // consume `;`
 
       // Reject `[value;]` - missing count expression
       if !self.current_token().kind.is_literal() {
@@ -71,29 +68,29 @@ impl Parser {
         )
         .with_help("example: `[x; 4]`".into());
 
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       }
 
-      let repeat_count = self.parse_expression(vec![], ExprContext::Default, engine)?;
-      self.expect(TokenKind::CloseBracket, engine)?;
+      let repeat_count = self.parse_expression(vec![], ExprContext::Default)?;
+      self.expect(TokenKind::CloseBracket)?;
       return Ok((elements, Some(repeat_count)));
     }
 
     // Case 3: Standard comma-separated array                                 */
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBracket) {
       if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(engine);
+        self.advance();
       }
 
       if self.current_token().kind == TokenKind::CloseBracket {
         break;
       }
 
-      elements.push(self.parse_expression(vec![], ExprContext::Default, engine)?);
+      elements.push(self.parse_expression(vec![], ExprContext::Default)?);
     }
 
-    self.expect(TokenKind::CloseBracket, engine)?;
+    self.expect(TokenKind::CloseBracket)?;
     Ok((elements, None))
   }
 }

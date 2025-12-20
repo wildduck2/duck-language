@@ -7,9 +7,9 @@ mod string_tests {
 
   fn lex_kinds(input: &str) -> Result<Vec<TokenKind>, ()> {
     use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
-    use std::path::PathBuf;
+    use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-    let mut engine = DiagnosticEngine::new();
+    let engine = Rc::new(RefCell::new(DiagnosticEngine::new()));
     let mut _source_map = SourceMap::new();
 
     let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -20,12 +20,12 @@ mod string_tests {
 
     let source_file = SourceFile::new(path_str.clone(), input.to_string());
     _source_map.add_file(&path_str, input);
-    engine.add_file(&path_str, input);
+    engine.borrow_mut().add_file(&path_str, input);
 
-    let mut lexer = Lexer::new(source_file);
-    let _ = lexer.scan_tokens(&mut engine);
+    let mut lexer = Lexer::new(source_file, engine.clone());
+    let _ = lexer.scan_tokens();
 
-    if engine.has_errors() {
+    if engine.borrow().has_errors() {
       return Err(());
     }
 

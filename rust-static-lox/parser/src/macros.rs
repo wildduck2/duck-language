@@ -5,15 +5,15 @@
 ///     match_and_consume!(self, engine, TokenKind::DotDot, TokenKind::DotDotEq);
 #[macro_export]
 macro_rules! match_and_consume {
-    ($self:expr, $engine:expr, $pattern:pat $(if $guard:expr)? $(,)?) => {{
-        let cur = $self.current_token().kind;
+  ($self:expr, $pattern:pat $(if $guard:expr)? $(,)?) => {{
+    let cur = $self.current_token().kind;
 
-        // Check the pattern match like `matches!`
-        if matches!(cur, $pattern $(if $guard)?) {
-            $self.advance($engine);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }};
+    // Check the pattern match like `matches!`
+    if matches!(cur, $pattern $(if $guard)?) {
+        $self.advance();
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+  }};
 }

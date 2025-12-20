@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
@@ -10,6 +12,7 @@ use crate::ast::Item;
 
 pub mod ast;
 mod decoder;
+mod diagnostics;
 mod parser_utils;
 mod parsers;
 #[cfg(test)]
@@ -24,11 +27,16 @@ pub struct Parser {
   pub ast: Vec<Item>,
   pub current: usize,
   pub source_file: SourceFile,
+  pub engine: Rc<RefCell<DiagnosticEngine>>,
 }
 
 impl Parser {
   /// Creates a parser seeded with the lexer output.
-  pub fn new(tokens: Vec<Token>, source_file: SourceFile) -> Self {
+  pub fn new(
+    tokens: Vec<Token>,
+    source_file: SourceFile,
+    engine: Rc<RefCell<DiagnosticEngine>>,
+  ) -> Self {
     if tokens.is_empty() {
       // Parser always expects at least an EOF sentinel, bail early otherwise.
       panic!("Parser::new: tokens is empty");
@@ -39,13 +47,14 @@ impl Parser {
       ast: Vec::new(),
       current: 0,
       source_file,
+      engine,
     }
   }
 
   /// Parses the entire token stream, accumulating AST nodes and diagnostics.
-  pub fn parse(&mut self, engine: &mut DiagnosticEngine) {
+  pub fn parse(&mut self) {
     // Delegate to the grammar entry point defined in `parser_utils`.
-    self.parse_program(engine)
+    self.parse_program()
   }
 
   /// Returns the token at the current cursor position.
@@ -72,7 +81,7 @@ impl Parser {
   }
 
   /// Advances to the next token, emitting an unterminated-string diagnostic if we passed EOF.
-  fn advance(&mut self, engine: &mut DiagnosticEngine) {
+  fn advance(&mut self) {
     if self.is_eof() {
       // Trying to advance beyond EOF is a parser error worth reporting.
       let current_token = self.current_token();
@@ -87,7 +96,7 @@ impl Parser {
         Some("unterminated string".to_string()),
         LabelStyle::Primary,
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return;
     }
 
@@ -101,27 +110,27 @@ impl Parser {
   }
 
   /// Function that consume the code until there's valid tokens to start a new expr
-  pub(crate) fn synchronize(&mut self, engine: &mut DiagnosticEngine) {
+  pub(crate) fn synchronize(&mut self) {
     while !self.is_eof() {
       match self.current_token().kind {
         TokenKind::Semi => {
           // Stop skipping once we hit a statement boundary.
-          self.advance(engine);
+          self.advance();
           break;
         },
         _ => {
           // Otherwise keep discarding tokens until we reach a safe point.
-          self.advance(engine);
+          self.advance();
         },
       }
     }
   }
 
   /// Expects a specific token type and provides detailed error diagnostics if not found
-  fn expect(&mut self, expected: TokenKind, engine: &mut DiagnosticEngine) -> Result<Token, ()> {
+  fn expect(&mut self, expected: TokenKind) -> Result<Token, ()> {
     if self.is_eof() {
       // Reached EOF before finding the expected token.
-      self.error_expected_token_eof(expected, engine);
+      self.error_expected_token_eof(expected);
       return Err(());
     }
 
@@ -129,17 +138,17 @@ impl Parser {
 
     if current.kind == expected {
       // Consume and return the matching token.
-      self.advance(engine);
+      self.advance();
       Ok(current)
     } else {
       // Emit a detailed diagnostic and leave recovery to the caller.
-      self.error_expected_token(expected, current, engine);
+      self.error_expected_token(expected, current);
       Err(())
     }
   }
 
   /// Error for when we expect a token but hit EOF
-  fn error_expected_token_eof(&mut self, expected: TokenKind, engine: &mut DiagnosticEngine) {
+  fn error_expected_token_eof(&mut self, expected: TokenKind) {
     let token = self.current_token();
 
     // Point to the location where more tokens were expected.
@@ -154,16 +163,11 @@ impl Parser {
       LabelStyle::Primary,
     );
 
-    engine.add(diagnostic);
+    self.engine.borrow_mut().add(diagnostic);
   }
 
   /// Error for when we expect a token but find something else
-  fn error_expected_token(
-    &mut self,
-    expected: TokenKind,
-    found: Token,
-    engine: &mut DiagnosticEngine,
-  ) {
+  fn error_expected_token(&mut self, expected: TokenKind, found: Token) {
     let current_token = self.current_token();
     let lexeme = self
       .source_file
@@ -184,7 +188,7 @@ impl Parser {
     )
     .with_help(Parser::get_token_help(&expected, &found));
 
-    engine.add(diagnostic);
+    self.engine.borrow_mut().add(diagnostic);
   }
 
   /// Provides contextual help based on what was expected vs found
@@ -220,9 +224,9 @@ impl Parser {
 
   /// Consumes tokens until `kind` is encountered or EOF is reached.
   /// Useful for resynchronizing after a diagnostic within delimited lists.
-  pub(crate) fn advance_till_match(&mut self, engine: &mut DiagnosticEngine, kind: TokenKind) {
+  pub(crate) fn advance_till_match(&mut self, kind: TokenKind) {
     while !self.is_eof() && self.current_token().kind != kind {
-      self.advance(engine);
+      self.advance();
     }
   }
 }

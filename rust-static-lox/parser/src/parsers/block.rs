@@ -11,7 +11,6 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 use lexer::token::TokenKind;
 
@@ -21,23 +20,22 @@ impl Parser {
     label: Option<String>,
     context: ExprContext,
     outer_attributes: Vec<Attribute>,
-    engine: &mut DiagnosticEngine,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
       token.span.merge(outer_attributes[0].span);
     }
 
-    let flavor = self.parse_block_expression_flavors(ExprContext::Default, engine)?;
-    self.advance(engine); // consume the "{"
+    let flavor = self.parse_block_expression_flavors(ExprContext::Default)?;
+    self.advance(); // consume the "{"
 
     let mut stmts = vec![];
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
-      stmts.push(self.parse_stmt(context, engine)?);
-      match_and_consume!(self, engine, TokenKind::Semi)?;
+      stmts.push(self.parse_stmt(context)?);
+      match_and_consume!(self, TokenKind::Semi)?;
     }
-    self.expect(TokenKind::CloseBrace, engine)?;
+    self.expect(TokenKind::CloseBrace)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -55,7 +53,6 @@ impl Parser {
   pub(crate) fn parse_block_expression_flavors(
     &mut self,
     context: ExprContext,
-    engine: &mut DiagnosticEngine,
   ) -> Result<BlockFlavor, ()> {
     if !matches!(context, ExprContext::Default) {
       let token = self.current_token();
@@ -70,7 +67,7 @@ impl Parser {
         LabelStyle::Primary,
       )
       .with_help("allowed examples: unsafe { } or async { }".to_string());
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 
@@ -85,12 +82,12 @@ impl Parser {
     match self.current_token().kind {
       TokenKind::KwAsync => {
         is_async = true;
-        self.advance(engine);
+        self.advance();
 
         // optional move
         if matches!(self.current_token().kind, TokenKind::KwMove) {
           is_move = true;
-          self.advance(engine);
+          self.advance();
         }
 
         // forbid any other keyword after async or async move
@@ -107,7 +104,7 @@ impl Parser {
               LabelStyle::Primary,
             )
             .with_help("valid examples: async { } or async move { }".to_string());
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           },
           _ => {},
@@ -116,7 +113,7 @@ impl Parser {
 
       TokenKind::KwUnsafe => {
         is_unsafe = true;
-        self.advance(engine);
+        self.advance();
 
         // unsafe cannot be followed by any other flavor
         match self.current_token().kind {
@@ -132,7 +129,7 @@ impl Parser {
               LabelStyle::Primary,
             )
             .with_help("valid example: unsafe { }".to_string());
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           },
           _ => {},
@@ -141,7 +138,7 @@ impl Parser {
 
       TokenKind::KwTry => {
         is_try = true;
-        self.advance(engine);
+        self.advance();
 
         // try cannot be followed by anything
         match self.current_token().kind {
@@ -157,7 +154,7 @@ impl Parser {
               LabelStyle::Primary,
             )
             .with_help("valid example: try { }".to_string());
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           },
           _ => {},
@@ -177,7 +174,7 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("use async move { } instead".to_string());
-        engine.add(diagnostic);
+        self.engine.borrow_mut().add(diagnostic);
         return Err(());
       },
 
@@ -206,7 +203,7 @@ impl Parser {
       .with_help(
         "valid examples: async { } or async move { } or unsafe { } or try { }".to_string(),
       );
-      engine.add(diagnostic);
+      self.engine.borrow_mut().add(diagnostic);
       return Err(());
     }
 

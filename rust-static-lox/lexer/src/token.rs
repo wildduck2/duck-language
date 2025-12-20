@@ -506,10 +506,6 @@ impl TokenKind {
     )
   }
 
-  pub fn can_start_path_and_not(&self, and: TokenKind) -> bool {
-    self.can_start_path() && *self != and
-  }
-
   /// Returns true if this token can start an expression.
   ///
   /// This is essentially the same as [`can_start_expr`], but used where

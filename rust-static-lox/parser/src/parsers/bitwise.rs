@@ -7,17 +7,12 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
 };
 
 use lexer::token::TokenKind;
 impl Parser {
-  pub(crate) fn parse_bitwise_or(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_bitwise_xor(context, engine)?;
+  pub(crate) fn parse_bitwise_or(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_bitwise_xor(context)?;
 
     if matches!(context, ExprContext::Match | ExprContext::IfCondition) {
       return Ok(lhs);
@@ -31,7 +26,7 @@ impl Parser {
 
       match token.kind {
         TokenKind::Or => {
-          self.advance(engine); // consume the "|"
+          self.advance(); // consume the "|"
 
           if !self
             .current_token()
@@ -59,11 +54,11 @@ impl Parser {
             )
             .with_note("examples: x | y, flags | MASK, (a & b) | c".to_string());
 
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           }
 
-          let rhs = self.parse_bitwise_xor(context, engine)?;
+          let rhs = self.parse_bitwise_xor(context)?;
 
           lhs = Expr {
             attributes: vec![],
@@ -83,19 +78,15 @@ impl Parser {
     Ok(lhs)
   }
 
-  pub(crate) fn parse_bitwise_xor(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_bitwise_and(context, engine)?;
+  pub(crate) fn parse_bitwise_xor(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_bitwise_and(context)?;
 
     while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::Caret) {
       let mut token = self.current_token();
 
       match token.kind {
         TokenKind::Caret => {
-          self.advance(engine); // consume the "^"
+          self.advance(); // consume the "^"
 
           if !self
             .current_token()
@@ -123,11 +114,11 @@ impl Parser {
             )
             .with_note("examples: x ^ y, flags ^ MASK, (a & b) ^ c".to_string());
 
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           }
 
-          let rhs = self.parse_bitwise_and(context, engine)?;
+          let rhs = self.parse_bitwise_and(context)?;
 
           lhs = Expr {
             attributes: vec![],
@@ -147,19 +138,15 @@ impl Parser {
     Ok(lhs)
   }
 
-  pub(crate) fn parse_bitwise_and(
-    &mut self,
-    context: ExprContext,
-    engine: &mut DiagnosticEngine,
-  ) -> Result<Expr, ()> {
-    let mut lhs = self.parse_shift(context, engine)?;
+  pub(crate) fn parse_bitwise_and(&mut self, context: ExprContext) -> Result<Expr, ()> {
+    let mut lhs = self.parse_shift(context)?;
 
     while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::And) {
       let mut token = self.current_token();
 
       match token.kind {
         TokenKind::And => {
-          self.advance(engine);
+          self.advance();
 
           if !self
             .current_token()
@@ -187,11 +174,11 @@ impl Parser {
             )
             .with_note("examples: x & y, flags & MASK, (a | b) & c".to_string());
 
-            engine.add(diagnostic);
+            self.engine.borrow_mut().add(diagnostic);
             return Err(());
           }
 
-          let rhs = self.parse_shift(context, engine)?;
+          let rhs = self.parse_shift(context)?;
 
           lhs = Expr {
             attributes: vec![],
