@@ -1,8 +1,3 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -95,36 +90,15 @@ impl Parser {
           | TokenKind::KwSelfType
           | TokenKind::Dollar
       ) {
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidPathSegment),
-          "Unexpected token in path segment".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          self.current_token().span,
-          Some("Expected an identifier, keyword, or `$`".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("Valid path segments are identifiers, keywords like `self`, `super`, `crate`, or `$crate`.".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        let found = self.get_token_lexeme(&self.current_token());
+        self.emit(self.err_invalid_path_segment(self.current_token().span, &found));
         return Err(());
       }
 
       let (segment, is_dollar_crate) = self.parse_path_segment(with_args)?;
       if is_dollar_crate && !segments.is_empty() {
         let offending = self.peek_prev(0);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "Unexpected `$crate` segment in path".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          offending.span,
-          Some("`$crate` cannot appear in this position".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("`$crate` is only valid as the first path segment.".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_unexpected_token(offending.span, "path segment", "$crate"));
         return Err(());
       }
 
@@ -165,20 +139,8 @@ impl Parser {
         Ok((PathSegment::new(PathSegmentKind::DollarCrate, args), true))
       },
       _ => {
-        // Invalid path segment (e.g. `123::foo`)
         let lexeme = self.get_token_lexeme(&token);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "Unexpected token in path segment".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some(format!("Expected a path segment, found `{lexeme}`")),
-          LabelStyle::Primary,
-        )
-        .with_help("Valid path segments are identifiers or keywords like `self`, `super`, `crate`, or `$crate`.".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_path_segment(token.span, &lexeme));
         Err(())
       },
     }

@@ -7,11 +7,7 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -24,7 +20,7 @@ impl Parser {
     self.expect(TokenKind::KwType)?; // consume the "type"
     let name = self.parse_name(false)?;
     let generics = self.parse_generic_params(&mut token)?;
-    let bounds = self.parse_trait_bounds()?;
+    let bounds = self.parse_trait_bounds("type alias")?;
     let where_clause = self.parse_where_clause()?;
     self.expect(TokenKind::Eq)?; // consume '='
     let ty = self.parse_type()?;
@@ -111,24 +107,7 @@ impl Parser {
       _ if matches!(token.kind, TokenKind::KwMut | TokenKind::KwConst) => {
         token.span.merge(self.current_token().span);
         let lexeme = self.get_token_lexeme(&token);
-
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidMutabilityInField),
-          format!("Invalid {} specifier in type position.", lexeme),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some(format!("{} is not allowed before a bare type.", lexeme)),
-          LabelStyle::Primary,
-        )
-        .with_note("mut and const cannot modify field or type declarations directly.".to_string())
-        .with_help(
-          "Use &mut T or *mut T for references or pointers, or make the binding itself mutable."
-            .to_string(),
-        );
-
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_mutability_in_field(token.span, &lexeme));
         Err(())
       },
 
@@ -136,26 +115,7 @@ impl Parser {
       _ => {
         token.span.merge(self.current_token().span);
         let lexeme = self.get_token_lexeme(&token);
-
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidType),
-          format!("Unknown type or unexpected token {}.", lexeme),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some(format!(
-            "Type {} is not recognized in this position.",
-            lexeme
-          )),
-          LabelStyle::Primary,
-        )
-        .with_help(format!(
-          "If {} is a custom type, declare it or bring it into scope before use.",
-          lexeme
-        ));
-
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_type(token.span, &lexeme, None));
         Err(())
       },
     }
@@ -164,11 +124,11 @@ impl Parser {
   fn parse_reference_type(&mut self) -> Result<Type, ()> {
     // Forbid patterns like &const T which are not valid reference types.
     if matches!(self.current_token().kind, TokenKind::KwConst) {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::InvalidMutabilityInField),
-        "Invalid const specifier in reference type.".to_string(),
-        self.source_file.path.clone(),
-      )
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::InvalidMutabilityInField,
+          "invalid const specifier in reference type",
+        )
       .with_label(
         self.current_token().span,
         Some("const is not allowed after & in a reference type.".to_string()),
@@ -182,7 +142,7 @@ impl Parser {
         "Use *const T for a raw const pointer, or &T for an immutable reference.".to_string(),
       );
 
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -210,11 +170,11 @@ impl Parser {
   fn parse_raw_pointer_type(&mut self) -> Result<Type, ()> {
     // If we see *T directly, this is missing the const or mut qualifier.
     if matches!(self.current_token().kind, TokenKind::Ident) {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::InvalidPointerType),
-        "Missing mutability qualifier for raw pointer type.".to_string(),
-        self.source_file.path.clone(),
-      )
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::InvalidPointerType,
+          "missing mutability qualifier for raw pointer type",
+        )
       .with_label(
         self.current_token().span,
         Some("expected const or mut after *.".to_string()),
@@ -228,7 +188,7 @@ impl Parser {
         "Use *const T for an immutable raw pointer, or *mut T for a mutable one.".to_string(),
       );
 
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -312,18 +272,18 @@ impl Parser {
         if !matches!(self.current_token().kind, TokenKind::CloseParen) {
           let bad = self.current_token();
 
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidVariadic),
-            "variadic parameters are not allowed in non-extern functions".to_string(),
-            self.source_file.path.clone(),
-          )
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::InvalidVariadic,
+              "variadic parameters are not allowed in non-extern functions",
+            )
           .with_label(
             bad.span,
             Some("variadic parameters are not allowed in non-extern functions".to_string()),
             LabelStyle::Primary,
           )
           .with_help("variadic parameters are only allowed in extern functions".to_string());
-          self.engine.borrow_mut().add(diagnostic);
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -371,20 +331,20 @@ impl Parser {
       )
     {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-        format!("Expected a type, found `{lexeme}`"),
-        self.source_file.path.clone(),
-      )
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected a type, found `{lexeme}`"),
+        )
       .with_label(
         self.current_token().span,
-        Some(format!("Expected a type, found `{lexeme}`")),
+        Some(format!("expected a type, found `{lexeme}`")),
         LabelStyle::Primary,
       )
       .with_help(format!(
         "If `{lexeme}` is a custom type, declare it or bring it into scope before use.",
       ));
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(diagnostic);
 
       return Err(());
     }

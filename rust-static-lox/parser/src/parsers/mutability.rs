@@ -1,5 +1,5 @@
 use crate::ast::Mutability;
-use crate::{Diagnostic, Parser};
+use crate::Parser;
 use lexer::token::TokenKind;
 
 impl Parser {

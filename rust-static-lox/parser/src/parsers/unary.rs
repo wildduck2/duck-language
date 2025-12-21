@@ -1,4 +1,3 @@
-use diagnostic::DiagnosticEngine;
 use lexer::token::TokenKind;
 
 use crate::ast::{ExprKind, UnaryOp};

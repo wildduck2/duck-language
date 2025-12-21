@@ -16,14 +16,10 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::token::{LiteralKind, Token, TokenKind};
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-  DiagnosticEngine, SourceFile, Span,
-};
+use diagnostic::{DiagnosticEngine, SourceFile, Span};
 
 mod lexers;
+mod diagnostics;
 mod scanner_utils;
 mod tests;
 pub mod token;
@@ -95,17 +91,9 @@ impl Lexer {
       let token = match self.lex_tokens(c) {
         Ok(token) => token,
         Err(_) => {
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
-            "invalid character".to_string(),
-            self.source.path.to_string(),
-          )
-          .with_label(
-            Span::new(self.current, self.column + 1),
-            Some("invalid character".to_string()),
-            LabelStyle::Primary,
-          );
-          self.engine.borrow_mut().add(diagnostic);
+          let span = Span::new(self.current, self.column + 1);
+          let c = self.source.src.chars().nth(self.current).unwrap_or('?');
+          self.emit_diagnostic(self.err_invalid_character(span, c));
           return Err(std::io::Error::other("invalid character"));
         },
       };

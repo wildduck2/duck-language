@@ -1,10 +1,10 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use diagnostic::code::DiagnosticCode;
-use diagnostic::diagnostic::{Diagnostic, LabelStyle};
-use diagnostic::types::error::DiagnosticError;
-use diagnostic::{DiagnosticEngine, Span};
+use diagnostic::DiagnosticEngine;
+use diagnostic::Span;
+
+use crate::Parser;
 
 pub(crate) struct Decoder;
 
@@ -46,18 +46,7 @@ impl Decoder {
       };
 
       if ch as u32 > 0xFF {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
-            "byte string contains non byte value".into(),
-            path.to_string(),
-          )
-          .with_label(
-            span,
-            Some("value does not fit in u8".into()),
-            LabelStyle::Primary,
-          ),
-        );
+        engine.add(Parser::decoder_err_byte_string_non_byte(path, span));
         return Err(());
       }
       out.push(ch as u8);
@@ -104,20 +93,7 @@ impl Decoder {
     }
 
     if out.len() != 1 {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
-        format!("Too many characters in character literal: {:?}", out),
-        path.to_string(),
-      )
-      .with_label(
-        span,
-        Some("This character literal is too long".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help(
-        "Character literals must be a single Unicode scalar or a single escape.".to_string(),
-      );
-      engine.add(diagnostic);
+      engine.add(Parser::decoder_err_char_too_long(path, span, &out));
       return Err(());
     }
 
@@ -133,18 +109,7 @@ impl Decoder {
     let ch = Self::decode_char(input, path, span, engine)?;
 
     if ch as u32 > 0xFF {
-      engine.add(
-        Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
-          "byte literal out of range".into(),
-          path.to_string(),
-        )
-        .with_label(
-          span,
-          Some("value does not fit in u8".into()),
-          LabelStyle::Primary,
-        ),
-      );
+      engine.add(Parser::decoder_err_byte_out_of_range(path, span));
       return Err(());
     }
 
@@ -172,42 +137,17 @@ impl Decoder {
       Some('u') if allow_unicode => Self::decode_unicode_escape(chars, path, span, engine),
 
       Some('u') => {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-            "unicode escape not allowed here".into(),
-            path.to_string(),
-          )
-          .with_label(span, Some("invalid escape".into()), LabelStyle::Primary),
-        );
+        engine.add(Parser::decoder_err_invalid_escape(path, span, "u", Some("byte string")));
         Err(())
       },
 
       Some(other) => {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-            format!("unknown escape \\{}", other),
-            path.to_string(),
-          )
-          .with_label(span, Some("invalid escape".into()), LabelStyle::Primary),
-        );
+        engine.add(Parser::decoder_err_invalid_escape(path, span, &other.to_string(), None));
         Err(())
       },
 
       None => {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-            "unterminated escape sequence".into(),
-            path.to_string(),
-          )
-          .with_label(
-            span,
-            Some("unterminated escape".into()),
-            LabelStyle::Primary,
-          ),
-        );
+        engine.add(Parser::decoder_err_invalid_escape(path, span, "", Some("unterminated")));
         Err(())
       },
     }
@@ -228,18 +168,7 @@ impl Decoder {
         Ok(value as char)
       },
       _ => {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-            "invalid hex escape".into(),
-            path.to_string(),
-          )
-          .with_label(
-            span,
-            Some("expected two hex digits".into()),
-            LabelStyle::Primary,
-          ),
-        );
+        engine.add(Parser::decoder_err_invalid_escape(path, span, "x", Some("hex escape must have exactly two hex digits")));
         Err(())
       },
     }
@@ -254,14 +183,7 @@ impl Decoder {
     match chars.next() {
       Some('{') => {},
       _ => {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-            "invalid unicode escape".into(),
-            path.to_string(),
-          )
-          .with_label(span, Some("expected `{`".into()), LabelStyle::Primary),
-        );
+        engine.add(Parser::decoder_err_invalid_escape(path, span, "u", Some("unicode escape must start with `{`")));
         return Err(());
       },
     }
@@ -285,39 +207,18 @@ impl Decoder {
     match chars.next() {
       Some('}') => {},
       _ => {
-        engine.add(
-          Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-            "unterminated unicode escape".into(),
-            path.to_string(),
-          )
-          .with_label(span, Some("missing `}`".into()), LabelStyle::Primary),
-        );
+        engine.add(Parser::decoder_err_invalid_escape(path, span, "u", Some("unicode escape must end with `}`")));
         return Err(());
       },
     }
 
     if digits == 0 || digits > 6 || value > 0x10FFFF || (0xD800..=0xDFFF).contains(&value) {
-      engine.add(
-        Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-          "invalid unicode scalar value".into(),
-          path.to_string(),
-        )
-        .with_label(span, Some("invalid code point".into()), LabelStyle::Primary),
-      );
+      engine.add(Parser::decoder_err_invalid_escape(path, span, "u", Some("invalid unicode scalar value")));
       return Err(());
     }
 
     char::from_u32(value).ok_or_else(|| {
-      engine.add(
-        Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidEscape),
-          "invalid unicode scalar value".into(),
-          path.to_string(),
-        )
-        .with_label(span, Some("invalid code point".into()), LabelStyle::Primary),
-      );
+      engine.add(Parser::decoder_err_invalid_escape(path, span, "u", Some("invalid unicode scalar value")));
     })
   }
 }

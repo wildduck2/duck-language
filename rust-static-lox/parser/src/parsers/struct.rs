@@ -5,11 +5,7 @@ use crate::ast::{
 };
 use crate::parser_utils::ExprContext;
 use crate::Parser;
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
 
 impl Parser {
@@ -181,11 +177,8 @@ impl Parser {
     }
 
     let lexeme = self.get_token_lexeme(&self.current_token());
-    let diagnostic = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-      "Unexpected name identifier".to_string(),
-      self.source_file.path.clone(),
-    )
+    let diagnostic = self
+      .diagnostic(DiagnosticError::UnexpectedToken, "unexpected name identifier")
     .with_label(
       self.current_token().span,
       Some(format!(
@@ -196,7 +189,7 @@ impl Parser {
     )
     .with_help("Expected a valid name identifier".to_string());
 
-    self.engine.borrow_mut().add(diagnostic);
+    self.emit(diagnostic);
 
     Err(())
   }

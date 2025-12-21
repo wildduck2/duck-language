@@ -1,8 +1,4 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -50,11 +46,11 @@ impl Parser {
         let bad = self.current_token();
         let lexeme = self.get_token_lexeme(&bad);
 
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "invalid repeat expression".into(),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            "invalid repeat expression",
+          )
         .with_label(
           bad.span,
           Some(format!(
@@ -68,7 +64,7 @@ impl Parser {
         )
         .with_help("example: `[x; 4]`".into());
 
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         return Err(());
       }
 

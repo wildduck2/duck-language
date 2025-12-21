@@ -4,11 +4,6 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -23,19 +18,8 @@ impl Parser {
 
     if !self.is_valid_condition(&condition) {
       token.span.merge(self.current_token().span);
-      let diag = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::InvalidCondition),
-        "invalid condition expression".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("this expression cannot be used as a condition".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help("a condition must be a normal expression that evaluates to a value".to_string());
-
-      self.engine.borrow_mut().add(diag);
+      let found = self.get_token_lexeme(&token);
+      self.emit(self.err_invalid_condition(token.span, &found));
       return Err(());
     }
 
@@ -95,28 +79,7 @@ impl Parser {
     );
 
     if !allowed {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::ContinueOutsideLoop),
-        "continue used outside a loop".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("continue is not valid here".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help(
-        "a continue expression can only appear inside a for or while loop body. \
-       it skips directly to the next iteration of that loop."
-          .to_string(),
-      )
-      .with_note(
-        "if you intended to restart a loop, you may need to wrap this code in a loop \
-       or restructure the control flow."
-          .to_string(),
-      );
-
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_continue_outside_loop(token.span));
       return Err(());
     }
 
@@ -129,21 +92,7 @@ impl Parser {
       TokenKind::Colon | TokenKind::CloseBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-        "expected a label to be followed by a colon or closing brace".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        self.current_token().span,
-        Some(format!(
-          "expected a label to be followed by a colon or closing brace, found `{lexeme}`"
-        )),
-        LabelStyle::Primary,
-      )
-      .with_help("labels must be followed by a colon or closing brace".to_string());
-
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_unexpected_token(self.current_token().span, "colon or closing brace", &lexeme));
       return Err(());
     }
 
@@ -163,28 +112,7 @@ impl Parser {
     );
 
     if !allowed {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::BreakOutsideLoop),
-        "break used outside a loop".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("cannot break here".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help(
-        "a break expression can only appear inside a for or while loop body. \
-       it exits the nearest enclosing loop."
-          .to_string(),
-      )
-      .with_note(
-        "break inside an if, match, or block expression is valid as long as \
-       the block is inside a loop. here there is no loop to break from."
-          .to_string(),
-      );
-
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_break_outside_loop(token.span));
       return Err(());
     }
 
@@ -206,21 +134,7 @@ impl Parser {
       TokenKind::Semi | TokenKind::CloseBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-        "expected a label to be followed by a colon or closing brace".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        self.current_token().span,
-        Some(format!(
-          "expected a label to be followed by a colon or closing brace, found `{lexeme}`"
-        )),
-        LabelStyle::Primary,
-      )
-      .with_help("labels must be followed by a colon or closing brace".to_string());
-
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_unexpected_token(self.current_token().span, "semicolon or closing brace", &lexeme));
       return Err(());
     }
 
@@ -247,28 +161,7 @@ impl Parser {
     );
 
     if !allowed {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::ReturnOutsideFunction),
-        "return used outside a function".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("return is not valid here".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help(
-        "a return expression is only valid inside a function or closure body. \
-       consider removing it or wrapping this code inside a function."
-          .to_string(),
-      )
-      .with_note(
-        "return inside if, match, or block expressions is valid only when \
-       those constructs appear inside a function or closure."
-          .to_string(),
-      );
-
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_return_outside_function(token.span));
       return Err(());
     }
 
@@ -288,20 +181,7 @@ impl Parser {
       TokenKind::Semi | TokenKind::CloseBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-        "expected a label to be followed by a colon or closing brace".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        self.current_token().span,
-        Some(format!(
-          "expected a label to be followed by a colon or closing brace, found `{lexeme}`"
-        )),
-        LabelStyle::Primary,
-      )
-      .with_help("labels must be followed by a colon or closing brace".to_string());
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_unexpected_token(self.current_token().span, "semicolon or closing brace", &lexeme));
       return Err(());
     }
 

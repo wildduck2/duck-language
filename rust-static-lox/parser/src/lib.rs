@@ -1,10 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-  DiagnosticEngine, SourceFile, Span,
+  diagnostic::LabelStyle, types::error::DiagnosticError, DiagnosticEngine, SourceFile, Span,
 };
 use lexer::token::{Token, TokenKind};
 
@@ -83,20 +80,8 @@ impl Parser {
   /// Advances to the next token, emitting an unterminated-string diagnostic if we passed EOF.
   fn advance(&mut self) {
     if self.is_eof() {
-      // Trying to advance beyond EOF is a parser error worth reporting.
       let current_token = self.current_token();
-
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
-        "unterminated string".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        current_token.span,
-        Some("unterminated string".to_string()),
-        LabelStyle::Primary,
-      );
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_unterminated_string(current_token.span, "string"));
       return;
     }
 
@@ -150,20 +135,8 @@ impl Parser {
   /// Error for when we expect a token but hit EOF
   fn error_expected_token_eof(&mut self, expected: TokenKind) {
     let token = self.current_token();
-
-    // Point to the location where more tokens were expected.
-    let diagnostic = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-      format!("Expected '{:?}', but reached end of file", expected),
-      self.source_file.path.clone(),
-    )
-    .with_label(
-      token.span,
-      Some(format!("expected '{expected:?}' here")),
-      LabelStyle::Primary,
-    );
-
-    self.engine.borrow_mut().add(diagnostic);
+    let expected_str = format!("{expected:?}");
+    self.emit(self.err_unexpected_token(token.span, &expected_str, "end of file"));
   }
 
   /// Error for when we expect a token but find something else
@@ -174,21 +147,10 @@ impl Parser {
       .src
       .get(current_token.span.start..current_token.span.end)
       .unwrap();
-
-    // Attach diagnostic information to the surprising token.
-    let diagnostic = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-      format!("Expected '{:?}', found '{}'", expected, lexeme),
-      self.source_file.path.clone(),
-    )
-    .with_label(
-      current_token.span,
-      Some(format!("expected '{:?}' here", expected).into()),
-      LabelStyle::Primary,
-    )
-    .with_help(Parser::get_token_help(&expected, &found));
-
-    self.engine.borrow_mut().add(diagnostic);
+    let expected_str = format!("{expected:?}");
+    let mut diag = self.err_unexpected_token(current_token.span, &expected_str, lexeme);
+    diag = diag.with_help(Parser::get_token_help(&expected, &found));
+    self.emit(diag);
   }
 
   /// Provides contextual help based on what was expected vs found

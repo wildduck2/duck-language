@@ -4,8 +4,7 @@ use crate::{
 };
 
 use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
+  diagnostic::LabelStyle,
   types::error::DiagnosticError,
 };
 use lexer::token::TokenKind;
@@ -66,18 +65,18 @@ impl Parser {
       ),
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          format!("Unexpected token `{lexeme}` in macro invocation"),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("unexpected token `{lexeme}` in macro invocation"),
+          )
         .with_label(
           token.span,
           Some("Expected `(`, `[` or `{` to start macro arguments".to_string()),
           LabelStyle::Primary,
         )
         .with_help("Macro invocations must be followed by a delimited token tree.".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         return Err(());
       },
     };
@@ -158,18 +157,18 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          format!("Unexpected token `{lexeme}` in macro token tree"),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("unexpected token `{lexeme}` in macro token tree"),
+          )
         .with_label(
           token.span,
           Some("Expected a token-tree element".to_string()),
           LabelStyle::Primary,
         )
         .with_help("This macro parser is currently syntax only.".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         Err(())
       },
     }

@@ -3,11 +3,7 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 
 use lexer::token::TokenKind;
 impl Parser {
@@ -36,11 +32,11 @@ impl Parser {
             let bad = self.current_token();
             let lexeme = self.get_token_lexeme(&bad);
 
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-              "invalid right-hand side of bitwise OR expression".to_string(),
-              self.source_file.path.clone(),
-            )
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::UnexpectedToken,
+                "invalid right-hand side of bitwise OR expression",
+              )
             .with_label(
               bad.span,
               Some(format!(
@@ -54,7 +50,7 @@ impl Parser {
             )
             .with_note("examples: x | y, flags | MASK, (a & b) | c".to_string());
 
-            self.engine.borrow_mut().add(diagnostic);
+            self.emit(diagnostic);
             return Err(());
           }
 
@@ -96,11 +92,11 @@ impl Parser {
             let bad = self.current_token();
             let lexeme = self.get_token_lexeme(&bad);
 
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-              "invalid right-hand side of bitwise XOR expression".to_string(),
-              self.source_file.path.clone(),
-            )
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::UnexpectedToken,
+                "invalid right-hand side of bitwise XOR expression",
+              )
             .with_label(
               bad.span,
               Some(format!(
@@ -114,7 +110,7 @@ impl Parser {
             )
             .with_note("examples: x ^ y, flags ^ MASK, (a & b) ^ c".to_string());
 
-            self.engine.borrow_mut().add(diagnostic);
+            self.emit(diagnostic);
             return Err(());
           }
 
@@ -156,11 +152,11 @@ impl Parser {
             let bad = self.current_token();
             let lexeme = self.get_token_lexeme(&bad);
 
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-              "invalid right-hand side of bitwise AND expression".to_string(),
-              self.source_file.path.clone(),
-            )
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::UnexpectedToken,
+                "invalid right-hand side of bitwise AND expression",
+              )
             .with_label(
               bad.span,
               Some(format!(
@@ -174,7 +170,7 @@ impl Parser {
             )
             .with_note("examples: x & y, flags & MASK, (a | b) & c".to_string());
 
-            self.engine.borrow_mut().add(diagnostic);
+            self.emit(diagnostic);
             return Err(());
           }
 

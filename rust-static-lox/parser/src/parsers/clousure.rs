@@ -6,11 +6,7 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -43,18 +39,18 @@ impl Parser {
         ..
       } => body,
       _ => {
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::ExpectedBlockAfterFlavor),
-          "expected block after closure flavors".to_string(),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::ExpectedBlockAfterFlavor,
+            "expected block after closure flavors",
+          )
         .with_label(
           temp.span,
           Some("expected block after closure flavors".to_string()),
           LabelStyle::Primary,
         )
         .with_help("expected block after closure flavors".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         return Err(());
       },
     };
@@ -77,18 +73,15 @@ impl Parser {
     let mut params = vec![];
 
     if matches!(self.current_token().kind, TokenKind::Comma) {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-        "unexpected token".to_string(),
-        self.source_file.path.clone(),
-      )
+      let diagnostic = self
+        .diagnostic(DiagnosticError::UnexpectedToken, "unexpected token")
       .with_label(
         self.current_token().span,
         Some("unexpected token".to_string()),
         LabelStyle::Primary,
       )
       .with_help("unexpected token".to_string());
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(diagnostic);
       return Err(());
     }
 

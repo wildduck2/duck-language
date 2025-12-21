@@ -3,12 +3,7 @@
 //! This module contains the main dispatch logic that routes characters
 //! to specialized lexer functions based on their type.
 
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-  DiagnosticEngine, Span,
-};
+use diagnostic::Span;
 
 use crate::{token::TokenKind, Lexer};
 
@@ -100,18 +95,8 @@ impl Lexer {
       'A'..='Z' | 'a'..='z' | '_' => self.lex_keywords(),
 
       _ => {
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
-          format!("unexpected character `{c}`"),
-          self.source.path.to_string(),
-        )
-        .with_label(
-          Span::new(self.current, self.column + 1),
-          Some("unexpected character".to_string()),
-          LabelStyle::Primary,
-        );
-
-        self.engine.borrow_mut().add(diagnostic);
+        let span = Span::new(self.current, self.column + 1);
+        self.emit_diagnostic(self.err_invalid_character(span, c));
         Err(())
       },
     }

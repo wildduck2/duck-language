@@ -2,9 +2,9 @@ use crate::{
   ast::{pattern::Pattern, *},
   match_and_consume,
   parser_utils::ExprContext,
-  Diagnostic, Parser,
+  Parser,
 };
-use diagnostic::{code::DiagnosticCode, diagnostic::LabelStyle, types::error::DiagnosticError};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
 
 impl Parser {
@@ -119,18 +119,15 @@ impl Parser {
       ) {
         let name = self.get_token_lexeme(&self.current_token());
         if name != "\"C\"" {
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidAbi),
-            "invalid ABI".to_string(),
-            self.source_file.path.clone(),
-          )
+          let diagnostic = self
+            .diagnostic(DiagnosticError::InvalidAbi, "invalid ABI")
           .with_label(
             self.current_token().span,
             Some("invalid ABI".to_string()),
             LabelStyle::Primary,
           )
           .with_help("ABI must be either C or C-like".to_string());
-          self.engine.borrow_mut().add(diagnostic);
+          self.emit(diagnostic);
           return Err(());
         }
         self.advance(); // consume "abi"
@@ -165,11 +162,11 @@ impl Parser {
     let kind = if matches!(self.current_token().kind, TokenKind::DotDot) {
       if !is_extern {
         let mut token = self.current_token();
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidVariadic),
-          "variadic parameters are not allowed in non-extern functions".to_string(),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidVariadic,
+            "variadic parameters are not allowed in non-extern functions",
+          )
         .with_label(
           *token.span.merge(diagnostic::Span {
             start: token.span.start,
@@ -179,7 +176,7 @@ impl Parser {
           LabelStyle::Primary,
         )
         .with_help("variadic parameters are only allowed in extern functions".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         return Err(());
       }
 
@@ -236,13 +233,10 @@ impl Parser {
         let mutability = match binding {
           BindingMode::ByValue(m) => m.clone(),
           BindingMode::ByRef(_) => {
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::InvalidSelfParam),
-              "invalid self parameter".to_string(),
-              self.source_file.path.clone(),
-            )
+            let diagnostic = self
+              .diagnostic(DiagnosticError::InvalidSelfParam, "invalid self parameter")
             .with_help("use `&self` or `&mut self`, not `ref self`".to_string());
-            self.engine.borrow_mut().add(diagnostic);
+            self.emit(diagnostic);
             return Err(());
           },
         };
@@ -280,13 +274,13 @@ impl Parser {
           };
 
           if type_annotation.is_some() {
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::InvalidSelfParam),
-              "typed self parameters cannot be references".to_string(),
-              self.source_file.path.clone(),
-            )
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidSelfParam,
+                "typed self parameters cannot be references",
+              )
             .with_help("use `self: Type` or `&self` syntax, not both".to_string());
-            self.engine.borrow_mut().add(diagnostic);
+            self.emit(diagnostic);
             return Err(());
           }
 

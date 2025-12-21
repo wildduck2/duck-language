@@ -1,8 +1,3 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
 use lexer::token::TokenKind;
 
 use crate::{ast::generic::*, match_and_consume, Parser};
@@ -30,18 +25,7 @@ impl Parser {
     if predicates.is_empty() {
       let token = self.current_token();
       let lexeme = self.get_token_lexeme(&token);
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::InvalidWhereClause),
-        format!("unexpected token `{}` in where-clause", lexeme),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("expected a valid where-clause here".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_note("a where-clause must be a valid predicate, like `T: Clone`".to_string());
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_invalid_where_clause(token.span, &lexeme));
       return Err(());
     }
 
@@ -65,23 +49,12 @@ impl Parser {
     // Handle either `:` (bounds) or `=` (equality)
     match self.current_token().kind {
       TokenKind::Colon => {
-        let bounds = self.parse_trait_bounds()?;
+        let bounds = self.parse_trait_bounds("where-clause")?;
 
         if bounds.is_empty() {
           let token = self.current_token();
           let lexeme = self.get_token_lexeme(&token);
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidTraitBound),
-            format!("unexpected token `{}` in where-clause predicate", lexeme),
-            self.source_file.path.clone(),
-          )
-          .with_label(
-            token.span,
-            Some("expected a valid trait bound here".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_note("a trait bound must be a valid type, like `T: Clone`".to_string());
-          self.engine.borrow_mut().add(diagnostic);
+          self.emit(self.err_invalid_trait_bound(token.span, &lexeme));
           return Err(());
         }
 
@@ -102,20 +75,7 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidWherePredicate),
-          format!("unexpected token `{}` in where-clause predicate", lexeme),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("expected `:`, `=`, or a valid bound here".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_note(
-          "a predicate must be one of: `T: Bound`, `'a: 'b`, or `T::Assoc = Type`".to_string(),
-        );
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_where_predicate(token.span, &lexeme));
         Err(())
       },
     }

@@ -1,8 +1,3 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
 use lexer::token::{LiteralKind, Token};
 
 use crate::{
@@ -53,17 +48,7 @@ impl Parser {
     base: lexer::token::Base,
   ) -> Result<Expr, ()> {
     if empty_int {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
-        "Invalid integer literal".into(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("Integer literal has no digits".into()),
-        LabelStyle::Primary,
-      );
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_invalid_literal(token.span, "integer literal has no digits"));
       return Err(());
     }
 
@@ -87,17 +72,7 @@ impl Parser {
     let value = match parsed {
       Ok(v) => v,
       Err(_) => {
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
-          "Invalid integer literal".into(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("Integer literal is too large or malformed".into()),
-          LabelStyle::Primary,
-        );
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_literal(token.span, "integer literal is too large or malformed"));
         return Err(());
       },
     };
@@ -134,17 +109,7 @@ impl Parser {
     let value = match parsed {
       Ok(v) => v,
       Err(_) => {
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
-          "Invalid float literal".into(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("Float literal is too large or malformed".into()),
-          LabelStyle::Primary,
-        );
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_literal(token.span, "float literal is too large or malformed"));
         return Err(());
       },
     };

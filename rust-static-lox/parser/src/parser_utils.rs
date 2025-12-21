@@ -1,9 +1,3 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
-
 use crate::{ast::*, Parser};
 use lexer::token::TokenKind;
 
@@ -69,21 +63,11 @@ impl Parser {
       // TokenKind::KwExtern => self.parse_extern_decl(attributes, visibility, ),
       kind => {
         let lexeme = self.get_token_lexeme(&self.current_token());
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          format!("unsupported item starting with `{lexeme}`"),
-          self.source_file.path.clone(),
-        )
-        .with_label(
+        self.emit(self.err_unexpected_token(
           self.current_token().span,
-          Some("the parser currently only understands struct declarations".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help(format!(
-          "item kind `{:?}` is not implemented yet; add support in `parse_item`",
-          kind
+          "item declaration",
+          &lexeme,
         ));
-        self.engine.borrow_mut().add(diagnostic);
         Err(())
       },
     }
@@ -230,23 +214,7 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "Unexpected token".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some(format!(
-            "Expected a primary expression, found \"{}\"",
-            lexeme
-          )),
-          LabelStyle::Primary,
-        )
-        .with_help(Parser::get_token_help(&token.kind, &token));
-
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_unexpected_token(token.span, "primary expression", &lexeme));
         Err(())
       },
     }

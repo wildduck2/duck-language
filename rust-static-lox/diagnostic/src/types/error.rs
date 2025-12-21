@@ -3,113 +3,189 @@ use crate::types::Severity;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticError {
-  // general
+  // ============================================================================
+  // General Errors (E0001-E0099)
+  // ============================================================================
   CodeNotFound,
   InvalidArguments,
 
-  // lexer
+  // ============================================================================
+  // Lexer Errors (E0100-E0199)
+  // ============================================================================
+  // Shebang and character errors
   InvalidShebang,
   InvalidCharacter,
+
+  // String and character literal errors
   UnterminatedString,
   TooManyRawStrHashes,
   InvalidStringStart,
   InvalidEscape,
+
+  // Prefix errors
   UnknownPrefix,
   ReservedPrefix,
+
+  // Lifetime errors
   InvalidLifetime,
+
+  // Number literal errors
   InvalidInteger,
+
+  // Identifier errors
   InvalidIdentifier,
 
-  // parser
+  // ============================================================================
+  // Parser Errors (E0200-E0299)
+  // ============================================================================
+  // Token and syntax errors
   UnexpectedToken,
+  MissingClosingBracket,
+
+  // Literal errors
   InvalidLiteral,
   EmptyChar,
-  MissingClosingBracket,
+
+  // Visibility and naming errors
   InvalidVisibilityRestriction,
   InvalidNameIdentifier,
-  UnexpectedLifetime,
+
+  // Type errors
   InvalidType,
   InvalidMutabilityInField,
   InvalidPointerType,
-  InvalidWherePredicate,
   InvalidMutability,
+
+  // Lifetime errors
+  UnexpectedLifetime,
+
+  // Generic and trait bound errors
+  InvalidWherePredicate,
+  InvalidWhereClause,
+  InvalidTraitBound,
+  InvalidTraitBoundModifier,
+  InvalidGenericArgs,
+  EmptyGenericArgs,
+
+  // Path errors
+  InvalidPathSegment,
+
+  // Syntax and structure errors
+  InvalidTrailingComma,
+
+  // Function and parameter errors
+  InvalidAbi,
+  InvalidVariadic,
+  InvalidSelfParam,
+  InvalidSelfInFreeFunction,
+
+  // Control flow errors
+  ReturnOutsideFunction,
+  ContinueOutsideLoop,
+  BreakOutsideLoop,
+  InvalidCondition,
+
+  // Block and flavor errors
+  ExpectedBlockAfterFlavor,
+  InvalidBlockFlavorContext,
+  InvalidFlavorOrder,
+
+  // Semantic errors
   UndefinedVariable,
   MismatchedTypes,
   TraitNotSatisfied,
   BorrowCheckerViolation,
-  ExpectedBlockAfterFlavor,
-  ReturnOutsideFunction,
-  ContinueOutsideLoop,
-  BreakOutsideLoop,
-  InvalidBlockFlavorContext,
-  InvalidFlavorOrder,
-  InvalidCondition,
-  InvalidSelfInFreeFunction,
-  InvalidAbi,
-  InvalidVariadic,
-  InvalidTraitBoundModifier,
-  InvalidSelfParam,
-  EmptyGenericArgs,
-  InvalidTrailingComma,
-  InvalidPathSegment,
-  InvalidGenericArgs,
-  InvalidWhereClause,
-  InvalidTraitBound,
 }
 
 impl DiagnosticError {
   pub fn code(&self) -> &str {
     match self {
+      // General Errors (E0001-E0099)
       Self::CodeNotFound => "E0001",
       Self::InvalidArguments => "E0002",
 
-      Self::InvalidShebang => "E0003",
-      Self::InvalidCharacter => "E0004",
-      Self::UnterminatedString => "E0005",
-      Self::TooManyRawStrHashes => "E0006",
-      Self::InvalidStringStart => "E0007",
-      Self::InvalidEscape => "E0008",
-      Self::UnknownPrefix => "E0009",
-      Self::ReservedPrefix => "E0010",
-      Self::InvalidLifetime => "E0011",
-      Self::InvalidInteger => "E0012",
-      Self::InvalidIdentifier => "E0018",
+      // Lexer Errors (E0100-E0199)
+      // Shebang and character errors
+      Self::InvalidShebang => "E0100",
+      Self::InvalidCharacter => "E0101",
 
-      Self::UnexpectedToken => "E0013",
-      Self::InvalidLiteral => "E0014",
-      Self::EmptyChar => "E0015",
-      Self::MissingClosingBracket => "E0016",
-      Self::InvalidVisibilityRestriction => "E0017",
-      Self::InvalidNameIdentifier => "E0018",
-      Self::UnexpectedLifetime => "E0019",
-      Self::InvalidType => "E0020",
-      Self::InvalidMutabilityInField => "E0021",
-      Self::InvalidPointerType => "E0022",
-      Self::InvalidWherePredicate => "E0023",
-      Self::InvalidMutability => "E0024",
-      Self::ExpectedBlockAfterFlavor => "E0029",
-      Self::ReturnOutsideFunction => "E0029",
-      Self::ContinueOutsideLoop => "E0029",
-      Self::BreakOutsideLoop => "E0029",
-      Self::InvalidBlockFlavorContext => "E0029",
-      Self::InvalidFlavorOrder => "E0029",
-      Self::InvalidCondition => "E0029",
-      Self::InvalidSelfInFreeFunction => "E0029",
-      Self::InvalidAbi => "E0029",
-      Self::InvalidVariadic => "E0029",
-      Self::InvalidTraitBoundModifier => "E0029",
-      Self::InvalidSelfParam => "E0029",
-      Self::EmptyGenericArgs => "E0029",
-      Self::InvalidTrailingComma => "E0029",
-      Self::InvalidPathSegment => "E0029",
-      Self::InvalidGenericArgs => "E0029",
-      Self::InvalidWhereClause => "E0029",
-      Self::InvalidTraitBound => "E0029",
+      // String and character literal errors
+      Self::UnterminatedString => "E0102",
+      Self::TooManyRawStrHashes => "E0103",
+      Self::InvalidStringStart => "E0104",
+      Self::InvalidEscape => "E0105",
 
-      Self::UndefinedVariable => "E0025",
-      Self::MismatchedTypes => "E0026",
-      Self::TraitNotSatisfied => "E0027",
-      Self::BorrowCheckerViolation => "E0028",
+      // Prefix errors
+      Self::UnknownPrefix => "E0106",
+      Self::ReservedPrefix => "E0107",
+
+      // Lifetime errors
+      Self::InvalidLifetime => "E0108",
+
+      // Number literal errors
+      Self::InvalidInteger => "E0109",
+
+      // Identifier errors
+      Self::InvalidIdentifier => "E0110",
+
+      // Parser Errors (E0200-E0299)
+      // Token and syntax errors
+      Self::UnexpectedToken => "E0200",
+      Self::MissingClosingBracket => "E0203",
+
+      // Literal errors
+      Self::InvalidLiteral => "E0201",
+      Self::EmptyChar => "E0202",
+
+      // Visibility and naming errors
+      Self::InvalidVisibilityRestriction => "E0204",
+      Self::InvalidNameIdentifier => "E0205",
+
+      // Type errors
+      Self::InvalidType => "E0207",
+      Self::InvalidMutabilityInField => "E0208",
+      Self::InvalidPointerType => "E0209",
+      Self::InvalidMutability => "E0211",
+
+      // Lifetime errors
+      Self::UnexpectedLifetime => "E0206",
+
+      // Generic and trait bound errors
+      Self::InvalidWherePredicate => "E0210",
+      Self::InvalidWhereClause => "E0232",
+      Self::InvalidTraitBound => "E0233",
+      Self::InvalidTraitBoundModifier => "E0226",
+      Self::InvalidGenericArgs => "E0231",
+      Self::EmptyGenericArgs => "E0228",
+
+      // Path errors
+      Self::InvalidPathSegment => "E0230",
+
+      // Syntax and structure errors
+      Self::InvalidTrailingComma => "E0229",
+
+      // Function and parameter errors
+      Self::InvalidAbi => "E0224",
+      Self::InvalidVariadic => "E0225",
+      Self::InvalidSelfParam => "E0227",
+      Self::InvalidSelfInFreeFunction => "E0223",
+
+      // Control flow errors
+      Self::ReturnOutsideFunction => "E0217",
+      Self::ContinueOutsideLoop => "E0218",
+      Self::BreakOutsideLoop => "E0219",
+      Self::InvalidCondition => "E0222",
+
+      // Block and flavor errors
+      Self::ExpectedBlockAfterFlavor => "E0216",
+      Self::InvalidBlockFlavorContext => "E0220",
+      Self::InvalidFlavorOrder => "E0221",
+
+      // Semantic errors
+      Self::UndefinedVariable => "E0212",
+      Self::MismatchedTypes => "E0213",
+      Self::TraitNotSatisfied => "E0214",
+      Self::BorrowCheckerViolation => "E0215",
     }
   }
 

@@ -1,8 +1,4 @@
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
 
 use crate::{
@@ -152,18 +148,18 @@ impl Parser {
       // Invalid token after `.`
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          format!("invalid token `{lexeme}` after `.`"),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("invalid token `{lexeme}` after `.`"),
+          )
         .with_label(
           token.span,
           Some("expected an identifier, tuple index, or method call target".to_string()),
           LabelStyle::Primary,
         )
         .with_help("Examples: `.foo`, `.0`, `.await`, or `.method(args)`.".to_string());
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         Err(())
       },
     }

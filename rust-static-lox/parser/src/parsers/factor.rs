@@ -1,6 +1,4 @@
-use diagnostic::code::DiagnosticCode;
-use diagnostic::diagnostic::{Diagnostic, LabelStyle};
-use diagnostic::types::error::DiagnosticError;
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
@@ -28,11 +26,11 @@ impl Parser {
         let bad = self.current_token();
         let lexeme = self.get_token_lexeme(&bad);
 
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "invalid right-hand side of factor expression".to_string(),
-          self.source_file.path.clone(),
-        )
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            "invalid right-hand side of factor expression",
+          )
         .with_label(
           bad.span,
           Some(format!(
@@ -46,7 +44,7 @@ impl Parser {
           "Rust parses `a * b * c` as `(a * b) * c`, which is almost always incorrect".to_string(),
         );
 
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(diagnostic);
         return Err(());
       }
 

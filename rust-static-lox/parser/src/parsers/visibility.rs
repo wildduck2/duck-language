@@ -1,6 +1,4 @@
-use diagnostic::code::DiagnosticCode;
-use diagnostic::diagnostic::{Diagnostic, LabelStyle};
-use diagnostic::types::error::DiagnosticError;
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{ast::Visibility, Parser};
@@ -35,11 +33,11 @@ impl Parser {
 
         _ => {
           let lexeme = self.get_token_lexeme(&restriction);
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidVisibilityRestriction),
-            format!("invalid visibility restriction '{}'", lexeme),
-            self.source_file.path.clone(),
-          )
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::InvalidVisibilityRestriction,
+              format!("invalid visibility restriction '{lexeme}'"),
+            )
           .with_label(
             restriction.span,
             Some(format!(
@@ -52,7 +50,7 @@ impl Parser {
             "valid forms are: pub, pub(self), pub(super), pub(in path::to::module)".to_string(),
           );
 
-          self.engine.borrow_mut().add(diagnostic);
+          self.emit(diagnostic);
           return Err(());
         },
       };

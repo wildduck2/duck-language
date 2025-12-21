@@ -2,13 +2,15 @@ use crate::{
   ast::{generic::*, Type},
   match_and_consume,
   parser_utils::ExprContext,
-  Diagnostic, Parser,
+  Parser,
 };
-use diagnostic::{code::DiagnosticCode, diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{Token, TokenKind};
 
 impl Parser {
-  pub fn parse_generic_params(&mut self, token: &mut Token) -> Result<Option<GenericParams>, ()> {
+  pub(crate) fn parse_generic_params(
+    &mut self,
+    token: &mut Token,
+  ) -> Result<Option<GenericParams>, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt) {
       return Ok(None);
     }
@@ -32,7 +34,7 @@ impl Parser {
   }
 
   /// Parses a single generic parameter (type, lifetime, or const).
-  pub fn parse_generic_param(&mut self) -> Result<GenericParam, ()> {
+  pub(crate) fn parse_generic_param(&mut self) -> Result<GenericParam, ()> {
     let attributes = self.parse_outer_attributes()?;
     let token = self.current_token();
 
@@ -68,37 +70,15 @@ impl Parser {
 
         if matches!(self.current_token().kind, TokenKind::Colon) {
           self.advance(); // consume the colon
-          while !self.is_eof()
-            && !matches!(
-              self.current_token().kind,
-              TokenKind::OpenBrace | TokenKind::Comma | TokenKind::Gt
-            )
-          {
+          while !self.is_eof() && !Self::is_bound_terminator(&self.current_token().kind) {
             let name = self.get_token_lexeme(&self.current_token());
             self.advance(); // consume the lifetime
             bounds.push(name);
 
-            if matches!(self.current_token().kind, TokenKind::Plus)
-              && !matches!(self.peek(1).kind, TokenKind::Lifetime { .. })
-              && !self.peek(1).kind.can_start_path()
+            if !self.consume_plus_and_require_bound("lifetime bounds", Self::is_path_start_or_lifetime)?
             {
-              let token = self.current_token();
-              let diagnostic = Diagnostic::new(
-                DiagnosticCode::Error(DiagnosticError::InvalidLifetime),
-                "expected a lifetime after `+`".to_string(),
-                self.source_file.path.clone(),
-              )
-              .with_label(
-                token.span,
-                Some("lifetime bounds must list lifetimes like `'a` or `'b`".to_string()),
-                LabelStyle::Primary,
-              )
-              .with_note("a lifetime must be a valid identifier, like `'a` or `'b`".to_string());
-              self.engine.borrow_mut().add(diagnostic);
-              return Err(());
+              break;
             }
-
-            self.expect(TokenKind::Plus)?;
           }
         }
 
@@ -112,7 +92,7 @@ impl Parser {
       // type generic: T, U: Bound, T = Default
       TokenKind::Ident => {
         let name = self.parse_name(false)?;
-        let bounds = self.parse_trait_bounds()?;
+        let bounds = self.parse_trait_bounds("generic parameter")?;
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance();
@@ -131,25 +111,17 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          format!("unexpected token `{}` in generic parameter list", lexeme),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("expected a type, lifetime, or const parameter".to_string()),
-          LabelStyle::Primary,
-        );
-
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_unexpected_token(token.span, "type, lifetime, or const parameter", &lexeme));
         Err(())
       },
     }
   }
 
   /// Parses either lifetime or trait bounds that follow a colon.
-  pub fn parse_trait_bounds(&mut self) -> Result<Vec<TypeBound>, ()> {
+  pub(crate) fn parse_trait_bounds(
+    &mut self,
+    context: &str,
+  ) -> Result<Vec<TypeBound>, ()> {
     let mut bounds = vec![];
     if !matches!(self.current_token().kind, TokenKind::Colon) {
       return Ok(bounds);
@@ -157,17 +129,7 @@ impl Parser {
 
     self.expect(TokenKind::Colon)?;
 
-    while !self.is_eof()
-      && !matches!(
-        self.current_token().kind,
-        TokenKind::OpenBrace
-          | TokenKind::Comma
-          | TokenKind::Gt
-          | TokenKind::Eq
-          | TokenKind::CloseParen
-          | TokenKind::Semi
-      )
-    {
+    while !self.is_eof() && !Self::is_bound_terminator(&self.current_token().kind) {
       match self.current_token().kind {
         TokenKind::Lifetime { .. } => {
           let name = self.get_token_lexeme(&self.current_token());
@@ -188,45 +150,7 @@ impl Parser {
         },
       }
 
-      let consumed_plus = match_and_consume!(self, TokenKind::Plus)?;
-
-      if consumed_plus {
-        let next = self.current_token();
-        if matches!(
-          next.kind,
-          TokenKind::Gt
-            | TokenKind::Comma
-            | TokenKind::OpenBrace
-            | TokenKind::CloseBrace
-            | TokenKind::CloseParen
-            | TokenKind::Eq
-            | TokenKind::Semi
-            | TokenKind::Eof
-        ) {
-          let prev = self.peek_prev(0);
-          // err_trailing_plus_in_bounds(prev.span, "where-clause"));
-          return Err(());
-        }
-
-        if !matches!(
-          next.kind,
-          TokenKind::Lifetime { .. }
-            | TokenKind::Tilde
-            | TokenKind::Question
-            | TokenKind::KwFor
-            | TokenKind::ColonColon
-            | TokenKind::Dollar
-            | TokenKind::KwCrate
-            | TokenKind::KwSelf
-            | TokenKind::KwSelfType
-            | TokenKind::KwSuper
-            | TokenKind::Ident
-        ) {
-          // let prev = self.peek_prev(0);
-          // .add(diag_factory.err_expected_bound_after_plus(prev.span, "where-clause"));
-          return Err(());
-        }
-      }
+      self.consume_plus_and_require_bound(context, Self::is_bound_start)?;
     }
 
     Ok(bounds)
@@ -237,27 +161,14 @@ impl Parser {
       TokenKind::Tilde => {
         self.advance(); // consume the "~"
 
-        if matches!(self.current_token().kind, TokenKind::KwConst) {
-          // (e.g., `~const Clone`)
-          self.advance(); // consume the "const"
-          Ok(TraitBoundModifier::Const)
-        } else {
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
-            "expected `const` after `~`".to_string(),
-            self.source_file.path.clone(),
-          )
-          .with_label(
-            self.current_token().span,
-            Some("use `~const Trait` for const trait bounds".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_note(
-            "trait bounds may only be prefixed with `~const`, `?`, or `?~const`".to_string(),
-          );
-          self.engine.borrow_mut().add(diagnostic);
-          Err(())
-        }
+          if matches!(self.current_token().kind, TokenKind::KwConst) {
+            self.advance(); // consume the "const"
+            Ok(TraitBoundModifier::Const)
+          } else {
+            let found = self.get_token_lexeme(&self.current_token());
+            self.emit(self.err_invalid_trait_bound_modifier(self.current_token().span, &format!("~{found}")));
+            Err(())
+          }
       },
       TokenKind::Question => {
         self.advance(); // consume the "?"
@@ -270,20 +181,8 @@ impl Parser {
             self.advance(); // consume the "const"
             Ok(TraitBoundModifier::MaybeConst)
           } else {
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::InvalidTraitBoundModifier),
-              "expected `const` after `?~`".to_string(),
-              self.source_file.path.clone(),
-            )
-            .with_label(
-              self.current_token().span,
-              Some("use `?~const Trait` for maybe-const trait bounds".to_string()),
-              LabelStyle::Primary,
-            )
-            .with_note(
-              "trait bounds may only be prefixed with `~const`, `?`, or `?~const`".to_string(),
-            );
-            self.engine.borrow_mut().add(diagnostic);
+            let found = self.get_token_lexeme(&self.current_token());
+            self.emit(self.err_invalid_trait_bound_modifier(self.current_token().span, &format!("?~{found}")));
             Err(())
           }
         } else {
@@ -295,7 +194,7 @@ impl Parser {
     }
   }
 
-  pub fn parse_generic_args(&mut self) -> Result<Option<GenericArgs>, ()> {
+  pub(crate) fn parse_generic_args(&mut self) -> Result<Option<GenericArgs>, ()> {
     match self.current_token().kind {
       TokenKind::OpenParen => {
         let token = self.current_token();
@@ -312,54 +211,21 @@ impl Parser {
             TokenKind::Comma | TokenKind::CloseParen
           ) {
             let bad = self.current_token();
-
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::InvalidGenericArgs),
-              "invalid generic argument".to_string(),
-              self.source_file.path.clone(),
-            )
-            .with_label(
-              bad.span,
-              Some("expected a ',' or ')' after a generic argument".to_string()),
-              LabelStyle::Primary,
-            )
-            .with_help(
-              "Generic arguments must be separated by a ',' and closed with ')'.".to_string(),
-            );
-            self.engine.borrow_mut().add(diagnostic);
+            let found = self.get_token_lexeme(&bad);
+            self.emit(self.err_invalid_generic_args(bad.span, &format!("expected ',' or ')', found `{found}`")));
             return Err(());
           }
 
           if matches!(self.current_token().kind, TokenKind::CloseParen)
             && matches!(token.kind, TokenKind::Comma)
           {
-            let diagnostic = Diagnostic::new(
-              DiagnosticCode::Error(DiagnosticError::InvalidTrailingComma),
-              "trailing comma before ')' is not allowed here".to_string(),
-              self.source_file.path.clone(),
-            )
-            .with_label(
-              token.span,
-              Some("remove this trailing comma".to_string()),
-              LabelStyle::Primary,
-            );
-            self.engine.borrow_mut().add(diagnostic);
+            self.emit(self.err_invalid_trailing_comma(token.span, "generic argument list"));
             return Err(());
           }
         }
 
         if inputs.is_empty() {
-          let diagnostic = Diagnostic::new(
-            DiagnosticCode::Error(DiagnosticError::EmptyGenericArgs),
-            "empty generic argument list".to_string(),
-            self.source_file.path.clone(),
-          )
-          .with_label(
-            token.span,
-            Some("expected a type, lifetime, or const parameter".to_string()),
-            LabelStyle::Primary,
-          );
-          self.engine.borrow_mut().add(diagnostic);
+          self.emit(self.err_empty_generic_args(token.span));
           return Err(());
         }
 
@@ -383,7 +249,7 @@ impl Parser {
   }
 
   /// Parses a single generic argument (type, lifetime, const, binding, …).
-  pub fn parse_generic_arg(&mut self) -> Result<GenericArg, ()> {
+  pub(crate) fn parse_generic_arg(&mut self) -> Result<GenericArg, ()> {
     let token = self.current_token();
     let name = self.get_token_lexeme(&token);
 
@@ -392,6 +258,7 @@ impl Parser {
         self.advance(); // consume the lifetime
         Ok(GenericArg::Lifetime(name))
       },
+
       TokenKind::Literal { .. } | TokenKind::OpenBrace => {
         let expr = self.parse_expression(vec![], ExprContext::Default)?;
         Ok(GenericArg::Const(expr))
@@ -399,34 +266,26 @@ impl Parser {
 
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Colon) => {
         self.advance(); // consume the identifier
-
         let args = self.parse_generic_args()?;
-
         if self.current_token().kind == TokenKind::Colon {
-          let bounds = self.parse_trait_bounds()?;
-
+          let bounds = self.parse_trait_bounds("generic argument")?;
           return Ok(GenericArg::Constraint { name, args, bounds });
         }
-
         self.expect(TokenKind::Colon)?;
         let ty = self.parse_type()?;
         Ok(GenericArg::Binding { name, args, ty })
       },
+
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Eq | TokenKind::Lt) => {
         self.advance(); // consume the identifier
-
         let args = self.parse_generic_args()?;
-
         if self.current_token().kind == TokenKind::Colon {
           self.advance(); // consume the ':'
-
-          let bounds = self.parse_trait_bounds()?;
+          let bounds = self.parse_trait_bounds("generic argument")?;
           return Ok(GenericArg::Constraint { args, name, bounds });
         }
-
         self.expect(TokenKind::Eq)?; // consume the '='
         let ty = self.parse_type()?;
-
         Ok(GenericArg::Binding { name, args, ty })
       },
 
@@ -446,22 +305,8 @@ impl Parser {
 
       if !matches!(self.current_token().kind, TokenKind::Comma | TokenKind::Gt) {
         let bad = self.current_token();
-
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidGenericArgs),
-          "Invalid generic argument".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          bad.span,
-          Some("Expected a ',' or '>' after a generic argument".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help(
-          "Generic arguments must be separated by a ',' and may not be followed by a '>'."
-            .to_string(),
-        );
-        self.engine.borrow_mut().add(diagnostic);
+        let found = self.get_token_lexeme(&bad);
+        self.emit(self.err_invalid_generic_args(bad.span, &format!("expected ',' or '>', found `{found}`")));
         return Err(());
       }
 
@@ -470,37 +315,85 @@ impl Parser {
       if matches!(self.current_token().kind, TokenKind::Gt)
         && matches!(token.kind, TokenKind::Comma)
       {
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidTrailingComma),
-          "trailing comma before '>' is not allowed here".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("remove this trailing comma".to_string()),
-          LabelStyle::Primary,
-        );
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_invalid_trailing_comma(token.span, "generic argument list"));
         return Err(());
       }
     }
 
     if args.is_empty() {
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::EmptyGenericArgs),
-        "empty generic argument list".to_string(),
-        self.source_file.path.clone(),
-      )
-      .with_label(
-        token.span,
-        Some("expected a type, lifetime, or const parameter".to_string()),
-        LabelStyle::Primary,
-      );
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(self.err_empty_generic_args(token.span));
       return Err(());
     }
 
     self.expect(TokenKind::Gt)?;
     Ok(args)
+  }
+
+  pub(crate) fn is_bound_start(kind: &TokenKind) -> bool {
+    matches!(
+      kind,
+      TokenKind::Lifetime { .. }
+        | TokenKind::Tilde
+        | TokenKind::Question
+        | TokenKind::KwFor
+        | TokenKind::ColonColon
+        | TokenKind::Dollar
+        | TokenKind::KwCrate
+        | TokenKind::KwSelf
+        | TokenKind::KwSelfType
+        | TokenKind::KwSuper
+        | TokenKind::Ident
+    )
+  }
+
+  pub(crate) fn is_path_start_or_lifetime(kind: &TokenKind) -> bool {
+    matches!(kind, TokenKind::Lifetime { .. }) || kind.can_start_path()
+  }
+
+  pub(crate) fn is_lifetime_start(kind: &TokenKind) -> bool {
+    matches!(kind, TokenKind::Lifetime { .. })
+  }
+
+  pub(crate) fn is_bound_terminator(kind: &TokenKind) -> bool {
+    matches!(
+      kind,
+      TokenKind::OpenBrace
+        | TokenKind::CloseBrace
+        | TokenKind::Comma
+        | TokenKind::Gt
+        | TokenKind::Eq
+        | TokenKind::CloseParen
+        | TokenKind::Semi
+        | TokenKind::Eof
+    )
+  }
+
+  pub(crate) fn consume_plus_and_require_bound<F>(
+    &mut self,
+    context: &str,
+    is_valid_start: F,
+  ) -> Result<bool, ()>
+  where
+    F: Fn(&TokenKind) -> bool,
+  {
+    let consumed_plus = match_and_consume!(self, TokenKind::Plus)?;
+
+    if !consumed_plus {
+      return Ok(false);
+    }
+
+    let next = self.current_token();
+    if Self::is_bound_terminator(&next.kind) {
+      let prev = self.peek_prev(0);
+      self.emit(self.err_trailing_plus_in_bounds(prev.span, context));
+      return Err(());
+    }
+
+    if !is_valid_start(&next.kind) {
+      self.emit(self.err_expected_bound_after_plus(self.peek_prev(0).span, context));
+      return Err(());
+    }
+
+    Ok(true)
   }
 }

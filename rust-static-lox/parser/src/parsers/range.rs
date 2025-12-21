@@ -3,11 +3,7 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -72,11 +68,11 @@ impl Parser {
       let bad = self.current_token();
       let lexeme = self.get_token_lexeme(&bad);
 
-      let diagnostic = Diagnostic::new(
-        DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-        "chained range expressions are not allowed".to_string(),
-        self.source_file.path.clone(),
-      )
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          "chained range expressions are not allowed",
+        )
       .with_label(
         bad.span,
         Some(format!("found `{lexeme}` after a range expression")),
@@ -85,7 +81,7 @@ impl Parser {
       .with_help("only one `..` or `..=` may appear in a range expression".to_string())
       .with_note("`a..b..c` is invalid; use `(a..b)` or `(b..c)` instead".to_string());
 
-      self.engine.borrow_mut().add(diagnostic);
+      self.emit(diagnostic);
       return Err(());
     }
 

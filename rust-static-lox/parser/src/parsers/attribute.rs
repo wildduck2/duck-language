@@ -7,11 +7,6 @@ use crate::{
   Parser,
 };
 
-use diagnostic::{
-  code::DiagnosticCode,
-  diagnostic::{Diagnostic, LabelStyle},
-  types::error::DiagnosticError,
-};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -78,25 +73,7 @@ impl Parser {
       _ => {
         let offending = self.current_token();
         let lexeme = self.get_token_lexeme(&offending);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "Unexpected token".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          offending.span,
-          Some(format!(
-            "expected `#` or `#!` to start an attribute, found `{lexeme}`"
-          )),
-          LabelStyle::Primary,
-        )
-        .with_help("Attributes must be prefixed with `#` (outer) or `#!` (inner).".to_string())
-        .with_help(Parser::get_token_help(
-          &self.current_token().kind,
-          &self.current_token(),
-        ));
-
-        self.engine.borrow_mut().add(diagnostic);
+        self.emit(self.err_unexpected_token(offending.span, "`#` or `#!`", &lexeme));
         return Err(());
       },
     };
@@ -158,17 +135,8 @@ impl Parser {
       TokenKind::OpenBracket => Delimiter::Bracket,
       TokenKind::OpenBrace => Delimiter::Brace,
       _ => {
-        let diag = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::UnexpectedToken),
-          "Expected a delimiter start".to_string(),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          open.span,
-          Some("not a delimiter start".to_string()),
-          LabelStyle::Primary,
-        );
-        self.engine.borrow_mut().add(diag);
+        let found = self.get_token_lexeme(&open);
+        self.emit(self.err_unexpected_token(open.span, "delimiter start (`(`, `[`, or `{`)", &found));
         return Err(());
       },
     };

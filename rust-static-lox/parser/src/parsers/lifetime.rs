@@ -1,5 +1,4 @@
-use crate::{Diagnostic, Parser};
-use diagnostic::{code::DiagnosticCode, diagnostic::LabelStyle, types::error::DiagnosticError};
+use crate::Parser;
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -27,19 +26,7 @@ impl Parser {
     }
 
     let lexeme = self.get_token_lexeme(&self.current_token());
-    let diagnostic = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::InvalidLifetime),
-      format!("unexpected token `{}` in lifetime", lexeme),
-      self.source_file.path.clone(),
-    )
-    .with_label(
-      token.span,
-      Some("expected a valid lifetime here".to_string()),
-      LabelStyle::Primary,
-    )
-    .with_note("a lifetime must be a valid identifier, like `'a` or `'b`".to_string());
-
-    self.engine.borrow_mut().add(diagnostic);
+    self.emit(self.err_expected_lifetime(token.span, &lexeme));
     Err(())
   }
 
@@ -51,19 +38,7 @@ impl Parser {
       if matches!(self.current_token().kind, TokenKind::Gt) {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        let diag = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidLifetime),
-          format!("unexpected token `{}` in lifetime", lexeme),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("expected a valid lifetime here".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_note("a lifetime must be a valid identifier, like `'a` or `'b`".to_string());
-
-        self.engine.borrow_mut().add(diag);
+        self.emit(self.err_expected_lifetime(token.span, &lexeme));
         return Err(());
       }
 
@@ -78,39 +53,13 @@ impl Parser {
 
   pub(crate) fn parse_lifetime_bounds(&mut self) -> Result<Vec<String>, ()> {
     let mut bounds = vec![];
-    while !self.is_eof()
-      && !matches!(
-        self.current_token().kind,
-        TokenKind::OpenBrace | TokenKind::Comma | TokenKind::Gt
-      )
-    {
+    while !self.is_eof() && !Self::is_bound_terminator(&self.current_token().kind) {
       let lifetime = self.parse_lifetime()?;
-
-      if matches!(self.current_token().kind, TokenKind::Plus) {
-        self.advance(); // consume '+'
-      }
-
-      if matches!(self.current_token().kind, TokenKind::Plus)
-        && !matches!(self.peek(1).kind, TokenKind::Lifetime { .. })
-      {
-        let token = self.current_token();
-        let lexeme = self.get_token_lexeme(&token);
-        let diagnostic = Diagnostic::new(
-          DiagnosticCode::Error(DiagnosticError::InvalidLifetime),
-          format!("unexpected token `{}` in lifetime", lexeme),
-          self.source_file.path.clone(),
-        )
-        .with_label(
-          token.span,
-          Some("expected a valid lifetime here".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_note("a lifetime must be a valid identifier, like `'a` or `'b`".to_string());
-        self.engine.borrow_mut().add(diagnostic);
-        return Err(());
-      }
-
       bounds.push(lifetime);
+
+      if !self.consume_plus_and_require_bound("lifetime bounds", Self::is_lifetime_start)? {
+        break;
+      }
     }
 
     Ok(bounds)
