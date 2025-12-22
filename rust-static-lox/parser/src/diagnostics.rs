@@ -9,17 +9,27 @@ use crate::Parser;
 
 impl Parser {
   // Create a parser diagnostic pre-populated with the current file path.
-  pub(crate) fn diagnostic(
-    &self,
-    code: DiagnosticError,
-    message: impl Into<String>,
-  ) -> Diagnostic {
-    Diagnostic::new(DiagnosticCode::Error(code), message.into(), self.source_file.path.clone())
+  pub(crate) fn diagnostic(&self, code: DiagnosticError, message: impl Into<String>) -> Diagnostic {
+    Diagnostic::new(
+      DiagnosticCode::Error(code),
+      message.into(),
+      self.source_file.path.clone(),
+    )
   }
 
   // Emit a diagnostic through the parser's engine.
   pub(crate) fn emit(&mut self, diagnostic: Diagnostic) {
     self.engine.borrow_mut().add(diagnostic);
+  }
+
+  pub(crate) fn err_invalid_comma(&self, span: Span, details: &str) -> Diagnostic {
+    self
+      .diagnostic(
+        DiagnosticError::InvalidComma,
+        "unexpected comma".to_string(),
+      )
+      .with_label(span, Some(details.to_string()), LabelStyle::Primary)
+      .with_help("remove the comma or add a valid element after it".to_string())
   }
 
   // Token and syntax errors
@@ -37,11 +47,7 @@ impl Parser {
       .with_note(format!("unexpected token: `{found}`"))
   }
 
-  pub(crate) fn err_missing_closing_bracket(
-    &self,
-    span: Span,
-    bracket_type: &str,
-  ) -> Diagnostic {
+  pub(crate) fn err_missing_closing_bracket(&self, span: Span, bracket_type: &str) -> Diagnostic {
     self
       .diagnostic(
         DiagnosticError::MissingClosingBracket,
@@ -52,7 +58,9 @@ impl Parser {
         Some(format!("opening bracket `{bracket_type}` is not closed")),
         LabelStyle::Primary,
       )
-      .with_help(format!("add a closing `{bracket_type}` to match the opening bracket"))
+      .with_help(format!(
+        "add a closing `{bracket_type}` to match the opening bracket"
+      ))
   }
 
   // Literal errors
@@ -76,16 +84,19 @@ impl Parser {
         Some(format!("{string_type} literal is not terminated")),
         LabelStyle::Primary,
       )
-      .with_help(format!("add a closing quote to terminate the {string_type} literal"))
+      .with_help(format!(
+        "add a closing quote to terminate the {string_type} literal"
+      ))
   }
 
   pub(crate) fn err_empty_char(&self, span: Span) -> Diagnostic {
     self
-      .diagnostic(
-        DiagnosticError::EmptyChar,
-        "empty character literal",
+      .diagnostic(DiagnosticError::EmptyChar, "empty character literal")
+      .with_label(
+        span,
+        Some("character literal cannot be empty".to_string()),
+        LabelStyle::Primary,
       )
-      .with_label(span, Some("character literal cannot be empty".to_string()), LabelStyle::Primary)
       .with_help("character literals must contain exactly one Unicode scalar value".to_string())
   }
 
@@ -102,10 +113,15 @@ impl Parser {
       )
       .with_label(
         span,
-        Some(format!("`{restriction}` is not a valid visibility modifier")),
+        Some(format!(
+          "`{restriction}` is not a valid visibility modifier"
+        )),
         LabelStyle::Primary,
       )
-      .with_help("valid visibility modifiers are `pub`, `pub(crate)`, `pub(super)`, or `pub(in path)`".to_string())
+      .with_help(
+        "valid visibility modifiers are `pub`, `pub(crate)`, `pub(super)`, or `pub(in path)`"
+          .to_string(),
+      )
   }
 
   pub(crate) fn err_invalid_name_identifier(&self, span: Span, found: &str) -> Diagnostic {
@@ -123,7 +139,12 @@ impl Parser {
   }
 
   // Type errors
-  pub(crate) fn err_invalid_type(&self, span: Span, found: &str, context: Option<&str>) -> Diagnostic {
+  pub(crate) fn err_invalid_type(
+    &self,
+    span: Span,
+    found: &str,
+    context: Option<&str>,
+  ) -> Diagnostic {
     let msg = if let Some(ctx) = context {
       format!("expected type, found `{found}` in {ctx}")
     } else {
@@ -139,7 +160,8 @@ impl Parser {
     if let Some(ctx) = context {
       diag = diag.with_note(format!("in {ctx}, a type was expected here"));
     }
-    diag.with_help("if this is a type name, ensure it is declared or imported into scope".to_string())
+    diag
+      .with_help("if this is a type name, ensure it is declared or imported into scope".to_string())
   }
 
   pub(crate) fn err_invalid_mutability_in_field(&self, span: Span, specifier: &str) -> Diagnostic {
@@ -235,7 +257,10 @@ impl Parser {
         Some("expected a valid where-clause predicate here".to_string()),
         LabelStyle::Primary,
       )
-      .with_note("where-clauses must contain at least one predicate, like `T: Clone` or `'a: 'b`".to_string())
+      .with_note(
+        "where-clauses must contain at least one predicate, like `T: Clone` or `'a: 'b`"
+          .to_string(),
+      )
   }
 
   pub(crate) fn err_invalid_trait_bound(&self, span: Span, found: &str) -> Diagnostic {
@@ -264,16 +289,6 @@ impl Parser {
         LabelStyle::Primary,
       )
       .with_help("valid trait bound modifiers are `?` for optional bounds".to_string())
-  }
-
-  pub(crate) fn err_invalid_generic_args(&self, span: Span, details: &str) -> Diagnostic {
-    self
-      .diagnostic(
-        DiagnosticError::InvalidGenericArgs,
-        format!("invalid generic arguments: {details}"),
-      )
-      .with_label(span, Some(details.to_string()), LabelStyle::Primary)
-      .with_help("generic arguments must be types, lifetimes, or const values".to_string())
   }
 
   pub(crate) fn err_empty_generic_args(&self, span: Span) -> Diagnostic {
@@ -323,10 +338,7 @@ impl Parser {
   // Function and parameter errors
   pub(crate) fn err_invalid_abi(&self, span: Span, abi: &str) -> Diagnostic {
     self
-      .diagnostic(
-        DiagnosticError::InvalidAbi,
-        format!("invalid ABI: `{abi}`"),
-      )
+      .diagnostic(DiagnosticError::InvalidAbi, format!("invalid ABI: `{abi}`"))
       .with_label(
         span,
         Some(format!("`{abi}` is not a recognized ABI")),
@@ -360,7 +372,10 @@ impl Parser {
         Some(format!("`self` parameter not allowed in {context}")),
         LabelStyle::Primary,
       )
-      .with_help("`self` can only be used as the first parameter of associated functions or methods".to_string())
+      .with_help(
+        "`self` can only be used as the first parameter of associated functions or methods"
+          .to_string(),
+      )
   }
 
   pub(crate) fn err_invalid_self_in_free_function(&self, span: Span) -> Diagnostic {
@@ -517,7 +532,11 @@ impl Parser {
     .with_label(span, Some(details.to_string()), LabelStyle::Primary)
   }
 
-  pub(crate) fn decoder_err_unterminated_string(path: &str, span: Span, details: &str) -> Diagnostic {
+  pub(crate) fn decoder_err_unterminated_string(
+    path: &str,
+    span: Span,
+    details: &str,
+  ) -> Diagnostic {
     Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::UnterminatedString),
       format!("unterminated string literal: {details}"),
@@ -527,7 +546,12 @@ impl Parser {
     .with_help("add a closing quote to terminate the string literal".to_string())
   }
 
-  pub(crate) fn decoder_err_invalid_escape(path: &str, span: Span, escape: &str, context: Option<&str>) -> Diagnostic {
+  pub(crate) fn decoder_err_invalid_escape(
+    path: &str,
+    span: Span,
+    escape: &str,
+    context: Option<&str>,
+  ) -> Diagnostic {
     let msg = if let Some(ctx) = context {
       format!("invalid escape sequence `\\{escape}` in {ctx}")
     } else {
@@ -544,7 +568,9 @@ impl Parser {
       LabelStyle::Primary,
     );
     if let Some(ctx) = context {
-      diag = diag.with_note(format!("in {ctx}, only certain escape sequences are allowed"));
+      diag = diag.with_note(format!(
+        "in {ctx}, only certain escape sequences are allowed"
+      ));
     }
     diag.with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string())
   }
@@ -552,7 +578,10 @@ impl Parser {
   pub(crate) fn decoder_err_char_too_long(path: &str, span: Span, chars: &[char]) -> Diagnostic {
     Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::EmptyChar),
-      format!("character literal contains {} character(s), expected exactly 1", chars.len()),
+      format!(
+        "character literal contains {} character(s), expected exactly 1",
+        chars.len()
+      ),
       path.to_string(),
     )
     .with_label(
@@ -560,7 +589,9 @@ impl Parser {
       Some("character literal must contain exactly one Unicode scalar value".to_string()),
       LabelStyle::Primary,
     )
-    .with_help("character literals must be a single Unicode scalar or a single escape sequence".to_string())
+    .with_help(
+      "character literals must be a single Unicode scalar or a single escape sequence".to_string(),
+    )
   }
 
   pub(crate) fn decoder_err_byte_out_of_range(path: &str, span: Span) -> Diagnostic {

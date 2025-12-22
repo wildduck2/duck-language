@@ -11,7 +11,9 @@ mod where_tests {
   };
 
   fn parse_where_clause(input: &str) -> Result<Option<WhereClause>, ()> {
-    run_parser(input, "where_clause_test_temp", |parser| parser.parse_where_clause())
+    run_parser(input, "where_clause_test_temp", |parser| {
+      parser.parse_where_clause()
+    })
   }
 
   fn ty(name: &str) -> Type {
@@ -226,5 +228,104 @@ mod where_tests {
   #[test]
   fn errors_on_multiple_equals() {
     assert!(parse_where_clause("where T = U = V").is_err());
+  }
+
+  #[test]
+  fn allows_trailing_comma_in_where_clause() {
+    assert!(parse_where_clause("where T: Clone,").is_ok());
+  }
+
+  #[test]
+  fn parses_trailing_comma_without_extra_predicate() {
+    let clause = parse_where_clause("where T: Clone,").unwrap().unwrap();
+    assert_eq!(clause.predicates.len(), 1);
+  }
+
+  #[test]
+  fn parses_for_lifetimes_on_equality_predicate() {
+    let clause = parse_where_clause("where for<'a> T = U").unwrap().unwrap();
+    assert_eq!(
+      clause,
+      WhereClause {
+        predicates: vec![WherePredicate::Equality {
+          ty: ty("T"),
+          equals: ty("U"),
+        }],
+      }
+    );
+  }
+
+  #[test]
+  fn parses_multiple_for_lifetime_predicates() {
+    let clause = parse_where_clause("where for<'a> T: Clone, for<'b> U: Copy")
+      .unwrap()
+      .unwrap();
+    assert_eq!(
+      clause,
+      WhereClause {
+        predicates: vec![
+          WherePredicate::Type {
+            for_lifetimes: Some(vec!["'a".to_string()]),
+            ty: ty("T"),
+            bounds: vec![trait_bound("Clone")],
+          },
+          WherePredicate::Type {
+            for_lifetimes: Some(vec!["'b".to_string()]),
+            ty: ty("U"),
+            bounds: vec![trait_bound("Copy")],
+          },
+        ],
+      }
+    );
+  }
+
+  #[test]
+  fn errors_on_trait_bound_in_lifetime_predicate() {
+    assert!(parse_where_clause("where 'a: Trait").is_err());
+  }
+
+  #[test]
+  fn errors_on_lifetime_bound_in_equality_predicate() {
+    assert!(parse_where_clause("where 'a = 'b").is_err());
+  }
+
+  #[test]
+  fn errors_on_for_lifetime_before_lifetime_predicate() {
+    assert!(parse_where_clause("where for<'a> 'b: 'a").is_err());
+  }
+
+  #[test]
+  fn errors_on_comma_without_predicate() {
+    assert!(parse_where_clause("where ,").is_err());
+  }
+
+  #[test]
+  fn errors_on_double_comma() {
+    assert!(parse_where_clause("where T: Clone,, U: Copy").is_err());
+  }
+
+  #[test]
+  fn errors_on_trailing_comma_without_predicate() {
+    assert!(parse_where_clause("where T: Clone, ,").is_err());
+  }
+
+  #[test]
+  fn errors_on_unclosed_for_lifetimes() {
+    assert!(parse_where_clause("where for<'a T: Clone").is_err());
+  }
+
+  #[test]
+  fn errors_on_unexpected_gt_in_bounds() {
+    assert!(parse_where_clause("where T: Clone > Copy").is_err());
+  }
+
+  #[test]
+  fn errors_on_bounds_without_type() {
+    assert!(parse_where_clause("where : Clone").is_err());
+  }
+
+  #[test]
+  fn errors_on_equality_with_bounds() {
+    assert!(parse_where_clause("where T = U: Clone").is_err());
   }
 }

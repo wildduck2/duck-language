@@ -44,11 +44,6 @@ pub enum ExprKind {
     base: Option<Box<Expr>>,
   },
 
-  TupleStruct {
-    path: Path,
-    elements: Vec<Expr>,
-  },
-
   Call {
     callee: Box<Expr>,
     args: Vec<Expr>,

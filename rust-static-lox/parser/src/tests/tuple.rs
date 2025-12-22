@@ -41,14 +41,12 @@ mod tuple_tests {
   fn simplify(expr: &ExprKind) -> SimpleExpr {
     match expr {
       ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-      ExprKind::Tuple { elements } => tuple(
-        elements
-          .iter()
-          .map(|element| simplify(&element.kind))
-          .collect(),
-      ),
+
+      ExprKind::Tuple { elements } => tuple(elements.iter().map(|e| simplify(&e.kind)).collect()),
+
       ExprKind::Group { expr } => group(simplify(&expr.kind)),
-      _ => panic!("unsupported expression in tuple tests: {:?}", expr),
+
+      other => panic!("unsupported expression in tuple tests: {:?}", other),
     }
   }
 
@@ -111,18 +109,16 @@ mod tuple_tests {
   }
 
   #[test]
-  fn multiple_trailing_commas_allowed() {
-    assert_expr("(1,,)", tuple(vec![int(1)]));
+  fn empty_group_inside_tuple() {
+    assert_expr("((), 1)", tuple(vec![tuple(vec![]), int(1)]));
   }
 
   #[test]
-  fn leading_comma_allowed() {
-    assert_expr("(,1)", group(int(1)));
-  }
-
-  #[test]
-  fn many_leading_and_trailing_commas() {
-    assert_expr("(,,1,,)", tuple(vec![int(1)]));
+  fn deeply_nested_group_and_tuple() {
+    assert_expr(
+      "(((1,), (2)),)",
+      tuple(vec![tuple(vec![tuple(vec![int(1)]), group(int(2))])]),
+    );
   }
 
   #[test]
@@ -141,15 +137,39 @@ mod tuple_tests {
   }
 
   #[test]
-  fn empty_but_with_comma_is_unit_tuple() {
-    assert_expr("(,)", tuple(vec![]));
+  fn leading_comma_errors() {
+    assert_err("(,1)");
   }
 
   #[test]
-  fn deeply_nested_group_and_tuple() {
-    assert_expr(
-      "(((1,), (2)),)",
-      tuple(vec![tuple(vec![tuple(vec![int(1)]), group(int(2))])]),
-    );
+  fn double_comma_errors() {
+    assert_err("(1,,2)");
+  }
+
+  #[test]
+  fn only_commas_errors() {
+    assert_err("(,,)");
+  }
+
+  #[test]
+  fn trailing_double_comma_errors() {
+    assert_err("(1,,)");
+  }
+
+  #[test]
+  fn tuple_followed_by_extra_tokens_errors() {
+    assert_err("(1, 2),");
+  }
+
+  #[test]
+  fn grouped_unit_tuple() {
+    // (()) is a group containing the unit tuple
+    assert_expr("(())", group(tuple(vec![])));
+  }
+
+  #[test]
+  fn unit_tuple_inside_group_inside_group() {
+    // Nested grouping around unit tuple
+    assert_expr("((()))", group(group(tuple(vec![]))));
   }
 }

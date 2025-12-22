@@ -61,7 +61,7 @@ pub(crate) fn parse_primary_expr(
   })
 }
 
-pub(crate) fn parse_expression_expr(
+pub(crate) fn parse_expression(
   input: &str,
   file_stem: &str,
   context: ExprContext,

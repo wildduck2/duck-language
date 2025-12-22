@@ -157,13 +157,13 @@ impl Parser {
   fn get_token_help(expected: &TokenKind, found: &Token) -> String {
     match (expected, &found.kind) {
       (TokenKind::Semi, _) => "Statements must end with a semicolon".to_string(),
-      (TokenKind::OpenParen, TokenKind::Semi) => {
+      (TokenKind::LParen, TokenKind::Semi) => {
         "Did you forget to close the parentheses before the semicolon?".to_string()
       },
-      (TokenKind::CloseBrace, TokenKind::Eof) => {
+      (TokenKind::RBrace, TokenKind::Eof) => {
         "Did you forget to close a block with '}'?".to_string()
       },
-      (TokenKind::CloseParen, _) => {
+      (TokenKind::RParen, _) => {
         "Control flow statements require parentheses around conditions".to_string()
       },
       (TokenKind::Colon, TokenKind::Semi) => {
@@ -189,6 +189,33 @@ impl Parser {
   pub(crate) fn advance_till_match(&mut self, kind: TokenKind) {
     while !self.is_eof() && self.current_token().kind != kind {
       self.advance();
+    }
+  }
+
+  pub(crate) fn check_comma_with_trailing(&mut self, trailing: bool) -> Result<bool, ()> {
+    let bad = self.current_token();
+    if matches!(bad.kind, TokenKind::Comma) {
+      match self.peek(1).kind {
+        kind if kind.token_starts_expression() => {
+          self.advance(); // consume comma
+          Ok(true)
+        },
+        kind if matches!(kind, TokenKind::RParen) && trailing => {
+          self.advance(); // consume comma
+          Ok(true)
+        },
+
+        _ => {
+          let found = self.get_token_lexeme(&bad);
+          self.emit(self.err_invalid_comma(
+            bad.span,
+            &format!("expected expression or ')', found `{found}`"),
+          ));
+          Err(())
+        },
+      }
+    } else {
+      Ok(false)
     }
   }
 }

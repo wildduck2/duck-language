@@ -25,7 +25,7 @@ impl Lexer {
       return Ok(TokenKind::AndEq);
     }
 
-    Ok(TokenKind::And)
+    Ok(TokenKind::Amp)
   }
 
   /// Lexes a pipe (`|`) or compound assignment (`|=`).

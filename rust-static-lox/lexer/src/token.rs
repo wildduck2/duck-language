@@ -429,21 +429,21 @@ pub enum TokenKind {
   // =========================================================================
   // PUNCTUATION & DELIMITERS
   // =========================================================================
-  Semi,         // ;
-  Comma,        // ,
-  Dot,          // .
-  OpenParen,    // (
-  CloseParen,   // )
-  OpenBrace,    // {
-  CloseBrace,   // }
-  OpenBracket,  // [
-  CloseBracket, // ]
-  At,           // @
-  Pound,        // #
-  Tilde,        // ~
-  Question,     // ?
-  Colon,        // :
-  Dollar,       // $
+  Semi,     // ;
+  Comma,    // ,
+  Dot,      // .
+  LParen,   // (
+  RParen,   // )
+  LBrace,   // {
+  RBrace,   // }
+  LBracket, // [
+  RBracket, // ]
+  At,       // @
+  Pound,    // #
+  Tilde,    // ~
+  Question, // ?
+  Colon,    // :
+  Dollar,   // $
 
   // =========================================================================
   // OPERATORS (Single-character and Compound)
@@ -466,7 +466,7 @@ pub enum TokenKind {
   Percent, // %
 
   // Bitwise & Logical
-  And,   // &
+  Amp,   // &
   Or,    // |
   Caret, // ^
   Bang,  // !
@@ -506,10 +506,26 @@ impl TokenKind {
     )
   }
 
-  /// Returns true if this token can start an expression.
-  ///
-  /// This is essentially the same as [`can_start_expr`], but used where
-  /// the longer name reads better.
+  pub fn token_starts_expression(&self) -> bool {
+    matches!(
+      self,
+      Ident
+        | Literal { .. }
+        | LParen
+        | LBrace
+        | LBracket
+        | Minus
+        | Bang
+        | Star
+        | Amp
+        | KwIf
+        | KwMatch
+        | KwWhile
+        | KwFor
+        | KwLoop
+    )
+  }
+
   pub fn can_start_expression(&self) -> bool {
     matches!(
       self,
@@ -518,9 +534,9 @@ impl TokenKind {
       | Literal { .. }
 
       // grouping and array and block and struct literal
-      | OpenParen
-      | OpenBracket
-      | OpenBrace
+      | LParen
+      | LBracket
+      | LBrace
 
       // closure
       | Or
@@ -530,7 +546,7 @@ impl TokenKind {
       | Minus
       | Star
       | Bang
-      | And
+      | Amp
 
       // control flow expressions
       | KwIf
@@ -566,8 +582,8 @@ impl TokenKind {
       self,
       // postfix ops
       Dot            // .field, .await, method calls, tuple index
-      | OpenParen  // call
-      | OpenBracket// index
+      | LParen  // call
+      | LBracket// index
       | Question   // ?
 
     // cast
@@ -581,7 +597,7 @@ impl TokenKind {
       | Percent
       | Caret
       | Or
-      | And
+      | Amp
 
     // comparison
       | EqEq

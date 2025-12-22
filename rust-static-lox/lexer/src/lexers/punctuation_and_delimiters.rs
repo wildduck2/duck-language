@@ -58,7 +58,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::OpenParen)`
   pub(crate) fn lex_open_paren(&mut self) -> Result<TokenKind, ()> {
-    Ok(TokenKind::OpenParen)
+    Ok(TokenKind::LParen)
   }
 
   /// Lexes a close parenthesis (`)`).
@@ -69,7 +69,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::CloseParen)`
   pub(crate) fn lex_close_paren(&mut self) -> Result<TokenKind, ()> {
-    Ok(TokenKind::CloseParen)
+    Ok(TokenKind::RParen)
   }
 
   /// Lexes an open brace (`{`).
@@ -80,7 +80,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::OpenBrace)`
   pub(crate) fn lex_open_brace(&mut self) -> Result<TokenKind, ()> {
-    Ok(TokenKind::OpenBrace)
+    Ok(TokenKind::LBrace)
   }
 
   /// Lexes a close brace (`}`).
@@ -91,7 +91,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::CloseBrace)`
   pub(crate) fn lex_close_brace(&mut self) -> Result<TokenKind, ()> {
-    Ok(TokenKind::CloseBrace)
+    Ok(TokenKind::RBrace)
   }
 
   /// Lexes an open bracket (`[`).
@@ -102,7 +102,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::OpenBracket)`
   pub(crate) fn lex_open_bracket(&mut self) -> Result<TokenKind, ()> {
-    Ok(TokenKind::OpenBracket)
+    Ok(TokenKind::LBracket)
   }
 
   /// Lexes a close bracket (`]`).
@@ -113,7 +113,7 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::CloseBracket)`
   pub(crate) fn lex_close_bracket(&mut self) -> Result<TokenKind, ()> {
-    Ok(TokenKind::CloseBracket)
+    Ok(TokenKind::RBracket)
   }
 
   /// Lexes an at symbol (`@`).

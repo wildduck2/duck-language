@@ -37,13 +37,13 @@ mod bitwise_tests {
 
   #[test]
   fn and_variants() {
-    assert_eq!(lex_one("&"), TokenKind::And);
+    assert_eq!(lex_one("&"), TokenKind::Amp);
     assert_eq!(lex_one("&="), TokenKind::AndEq);
     let tokens: Vec<_> = lex_tokens("&&")
       .into_iter()
       .filter(|k| !matches!(k, TokenKind::Eof))
       .collect();
-    assert_eq!(tokens, vec![TokenKind::And, TokenKind::And]);
+    assert_eq!(tokens, vec![TokenKind::Amp, TokenKind::Amp]);
   }
 
   #[test]

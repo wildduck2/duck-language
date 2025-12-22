@@ -64,7 +64,7 @@ pub enum DiagnosticError {
   InvalidWhereClause,
   InvalidTraitBound,
   InvalidTraitBoundModifier,
-  InvalidGenericArgs,
+  InvalidComma,
   EmptyGenericArgs,
 
   // Path errors
@@ -155,7 +155,7 @@ impl DiagnosticError {
       Self::InvalidWhereClause => "E0232",
       Self::InvalidTraitBound => "E0233",
       Self::InvalidTraitBoundModifier => "E0226",
-      Self::InvalidGenericArgs => "E0231",
+      Self::InvalidComma => "E0231",
       Self::EmptyGenericArgs => "E0228",
 
       // Path errors
