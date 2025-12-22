@@ -7,7 +7,7 @@ mod logical_tests {
       Lit,
     },
     parser_utils::ExprContext,
-    tests::support::parse_expression_expr,
+    tests::support::parse_expression,
   };
 
   #[derive(Debug, PartialEq)]
@@ -37,15 +37,13 @@ mod logical_tests {
     match expr {
       ExprKind::Literal(Lit::Bool(value)) => boolean(*value),
       ExprKind::Literal(Lit::Integer { value, .. }) => SimpleExpr::Int(*value),
-      ExprKind::Binary { left, op, right } => {
-        bin(*op, simplify(&left.kind), simplify(&right.kind))
-      },
+      ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
       _ => panic!("unexpected expression in logical tests: {:?}", expr),
     }
   }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression_expr(input, "logical_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "logical_expr_test_temp", ExprContext::Default)
   }
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
@@ -80,11 +78,7 @@ mod logical_tests {
       bin(
         BinaryOp::Or,
         SimpleExpr::Int(1),
-        bin(
-          BinaryOp::And,
-          SimpleExpr::Int(0),
-          SimpleExpr::Int(2),
-        ),
+        bin(BinaryOp::And, SimpleExpr::Int(0), SimpleExpr::Int(2)),
       ),
     );
   }

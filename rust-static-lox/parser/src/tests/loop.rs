@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod loop_tests {
 
-  use crate::{
-    ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression_expr,
-  };
+  use crate::{ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression};
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression_expr(input, "loop_expr_test_temp", ExprContext::LoopCondition)
+    parse_expression(input, "loop_expr_test_temp", ExprContext::LoopCondition)
   }
 
   fn assert_ok(input: &str) {

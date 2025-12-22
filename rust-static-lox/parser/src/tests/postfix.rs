@@ -8,11 +8,11 @@ mod postfix_tests {
       Lit,
     },
     parser_utils::ExprContext,
-    tests::support::parse_expression_expr,
+    tests::support::parse_expression,
   };
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression_expr(input, "postfix_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "postfix_expr_test_temp", ExprContext::Default)
   }
 
   fn assert_ident_expr(expr: &ExprKind, expected: &str) {
@@ -168,5 +168,15 @@ mod postfix_tests {
   #[test]
   fn errors_on_invalid_token_after_dot() {
     assert!(parse("foo.?").is_err());
+  }
+
+  #[test]
+  fn try_does_not_bind_tighter_than_call() {
+    assert!(parse("foo?()").is_err());
+  }
+
+  #[test]
+  fn try_does_not_bind_tighter_than_await() {
+    assert!(parse("foo?.await").is_err());
   }
 }

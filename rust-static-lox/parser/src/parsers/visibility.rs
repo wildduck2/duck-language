@@ -15,7 +15,7 @@ impl Parser {
     self.advance(); // consume `pub`
 
     // restricted form: pub(...)
-    if matches!(self.current_token().kind, TokenKind::OpenParen) {
+    if matches!(self.current_token().kind, TokenKind::LParen) {
       self.advance(); // consume '('
 
       let restriction = self.current_token();
@@ -38,24 +38,24 @@ impl Parser {
               DiagnosticError::InvalidVisibilityRestriction,
               format!("invalid visibility restriction '{lexeme}'"),
             )
-          .with_label(
-            restriction.span,
-            Some(format!(
-              "expected crate, self, super, or in <path>, found {}",
-              lexeme
-            )),
-            LabelStyle::Primary,
-          )
-          .with_help(
-            "valid forms are: pub, pub(self), pub(super), pub(in path::to::module)".to_string(),
-          );
+            .with_label(
+              restriction.span,
+              Some(format!(
+                "expected crate, self, super, or in <path>, found {}",
+                lexeme
+              )),
+              LabelStyle::Primary,
+            )
+            .with_help(
+              "valid forms are: pub, pub(self), pub(super), pub(in path::to::module)".to_string(),
+            );
 
           self.emit(diagnostic);
           return Err(());
         },
       };
 
-      self.expect(TokenKind::CloseParen)?;
+      self.expect(TokenKind::RParen)?;
       visibility
     } else {
       // plain `pub`

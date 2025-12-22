@@ -2,6 +2,7 @@ mod array;
 mod bitwise;
 mod block;
 mod clousure;
+mod comparison;
 mod control_flow;
 mod literal;
 mod logical;

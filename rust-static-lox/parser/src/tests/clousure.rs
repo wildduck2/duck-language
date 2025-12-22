@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod closure_tests {
 
-  use crate::{
-    ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression_expr,
-  };
+  use crate::{ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression};
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression_expr(input, "closure_expr_test_temp", ExprContext::Closure)
+    parse_expression(input, "closure_expr_test_temp", ExprContext::Closure)
   }
 
   fn assert_ok(input: &str) {

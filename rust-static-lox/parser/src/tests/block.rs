@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod block_tests {
 
-  use crate::{
-    ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression_expr,
-  };
+  use crate::{ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression};
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression_expr(input, "block_expr_test_temp", ExprContext::Block)
+    parse_expression(input, "block_expr_test_temp", ExprContext::Block)
   }
 
   fn assert_ok(input: &str) {

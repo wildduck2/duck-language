@@ -7,7 +7,7 @@ mod bitwise_tests {
       Lit,
     },
     parser_utils::ExprContext,
-    tests::support::parse_expression_expr,
+    tests::support::parse_expression,
   };
 
   #[derive(Debug, PartialEq)]
@@ -35,15 +35,13 @@ mod bitwise_tests {
   fn simplify(expr: &ExprKind) -> SimpleExpr {
     match expr {
       ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-      ExprKind::Binary { left, op, right } => {
-        bin(*op, simplify(&left.kind), simplify(&right.kind))
-      },
+      ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
       _ => panic!("unexpected expression in bitwise tests: {:?}", expr),
     }
   }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression_expr(input, "bitwise_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "bitwise_expr_test_temp", ExprContext::Default)
   }
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
@@ -59,7 +57,11 @@ mod bitwise_tests {
   fn parses_bitwise_or_chain() {
     assert_expr(
       "1 | 2 | 3",
-      bin(BinaryOp::BitOr, bin(BinaryOp::BitOr, int(1), int(2)), int(3)),
+      bin(
+        BinaryOp::BitOr,
+        bin(BinaryOp::BitOr, int(1), int(2)),
+        int(3),
+      ),
     );
   }
 
@@ -67,7 +69,11 @@ mod bitwise_tests {
   fn parses_bitwise_xor_chain() {
     assert_expr(
       "5 ^ 6 ^ 7",
-      bin(BinaryOp::BitXor, bin(BinaryOp::BitXor, int(5), int(6)), int(7)),
+      bin(
+        BinaryOp::BitXor,
+        bin(BinaryOp::BitXor, int(5), int(6)),
+        int(7),
+      ),
     );
   }
 
@@ -75,7 +81,11 @@ mod bitwise_tests {
   fn parses_bitwise_and_chain() {
     assert_expr(
       "8 & 4 & 2",
-      bin(BinaryOp::BitAnd, bin(BinaryOp::BitAnd, int(8), int(4)), int(2)),
+      bin(
+        BinaryOp::BitAnd,
+        bin(BinaryOp::BitAnd, int(8), int(4)),
+        int(2),
+      ),
     );
   }
 
@@ -86,7 +96,11 @@ mod bitwise_tests {
       bin(
         BinaryOp::BitOr,
         int(1),
-        bin(BinaryOp::BitXor, bin(BinaryOp::BitAnd, int(2), int(3)), int(4)),
+        bin(
+          BinaryOp::BitXor,
+          bin(BinaryOp::BitAnd, int(2), int(3)),
+          int(4),
+        ),
       ),
     );
   }
@@ -108,8 +122,7 @@ mod bitwise_tests {
 
   #[test]
   fn match_context_short_circuits_bitwise_or() {
-    let expr =
-      parse_expression_expr("1", "bitwise_match_context", ExprContext::Match).unwrap();
+    let expr = parse_expression("1", "bitwise_match_context", ExprContext::Match).unwrap();
     assert_eq!(simplify(&expr), int(1));
   }
 }

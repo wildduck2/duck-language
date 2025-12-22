@@ -15,7 +15,7 @@ impl Parser {
     while !self.is_eof()
       && !matches!(
         self.current_token().kind,
-        TokenKind::OpenBrace | TokenKind::Semi | TokenKind::Eq
+        TokenKind::LBrace | TokenKind::Semi | TokenKind::Eq
       )
     {
       predicates.push(self.parse_type_predicate()?);
