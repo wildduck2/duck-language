@@ -10,8 +10,8 @@ use crate::{
 impl Parser {
   pub(crate) fn parse_postfix(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let expr = self.parse_primary(context)?;
-
-    self.parse_postfix_chain(expr, context)
+    let expr = self.parse_postfix_chain(expr, context)?;
+    self.parse_try_suffix(expr)
   }
 
   /// Continues parsing postfix operators for an already parsed expression.
@@ -22,7 +22,7 @@ impl Parser {
   ) -> Result<Expr, ()> {
     loop {
       match self.current_token().kind {
-        TokenKind::OpenParen => {
+        TokenKind::LParen => {
           expr = self.parse_call(context, expr)?;
         },
         TokenKind::Dot => {
@@ -32,16 +32,20 @@ impl Parser {
             expr = self.parse_field_or_method(context, expr)?;
           }
         },
-        TokenKind::OpenBracket => {
+        TokenKind::LBracket => {
           expr = self.parse_index(context, expr)?;
-        },
-        TokenKind::Question => {
-          expr = self.parse_try(expr)?;
         },
         _ => break,
       }
     }
 
+    Ok(expr)
+  }
+
+  fn parse_try_suffix(&mut self, mut expr: Expr) -> Result<Expr, ()> {
+    while matches!(self.current_token().kind, TokenKind::Question) {
+      expr = self.parse_try(expr)?;
+    }
     Ok(expr)
   }
 
@@ -74,9 +78,9 @@ impl Parser {
 
   fn parse_index(&mut self, context: ExprContext, object: Expr) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.expect(TokenKind::OpenBracket)?;
+    self.expect(TokenKind::LBracket)?;
     let index = self.parse_expression(vec![], context)?;
-    self.expect(TokenKind::CloseBracket)?;
+    self.expect(TokenKind::RBracket)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -99,10 +103,10 @@ impl Parser {
         self.advance(); // consume identifier
 
         // `.method(args)`
-        if self.current_token().kind == TokenKind::OpenParen {
-          self.expect(TokenKind::OpenParen)?;
+        if self.current_token().kind == TokenKind::LParen {
+          self.expect(TokenKind::LParen)?;
           let args = self.parse_call_params(context)?;
-          self.expect(TokenKind::CloseParen)?;
+          self.expect(TokenKind::RParen)?;
 
           return Ok(Expr {
             attributes: vec![],
@@ -153,12 +157,12 @@ impl Parser {
             DiagnosticError::UnexpectedToken,
             format!("invalid token `{lexeme}` after `.`"),
           )
-        .with_label(
-          token.span,
-          Some("expected an identifier, tuple index, or method call target".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("Examples: `.foo`, `.0`, `.await`, or `.method(args)`.".to_string());
+          .with_label(
+            token.span,
+            Some("expected an identifier, tuple index, or method call target".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("Examples: `.foo`, `.0`, `.await`, or `.method(args)`.".to_string());
         self.emit(diagnostic);
         Err(())
       },
@@ -167,9 +171,9 @@ impl Parser {
 
   fn parse_call(&mut self, context: ExprContext, callee: Expr) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    self.expect(TokenKind::OpenParen)?;
+    self.expect(TokenKind::LParen)?;
     let args = self.parse_call_params(context)?;
-    self.expect(TokenKind::CloseParen)?;
+    self.expect(TokenKind::RParen)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -184,14 +188,13 @@ impl Parser {
   fn parse_call_params(&mut self, context: ExprContext) -> Result<Vec<Expr>, ()> {
     let mut args = vec![];
 
-    while !self.is_eof() && self.current_token().kind != TokenKind::CloseParen {
+    while !self.is_eof() && self.current_token().kind != TokenKind::RParen {
       let expr = self.parse_expression(vec![], context)?;
       args.push(expr);
 
-      if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance(); // consume comma
-      } else {
-        break;
+      match self.check_comma_with_trailing(true)? {
+        true => continue,
+        false => break,
       }
     }
 

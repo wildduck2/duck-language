@@ -43,9 +43,9 @@ impl Parser {
         self.parse_literal_pattern(context)
       },
 
-      TokenKind::OpenParen => self.parse_tuple_or_group_pattern(context),
+      TokenKind::LParen => self.parse_tuple_or_group_pattern(context),
 
-      TokenKind::And => self.parse_reference_pattern(context),
+      TokenKind::Amp => self.parse_reference_pattern(context),
 
       TokenKind::Ident
       | TokenKind::KwCrate
@@ -55,7 +55,7 @@ impl Parser {
       | TokenKind::Dollar
       | TokenKind::ColonColon => self.parse_path_or_binding_pattern(reference, mutability, context),
 
-      TokenKind::OpenBracket => self.parse_slice_pattern(context),
+      TokenKind::LBracket => self.parse_slice_pattern(context),
 
       TokenKind::DotDot => self.parse_rest_pattern(),
 
@@ -87,7 +87,7 @@ impl Parser {
       TokenKind::ColonColon | TokenKind::Lt
     ) || matches!(
       self.peek(1).kind,
-      TokenKind::ColonColon | TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::Bang
+      TokenKind::ColonColon | TokenKind::LParen | TokenKind::LBrace | TokenKind::Bang
     ) || (matches!(self.current_token().kind, TokenKind::Dollar)
       && matches!(self.peek(1).kind, TokenKind::KwCrate))
   }
@@ -106,11 +106,11 @@ impl Parser {
       });
     }
 
-    if match_and_consume!(self, TokenKind::OpenParen)? {
+    if match_and_consume!(self, TokenKind::LParen)? {
       return self.parse_tuple_struct_pattern(qself, path, &mut start, context);
     }
 
-    if match_and_consume!(self, TokenKind::OpenBrace)? {
+    if match_and_consume!(self, TokenKind::LBrace)? {
       return self.parse_struct_pattern(qself, path, &mut start, context);
     }
 
@@ -146,12 +146,12 @@ impl Parser {
   ) -> Result<Pattern, ()> {
     let mut patterns = vec![];
 
-    while !matches!(self.current_token().kind, TokenKind::CloseParen) {
+    while !matches!(self.current_token().kind, TokenKind::RParen) {
       patterns.push(self.parse_pattern(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseParen)?;
+    self.expect(TokenKind::RParen)?;
 
     Ok(Pattern::TupleStruct {
       qself,
@@ -171,7 +171,7 @@ impl Parser {
     let mut fields = vec![];
     let mut has_rest = false;
 
-    while !matches!(self.current_token().kind, TokenKind::CloseBrace) {
+    while !matches!(self.current_token().kind, TokenKind::RBrace) {
       if matches!(self.current_token().kind, TokenKind::DotDot) {
         has_rest = true;
         self.advance();
@@ -183,7 +183,7 @@ impl Parser {
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseBrace)?;
+    self.expect(TokenKind::RBrace)?;
 
     Ok(Pattern::Struct {
       qself,
@@ -231,7 +231,7 @@ impl Parser {
     let mut token = self.current_token();
     let mut depth = 0;
 
-    while matches!(self.current_token().kind, TokenKind::And) {
+    while matches!(self.current_token().kind, TokenKind::Amp) {
       depth += 1;
       self.advance();
     }
@@ -292,12 +292,12 @@ impl Parser {
     self.advance();
 
     let mut patterns = vec![];
-    while !matches!(self.current_token().kind, TokenKind::CloseParen) {
+    while !matches!(self.current_token().kind, TokenKind::RParen) {
       patterns.push(self.parse_pattern(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseParen)?;
+    self.expect(TokenKind::RParen)?;
 
     if patterns.len() == 1 {
       Ok(Pattern::Group {
@@ -320,7 +320,7 @@ impl Parser {
     let mut after = vec![];
     let mut has_rest = false;
 
-    while !matches!(self.current_token().kind, TokenKind::CloseBracket) {
+    while !matches!(self.current_token().kind, TokenKind::RBracket) {
       if matches!(self.current_token().kind, TokenKind::DotDot) {
         has_rest = true;
         self.advance();
@@ -337,7 +337,7 @@ impl Parser {
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseBracket)?;
+    self.expect(TokenKind::RBracket)?;
 
     Ok(Pattern::Slice {
       before,

@@ -15,9 +15,8 @@ impl Parser {
     let mut token = self.current_token();
     let path = self.parse_path(with_args)?;
 
-    if matches!(self.current_token().kind, TokenKind::OpenParen)
-      || (!matches!(context, ExprContext::Match | ExprContext::IfCondition)
-        && matches!(self.current_token().kind, TokenKind::OpenBrace))
+    if matches!(self.current_token().kind, TokenKind::LBrace)
+      && !matches!(context, ExprContext::Match | ExprContext::IfCondition)
     {
       return self.parse_struct_expr(path);
     }
@@ -61,12 +60,12 @@ impl Parser {
     while !self.is_eof()
       && !matches!(
         self.current_token().kind,
-        TokenKind::CloseBracket
-          | TokenKind::CloseBrace
+        TokenKind::RBracket
+          | TokenKind::RBrace
           | TokenKind::Eq
-          | TokenKind::OpenParen
-          | TokenKind::OpenBrace
-          | TokenKind::CloseParen
+          | TokenKind::LParen
+          | TokenKind::LBrace
+          | TokenKind::RParen
           | TokenKind::Comma
           | TokenKind::Semi
           | TokenKind::Gt

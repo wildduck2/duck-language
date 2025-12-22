@@ -21,11 +21,10 @@ impl Parser {
     let generics = self.parse_generic_params(&mut token)?;
     let where_clause = self.parse_where_clause()?;
 
-    if matches!(self.current_token().kind, TokenKind::OpenBrace) {
+    if matches!(self.current_token().kind, TokenKind::LBrace) {
       // record: optional where BEFORE '{'
       // struct Name<T> where ... { fields }   (no trailing ';')
       let fields = self.parse_record_fields()?;
-      token.span.merge(self.current_token().span);
       return Ok(Item::Vis(VisItem {
         attributes,
         visibility,
@@ -35,16 +34,14 @@ impl Parser {
           kind: StructKind::Named { fields },
           where_clause,
         }),
-        span: token.span,
+        span: *token.span.merge(self.current_token().span),
       }));
-    } else if matches!(self.current_token().kind, TokenKind::OpenParen) {
+    } else if matches!(self.current_token().kind, TokenKind::LParen) {
       // tuple: fields first, then where, then ';'
       // struct Name<T>(...) where ... ;
       let fields = self.parse_tuple_fields()?;
       let where_clause = self.parse_where_clause()?;
       self.expect(TokenKind::Semi)?; // required
-      token.span.merge(self.current_token().span);
-
       return Ok(Item::Vis(VisItem {
         attributes,
         visibility,
@@ -54,7 +51,7 @@ impl Parser {
           kind: StructKind::Tuple { fields },
           where_clause,
         }),
-        span: token.span,
+        span: *token.span.merge(self.current_token().span),
       }));
     }
 
@@ -76,22 +73,22 @@ impl Parser {
   }
 
   pub(crate) fn parse_record_fields(&mut self) -> Result<Vec<FieldDecl>, ()> {
-    self.expect(TokenKind::OpenBrace)?; // consume '{'
+    self.expect(TokenKind::LBrace)?; // consume '{'
     let mut fields = vec![];
 
     loop {
       match self.current_token().kind {
-        TokenKind::CloseBrace => {
+        TokenKind::RBrace => {
           self.advance(); // consume '}'
           break;
         },
         _ if self.is_eof() => {
-          self.expect(TokenKind::CloseBrace)?;
+          self.expect(TokenKind::RBrace)?;
           break;
         },
         _ => {
           fields.push(self.parse_record_field()?);
-          if matches!(self.current_token().kind, TokenKind::CloseBrace) {
+          if matches!(self.current_token().kind, TokenKind::RBrace) {
             self.advance();
             break;
           }
@@ -128,21 +125,21 @@ impl Parser {
 
   pub(crate) fn parse_tuple_fields(&mut self) -> Result<Vec<TupleField>, ()> {
     let mut fields = vec![];
-    self.expect(TokenKind::OpenParen)?; // consume '('
+    self.expect(TokenKind::LParen)?; // consume '('
 
     loop {
       match self.current_token().kind {
-        TokenKind::CloseParen => {
+        TokenKind::RParen => {
           self.advance();
           break;
         },
         _ if self.is_eof() => {
-          self.expect(TokenKind::CloseParen)?;
+          self.expect(TokenKind::RParen)?;
           break;
         },
         _ => {
           fields.push(self.parse_tuple_field()?);
-          if matches!(self.current_token().kind, TokenKind::CloseParen) {
+          if matches!(self.current_token().kind, TokenKind::RParen) {
             self.advance();
             break;
           }
@@ -178,16 +175,19 @@ impl Parser {
 
     let lexeme = self.get_token_lexeme(&self.current_token());
     let diagnostic = self
-      .diagnostic(DiagnosticError::UnexpectedToken, "unexpected name identifier")
-    .with_label(
-      self.current_token().span,
-      Some(format!(
-        "Expected a primary expression, found \"{}\"",
-        lexeme
-      )),
-      LabelStyle::Primary,
-    )
-    .with_help("Expected a valid name identifier".to_string());
+      .diagnostic(
+        DiagnosticError::UnexpectedToken,
+        "unexpected name identifier",
+      )
+      .with_label(
+        self.current_token().span,
+        Some(format!(
+          "Expected a primary expression, found \"{}\"",
+          lexeme
+        )),
+        LabelStyle::Primary,
+      )
+      .with_help("Expected a valid name identifier".to_string());
 
     self.emit(diagnostic);
 
@@ -196,49 +196,39 @@ impl Parser {
 
   pub(crate) fn parse_struct_expr(&mut self, path: Path) -> Result<Expr, ()> {
     let mut token = self.current_token();
-
-    if matches!(self.current_token().kind, TokenKind::OpenBrace) {
-      let (fields, base) = self.parse_struct_record_init_fields()?;
-      Ok(Expr {
-        attributes: vec![],
-        kind: ExprKind::Struct { path, fields, base },
-        span: *token.span.merge(self.current_token().span),
-      })
-    } else {
-      let elements = self.parse_struct_tuple_init_fields()?;
-      Ok(Expr {
-        attributes: vec![],
-        kind: ExprKind::TupleStruct { path, elements },
-        span: *token.span.merge(self.current_token().span),
-      })
-    }
+    let (fields, base) = self.parse_struct_record_init_fields()?;
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::Struct { path, fields, base },
+      span: *token.span.merge(self.current_token().span),
+    })
   }
 
   fn parse_struct_record_init_fields(&mut self) -> Result<(Vec<FieldInit>, Option<Box<Expr>>), ()> {
-    self.expect(TokenKind::OpenBrace)?; // consume '{'
+    self.expect(TokenKind::LBrace)?; // consume '{'
     let mut fields = vec![];
     let mut base = None;
 
     loop {
       match self.current_token().kind {
-        TokenKind::CloseBrace => {
+        TokenKind::RBrace => {
           self.advance();
           break;
         },
         TokenKind::DotDot => {
           self.advance();
           let base_expr = self.parse_expression(vec![], ExprContext::Struct)?;
-          self.expect(TokenKind::CloseBrace)?;
+          self.expect(TokenKind::RBrace)?;
           base = Some(Box::new(base_expr));
           break;
         },
         _ if self.is_eof() => {
-          self.expect(TokenKind::CloseBrace)?;
+          self.expect(TokenKind::RBrace)?;
           break;
         },
         _ => {
           fields.push(self.parse_struct_record_init_field()?);
-          if matches!(self.current_token().kind, TokenKind::CloseBrace) {
+          if matches!(self.current_token().kind, TokenKind::RBrace) {
             self.advance();
             break;
           }
@@ -247,37 +237,6 @@ impl Parser {
       }
     }
     Ok((fields, base))
-  }
-
-  fn parse_struct_tuple_init_fields(&mut self) -> Result<Vec<Expr>, ()> {
-    let mut elements = vec![];
-    self.expect(TokenKind::OpenParen)?; // consume '('
-
-    loop {
-      match self.current_token().kind {
-        TokenKind::CloseParen => {
-          self.advance();
-          break;
-        },
-        _ if self.is_eof() => {
-          self.expect(TokenKind::CloseParen)?;
-          break;
-        },
-        _ => {
-          elements.push(self.parse_struct_tuple_init_field()?);
-          if matches!(self.current_token().kind, TokenKind::CloseParen) {
-            self.advance();
-            break;
-          }
-          self.expect(TokenKind::Comma)?;
-        },
-      }
-    }
-    Ok(elements)
-  }
-
-  fn parse_struct_tuple_init_field(&mut self) -> Result<Expr, ()> {
-    self.parse_expression(vec![], ExprContext::Struct)
   }
 
   fn parse_struct_record_init_field(&mut self) -> Result<FieldInit, ()> {
@@ -309,27 +268,61 @@ impl Parser {
       },
 
       _ => {
-        // TODO: emit diagnostic for invalid struct field name
+        let found = self.get_token_lexeme(&self.current_token());
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            "invalid struct field name",
+          )
+          .with_label(
+            self.current_token().span,
+            Some(format!(
+              "expected an identifier or tuple index, found `{found}`"
+            )),
+            LabelStyle::Primary,
+          )
+          .with_help("struct fields must be identifiers or numeric tuple indexes".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };
 
-    let value = if matches!(self.current_token().kind, TokenKind::Colon) {
-      self.advance(); // consume ':'
-      Some(self.parse_expression(vec![], ExprContext::Struct)?)
-    } else {
-      // shorthand field init
-      Some(Expr {
+    let value = match self.current_token().kind {
+      TokenKind::Colon => {
+        self.advance(); // consume ':'
+        Some(self.parse_expression(vec![], ExprContext::Struct)?)
+      },
+      TokenKind::Comma | TokenKind::RBrace => Some(Expr {
         attributes: vec![],
         kind: ExprKind::Path {
           qself: None,
           path: Path::from_ident(match &name {
             FieldName::Ident(s) => s.clone(),
-            FieldName::TupleIndex(_) => unreachable!(),
+            FieldName::TupleIndex(_) => {
+              let lexeme = self.get_token_lexeme(&token);
+              let diagnostic = self
+                .diagnostic(
+                  DiagnosticError::UnexpectedToken,
+                  "invalid struct field name",
+                )
+                .with_label(
+                  token.span,
+                  Some(format!(
+                    "expected an identifier or tuple index, found `{lexeme}`"
+                  )),
+                  LabelStyle::Primary,
+                )
+                .with_help(
+                  "struct fields must be identifiers or numeric tuple indexes".to_string(),
+                );
+              self.emit(diagnostic);
+              return Err(());
+            },
           }),
         },
         span: token.span,
-      })
+      }),
+      _ => None,
     };
 
     Ok(FieldInit {

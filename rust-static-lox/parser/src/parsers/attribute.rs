@@ -30,9 +30,9 @@ impl Parser {
     let mut start = self.current_token();
 
     self.expect(TokenKind::Pound)?;
-    self.expect(TokenKind::OpenBracket)?;
+    self.expect(TokenKind::LBracket)?;
     let input = self.parse_attribute_input()?;
-    self.expect(TokenKind::CloseBracket)?;
+    self.expect(TokenKind::RBracket)?;
 
     Ok(Attribute {
       style: AttrStyle::Outer,
@@ -46,9 +46,9 @@ impl Parser {
 
     self.expect(TokenKind::Pound)?;
     self.expect(TokenKind::Bang)?;
-    self.expect(TokenKind::OpenBracket)?;
+    self.expect(TokenKind::LBracket)?;
     let input = self.parse_attribute_input()?;
-    self.expect(TokenKind::CloseBracket)?;
+    self.expect(TokenKind::RBracket)?;
 
     Ok(Attribute {
       style: AttrStyle::Inner,
@@ -78,9 +78,9 @@ impl Parser {
       },
     };
 
-    self.expect(TokenKind::OpenBracket)?;
+    self.expect(TokenKind::LBracket)?;
     let input = self.parse_attribute_input()?;
-    self.expect(TokenKind::CloseBracket)?;
+    self.expect(TokenKind::RBracket)?;
 
     Ok(Attribute {
       style: attr_style,
@@ -114,7 +114,7 @@ impl Parser {
     // Otherwise: attrInputTail -> delimTokenTree
     if matches!(
       self.current_token().kind,
-      TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace
+      TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace
     ) {
       let tree = self.parse_delim_token_tree()?;
       return Ok(Some(AttrArgs::Delimited {
@@ -131,12 +131,16 @@ impl Parser {
     let open = self.current_token();
 
     let delimiter = match open.kind {
-      TokenKind::OpenParen => Delimiter::Paren,
-      TokenKind::OpenBracket => Delimiter::Bracket,
-      TokenKind::OpenBrace => Delimiter::Brace,
+      TokenKind::LParen => Delimiter::Paren,
+      TokenKind::LBracket => Delimiter::Bracket,
+      TokenKind::LBrace => Delimiter::Brace,
       _ => {
         let found = self.get_token_lexeme(&open);
-        self.emit(self.err_unexpected_token(open.span, "delimiter start (`(`, `[`, or `{`)", &found));
+        self.emit(self.err_unexpected_token(
+          open.span,
+          "delimiter start (`(`, `[`, or `{`)",
+          &found,
+        ));
         return Err(());
       },
     };
@@ -150,9 +154,9 @@ impl Parser {
 
       let is_close = matches!(
         (&token.kind, &delimiter),
-        (TokenKind::CloseParen, Delimiter::Paren)
-          | (TokenKind::CloseBracket, Delimiter::Bracket)
-          | (TokenKind::CloseBrace, Delimiter::Brace)
+        (TokenKind::RParen, Delimiter::Paren)
+          | (TokenKind::RBracket, Delimiter::Bracket)
+          | (TokenKind::RBrace, Delimiter::Brace)
       );
 
       if is_close {
@@ -162,7 +166,7 @@ impl Parser {
 
       if matches!(
         token.kind,
-        TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace
+        TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace
       ) {
         let nested = self.parse_delim_token_tree()?;
         tokens.push(nested);

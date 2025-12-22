@@ -121,12 +121,12 @@ impl Parser {
         if name != "\"C\"" {
           let diagnostic = self
             .diagnostic(DiagnosticError::InvalidAbi, "invalid ABI")
-          .with_label(
-            self.current_token().span,
-            Some("invalid ABI".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_help("ABI must be either C or C-like".to_string());
+            .with_label(
+              self.current_token().span,
+              Some("invalid ABI".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_help("ABI must be either C or C-like".to_string());
           self.emit(diagnostic);
           return Err(());
         }
@@ -145,12 +145,12 @@ impl Parser {
   ) -> Result<Vec<Param>, ()> {
     let mut params = vec![];
 
-    self.expect(TokenKind::OpenParen)?; // consume '('
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
+    self.expect(TokenKind::LParen)?; // consume '('
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
       params.push(self.parse_function_param(is_extern, context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
-    self.expect(TokenKind::CloseParen)?; // consume ')'
+    self.expect(TokenKind::RParen)?; // consume ')'
 
     Ok(params)
   }
@@ -167,15 +167,15 @@ impl Parser {
             DiagnosticError::InvalidVariadic,
             "variadic parameters are not allowed in non-extern functions",
           )
-        .with_label(
-          *token.span.merge(diagnostic::Span {
-            start: token.span.start,
-            end: token.span.end + 1,
-          }),
-          Some("variadic parameters are not allowed in non-extern functions".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("variadic parameters are only allowed in extern functions".to_string());
+          .with_label(
+            *token.span.merge(diagnostic::Span {
+              start: token.span.start,
+              end: token.span.end + 1,
+            }),
+            Some("variadic parameters are not allowed in non-extern functions".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("variadic parameters are only allowed in extern functions".to_string());
         self.emit(diagnostic);
         return Err(());
       }
@@ -235,7 +235,7 @@ impl Parser {
           BindingMode::ByRef(_) => {
             let diagnostic = self
               .diagnostic(DiagnosticError::InvalidSelfParam, "invalid self parameter")
-            .with_help("use `&self` or `&mut self`, not `ref self`".to_string());
+              .with_help("use `&self` or `&mut self`, not `ref self`".to_string());
             self.emit(diagnostic);
             return Err(());
           },
@@ -279,7 +279,7 @@ impl Parser {
                 DiagnosticError::InvalidSelfParam,
                 "typed self parameters cannot be references",
               )
-            .with_help("use `self: Type` or `&self` syntax, not both".to_string());
+              .with_help("use `self: Type` or `&self` syntax, not both".to_string());
             self.emit(diagnostic);
             return Err(());
           }

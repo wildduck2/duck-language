@@ -37,18 +37,18 @@ impl Parser {
                 DiagnosticError::UnexpectedToken,
                 "invalid right-hand side of bitwise OR expression",
               )
-            .with_label(
-              bad.span,
-              Some(format!(
-                "expected an expression after `|`, found `{}`",
-                lexeme
-              )),
-              LabelStyle::Primary,
-            )
-            .with_help(
-              "bitwise OR requires a left and a right expression, for example: a | b".to_string(),
-            )
-            .with_note("examples: x | y, flags | MASK, (a & b) | c".to_string());
+              .with_label(
+                bad.span,
+                Some(format!(
+                  "expected an expression after `|`, found `{}`",
+                  lexeme
+                )),
+                LabelStyle::Primary,
+              )
+              .with_help(
+                "bitwise OR requires a left and a right expression, for example: a | b".to_string(),
+              )
+              .with_note("examples: x | y, flags | MASK, (a & b) | c".to_string());
 
             self.emit(diagnostic);
             return Err(());
@@ -97,18 +97,19 @@ impl Parser {
                 DiagnosticError::UnexpectedToken,
                 "invalid right-hand side of bitwise XOR expression",
               )
-            .with_label(
-              bad.span,
-              Some(format!(
-                "expected an expression after `^`, found `{}`",
-                lexeme
-              )),
-              LabelStyle::Primary,
-            )
-            .with_help(
-              "bitwise XOR requires a left and a right expression, for example: a ^ b".to_string(),
-            )
-            .with_note("examples: x ^ y, flags ^ MASK, (a & b) ^ c".to_string());
+              .with_label(
+                bad.span,
+                Some(format!(
+                  "expected an expression after `^`, found `{}`",
+                  lexeme
+                )),
+                LabelStyle::Primary,
+              )
+              .with_help(
+                "bitwise XOR requires a left and a right expression, for example: a ^ b"
+                  .to_string(),
+              )
+              .with_note("examples: x ^ y, flags ^ MASK, (a & b) ^ c".to_string());
 
             self.emit(diagnostic);
             return Err(());
@@ -137,17 +138,17 @@ impl Parser {
   pub(crate) fn parse_bitwise_and(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_shift(context)?;
 
-    while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::And) {
+    while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::Amp) {
       let mut token = self.current_token();
 
       match token.kind {
-        TokenKind::And => {
+        TokenKind::Amp => {
           self.advance();
 
           if !self
             .current_token()
             .kind
-            .can_start_expression_and_not(TokenKind::And)
+            .can_start_expression_and_not(TokenKind::Amp)
           {
             let bad = self.current_token();
             let lexeme = self.get_token_lexeme(&bad);
@@ -157,18 +158,19 @@ impl Parser {
                 DiagnosticError::UnexpectedToken,
                 "invalid right-hand side of bitwise AND expression",
               )
-            .with_label(
-              bad.span,
-              Some(format!(
-                "expected an expression after `&`, found `{}`",
-                lexeme
-              )),
-              LabelStyle::Primary,
-            )
-            .with_help(
-              "bitwise AND requires a left and a right expression, for example: a & b".to_string(),
-            )
-            .with_note("examples: x & y, flags & MASK, (a | b) & c".to_string());
+              .with_label(
+                bad.span,
+                Some(format!(
+                  "expected an expression after `&`, found `{}`",
+                  lexeme
+                )),
+                LabelStyle::Primary,
+              )
+              .with_help(
+                "bitwise AND requires a left and a right expression, for example: a & b"
+                  .to_string(),
+              )
+              .with_note("examples: x & y, flags & MASK, (a | b) & c".to_string());
 
             self.emit(diagnostic);
             return Err(());

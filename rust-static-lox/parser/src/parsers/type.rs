@@ -90,16 +90,16 @@ impl Parser {
       },
 
       // Tuple and parenthesized types: (T, U, V)
-      TokenKind::OpenParen => self.parse_tuple_or_parenthesized_type(),
+      TokenKind::LParen => self.parse_tuple_or_parenthesized_type(),
 
       // Array type: [ T ; expr ]
-      TokenKind::OpenBracket => self.parse_array_type(),
+      TokenKind::LBracket => self.parse_array_type(),
 
       // Raw pointer: *const T or *mut T
       TokenKind::Star => self.parse_raw_pointer_type(),
 
       // Reference types: &T, &'a T, &mut T, &'a mut T
-      TokenKind::And => self.parse_reference_type(),
+      TokenKind::Amp => self.parse_reference_type(),
 
       TokenKind::KwSelfType => Ok(Type::SelfType),
 
@@ -129,18 +129,18 @@ impl Parser {
           DiagnosticError::InvalidMutabilityInField,
           "invalid const specifier in reference type",
         )
-      .with_label(
-        self.current_token().span,
-        Some("const is not allowed after & in a reference type.".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_note(
-        "const does not apply to references. Only raw pointers support const qualifiers."
-          .to_string(),
-      )
-      .with_help(
-        "Use *const T for a raw const pointer, or &T for an immutable reference.".to_string(),
-      );
+        .with_label(
+          self.current_token().span,
+          Some("const is not allowed after & in a reference type.".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(
+          "const does not apply to references. Only raw pointers support const qualifiers."
+            .to_string(),
+        )
+        .with_help(
+          "Use *const T for a raw const pointer, or &T for an immutable reference.".to_string(),
+        );
 
       self.emit(diagnostic);
       return Err(());
@@ -175,18 +175,18 @@ impl Parser {
           DiagnosticError::InvalidPointerType,
           "missing mutability qualifier for raw pointer type",
         )
-      .with_label(
-        self.current_token().span,
-        Some("expected const or mut after *.".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_note(
-        "Raw pointers in Rust must explicitly specify mutability, either *const T or *mut T."
-          .to_string(),
-      )
-      .with_help(
-        "Use *const T for an immutable raw pointer, or *mut T for a mutable one.".to_string(),
-      );
+        .with_label(
+          self.current_token().span,
+          Some("expected const or mut after *.".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(
+          "Raw pointers in Rust must explicitly specify mutability, either *const T or *mut T."
+            .to_string(),
+        )
+        .with_help(
+          "Use *const T for an immutable raw pointer, or *mut T for a mutable one.".to_string(),
+        );
 
       self.emit(diagnostic);
       return Err(());
@@ -206,13 +206,13 @@ impl Parser {
   fn parse_array_type(&mut self) -> Result<Type, ()> {
     let element = self.parse_type()?;
     if !matches!(self.current_token().kind, TokenKind::Semi) {
-      self.expect(TokenKind::CloseBracket)?; // consume ']'
+      self.expect(TokenKind::RBracket)?; // consume ']'
       return Ok(Type::Slice(Box::new(element)));
     }
 
     self.expect(TokenKind::Semi)?; // consume ';'
     let size = self.parse_expression(vec![], ExprContext::Default)?;
-    self.expect(TokenKind::CloseBracket)?; // consume ']'
+    self.expect(TokenKind::RBracket)?; // consume ']'
 
     Ok(Type::Array {
       element: Box::new(element),
@@ -223,12 +223,12 @@ impl Parser {
   fn parse_tuple_or_parenthesized_type(&mut self) -> Result<Type, ()> {
     let mut types = vec![];
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
       types.push(self.parse_type()?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseParen)?;
+    self.expect(TokenKind::RParen)?;
     Ok(Type::Tuple(types))
   }
 
@@ -238,9 +238,9 @@ impl Parser {
 
     let (.., is_unsafe, _, abi) = self.parse_function_flavors()?;
     self.expect(TokenKind::KwFn)?;
-    self.expect(TokenKind::OpenParen)?;
+    self.expect(TokenKind::LParen)?;
     let (params, is_variadic) = self.parse_bare_function_type_params()?;
-    self.expect(TokenKind::CloseParen)?;
+    self.expect(TokenKind::RParen)?;
 
     let return_type = if matches!(self.current_token().kind, TokenKind::ThinArrow) {
       self.advance(); // consume `->`
@@ -264,12 +264,12 @@ impl Parser {
 
   fn parse_bare_function_type_params(&mut self) -> Result<(Vec<Type>, bool), ()> {
     let mut params = vec![];
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseParen) {
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
       if matches!(self.current_token().kind, TokenKind::DotDot) {
         self.expect(TokenKind::DotDot)?; // consume `..`
         self.expect(TokenKind::Dot)?; // consume `.`
 
-        if !matches!(self.current_token().kind, TokenKind::CloseParen) {
+        if !matches!(self.current_token().kind, TokenKind::RParen) {
           let bad = self.current_token();
 
           let diagnostic = self
@@ -277,12 +277,12 @@ impl Parser {
               DiagnosticError::InvalidVariadic,
               "variadic parameters are not allowed in non-extern functions",
             )
-          .with_label(
-            bad.span,
-            Some("variadic parameters are not allowed in non-extern functions".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_help("variadic parameters are only allowed in extern functions".to_string());
+            .with_label(
+              bad.span,
+              Some("variadic parameters are not allowed in non-extern functions".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_help("variadic parameters are only allowed in extern functions".to_string());
           self.emit(diagnostic);
           return Err(());
         }
@@ -307,7 +307,7 @@ impl Parser {
 
   pub(crate) fn parse_type_lifetime(&mut self) -> Result<Option<String>, ()> {
     if matches!(self.current_token().kind, TokenKind::Lifetime { .. })
-      && matches!(self.peek_prev(0).kind, TokenKind::And)
+      && matches!(self.peek_prev(0).kind, TokenKind::Amp)
     {
       let token = self.current_token();
       self.advance(); // consume the lifetime token
@@ -336,14 +336,14 @@ impl Parser {
           DiagnosticError::UnexpectedToken,
           format!("expected a type, found `{lexeme}`"),
         )
-      .with_label(
-        self.current_token().span,
-        Some(format!("expected a type, found `{lexeme}`")),
-        LabelStyle::Primary,
-      )
-      .with_help(format!(
-        "If `{lexeme}` is a custom type, declare it or bring it into scope before use.",
-      ));
+        .with_label(
+          self.current_token().span,
+          Some(format!("expected a type, found `{lexeme}`")),
+          LabelStyle::Primary,
+        )
+        .with_help(format!(
+          "If `{lexeme}` is a custom type, declare it or bring it into scope before use.",
+        ));
       self.emit(diagnostic);
 
       return Err(());

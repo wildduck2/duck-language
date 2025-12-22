@@ -75,7 +75,8 @@ impl Parser {
             self.advance(); // consume the lifetime
             bounds.push(name);
 
-            if !self.consume_plus_and_require_bound("lifetime bounds", Self::is_path_start_or_lifetime)?
+            if !self
+              .consume_plus_and_require_bound("lifetime bounds", Self::is_path_start_or_lifetime)?
             {
               break;
             }
@@ -111,17 +112,18 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "type, lifetime, or const parameter", &lexeme));
+        self.emit(self.err_unexpected_token(
+          token.span,
+          "type, lifetime, or const parameter",
+          &lexeme,
+        ));
         Err(())
       },
     }
   }
 
   /// Parses either lifetime or trait bounds that follow a colon.
-  pub(crate) fn parse_trait_bounds(
-    &mut self,
-    context: &str,
-  ) -> Result<Vec<TypeBound>, ()> {
+  pub(crate) fn parse_trait_bounds(&mut self, context: &str) -> Result<Vec<TypeBound>, ()> {
     let mut bounds = vec![];
     if !matches!(self.current_token().kind, TokenKind::Colon) {
       return Ok(bounds);
@@ -161,14 +163,16 @@ impl Parser {
       TokenKind::Tilde => {
         self.advance(); // consume the "~"
 
-          if matches!(self.current_token().kind, TokenKind::KwConst) {
-            self.advance(); // consume the "const"
-            Ok(TraitBoundModifier::Const)
-          } else {
-            let found = self.get_token_lexeme(&self.current_token());
-            self.emit(self.err_invalid_trait_bound_modifier(self.current_token().span, &format!("~{found}")));
-            Err(())
-          }
+        if matches!(self.current_token().kind, TokenKind::KwConst) {
+          self.advance(); // consume the "const"
+          Ok(TraitBoundModifier::Const)
+        } else {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(
+            self.err_invalid_trait_bound_modifier(self.current_token().span, &format!("~{found}")),
+          );
+          Err(())
+        }
       },
       TokenKind::Question => {
         self.advance(); // consume the "?"
@@ -182,7 +186,10 @@ impl Parser {
             Ok(TraitBoundModifier::MaybeConst)
           } else {
             let found = self.get_token_lexeme(&self.current_token());
-            self.emit(self.err_invalid_trait_bound_modifier(self.current_token().span, &format!("?~{found}")));
+            self.emit(
+              self
+                .err_invalid_trait_bound_modifier(self.current_token().span, &format!("?~{found}")),
+            );
             Err(())
           }
         } else {
@@ -196,27 +203,29 @@ impl Parser {
 
   pub(crate) fn parse_generic_args(&mut self) -> Result<Option<GenericArgs>, ()> {
     match self.current_token().kind {
-      TokenKind::OpenParen => {
+      TokenKind::LParen => {
         let token = self.current_token();
         let mut inputs = Vec::<Type>::new();
         self.advance();
 
-        while !self.is_eof() && self.current_token().kind != TokenKind::CloseParen {
+        while !self.is_eof() && self.current_token().kind != TokenKind::RParen {
           inputs.push(self.parse_type()?);
           let token = self.current_token();
           match_and_consume!(self, TokenKind::Comma)?;
 
           if !matches!(
             self.current_token().kind,
-            TokenKind::Comma | TokenKind::CloseParen
+            TokenKind::Comma | TokenKind::RParen
           ) {
             let bad = self.current_token();
             let found = self.get_token_lexeme(&bad);
-            self.emit(self.err_invalid_generic_args(bad.span, &format!("expected ',' or ')', found `{found}`")));
+            self.emit(
+              self.err_invalid_comma(bad.span, &format!("expected ',' or ')', found `{found}`")),
+            );
             return Err(());
           }
 
-          if matches!(self.current_token().kind, TokenKind::CloseParen)
+          if matches!(self.current_token().kind, TokenKind::RParen)
             && matches!(token.kind, TokenKind::Comma)
           {
             self.emit(self.err_invalid_trailing_comma(token.span, "generic argument list"));
@@ -229,7 +238,7 @@ impl Parser {
           return Err(());
         }
 
-        self.expect(TokenKind::CloseParen)?;
+        self.expect(TokenKind::RParen)?;
         self.expect(TokenKind::ThinArrow)?;
         let output = self.parse_type()?;
 
@@ -259,7 +268,7 @@ impl Parser {
         Ok(GenericArg::Lifetime(name))
       },
 
-      TokenKind::Literal { .. } | TokenKind::OpenBrace => {
+      TokenKind::Literal { .. } | TokenKind::LBrace => {
         let expr = self.parse_expression(vec![], ExprContext::Default)?;
         Ok(GenericArg::Const(expr))
       },
@@ -306,7 +315,8 @@ impl Parser {
       if !matches!(self.current_token().kind, TokenKind::Comma | TokenKind::Gt) {
         let bad = self.current_token();
         let found = self.get_token_lexeme(&bad);
-        self.emit(self.err_invalid_generic_args(bad.span, &format!("expected ',' or '>', found `{found}`")));
+        self
+          .emit(self.err_invalid_comma(bad.span, &format!("expected ',' or '>', found `{found}`")));
         return Err(());
       }
 
@@ -357,12 +367,12 @@ impl Parser {
   pub(crate) fn is_bound_terminator(kind: &TokenKind) -> bool {
     matches!(
       kind,
-      TokenKind::OpenBrace
-        | TokenKind::CloseBrace
+      TokenKind::LBrace
+        | TokenKind::RBrace
         | TokenKind::Comma
         | TokenKind::Gt
         | TokenKind::Eq
-        | TokenKind::CloseParen
+        | TokenKind::RParen
         | TokenKind::Semi
         | TokenKind::Eof
     )

@@ -61,7 +61,7 @@ impl Parser {
       // TokenKind::KwExternType => self.parse_extern_type_decl(attributes, visibility, ),
       // TokenKind::KwUnion => self.parse_union_decl(attributes, visibility, ),
       // TokenKind::KwExtern => self.parse_extern_decl(attributes, visibility, ),
-      kind => {
+      _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
         self.emit(self.err_unexpected_token(
           self.current_token().span,
@@ -104,7 +104,7 @@ impl Parser {
             | TokenKind::Dollar
             | TokenKind::KwCrate
             | TokenKind::KwSuper
-            | TokenKind::OpenParen
+            | TokenKind::LParen
         ) =>
       {
         self.parse_macro_invocation_statement()
@@ -155,7 +155,7 @@ impl Parser {
       TokenKind::KwMove | TokenKind::KwAsync if self.can_start_closure() => {
         self.parse_closure(ExprContext::Closure)
       },
-      TokenKind::OpenBrace => self.parse_block(label, ExprContext::Block, outer_attributes),
+      TokenKind::LBrace => self.parse_block(label, ExprContext::Block, outer_attributes),
       TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry
         if self.can_start_block_expression() =>
       {
@@ -207,10 +207,10 @@ impl Parser {
       | TokenKind::KwSelfType => self.parse_path_expr(context, true),
 
       // grouped and tuple expressions
-      TokenKind::OpenParen => self.parse_grouped_and_tuple_expr(),
+      TokenKind::LParen => self.parse_grouped_and_tuple_expr(),
 
       // array expression
-      TokenKind::OpenBracket => self.parse_array_expr(),
+      TokenKind::LBracket => self.parse_array_expr(),
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);

@@ -26,11 +26,11 @@ impl Parser {
 
     let mut stmts = vec![];
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
       stmts.push(self.parse_stmt(context)?);
       match_and_consume!(self, TokenKind::Semi)?;
     }
-    self.expect(TokenKind::CloseBrace)?;
+    self.expect(TokenKind::RBrace)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -78,7 +78,10 @@ impl Parser {
         // forbid any other keyword after async or async move
         match self.current_token().kind {
           TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry | TokenKind::KwMove => {
-            self.emit(self.err_invalid_flavor_order(start_span, "async blocks may only be followed by optional move"));
+            self.emit(self.err_invalid_flavor_order(
+              start_span,
+              "async blocks may only be followed by optional move",
+            ));
             return Err(());
           },
           _ => {},
@@ -92,7 +95,10 @@ impl Parser {
         // unsafe cannot be followed by any other flavor
         match self.current_token().kind {
           TokenKind::KwAsync | TokenKind::KwMove | TokenKind::KwTry | TokenKind::KwUnsafe => {
-            self.emit(self.err_invalid_flavor_order(start_span, "unsafe cannot be mixed with other block flavors"));
+            self.emit(self.err_invalid_flavor_order(
+              start_span,
+              "unsafe cannot be mixed with other block flavors",
+            ));
             return Err(());
           },
           _ => {},
@@ -106,7 +112,9 @@ impl Parser {
         // try cannot be followed by anything
         match self.current_token().kind {
           TokenKind::KwAsync | TokenKind::KwMove | TokenKind::KwUnsafe | TokenKind::KwTry => {
-            self.emit(self.err_invalid_flavor_order(start_span, "try must appear alone before a block"));
+            self.emit(
+              self.err_invalid_flavor_order(start_span, "try must appear alone before a block"),
+            );
             return Err(());
           },
           _ => {},
@@ -123,9 +131,17 @@ impl Parser {
 
     // Check next token is a brace if any flavor was used
     if (is_async || is_move || is_unsafe || is_try)
-      && !matches!(self.current_token().kind, TokenKind::OpenBrace)
+      && !matches!(self.current_token().kind, TokenKind::LBrace)
     {
-      let flavor = if is_async { "async" } else if is_unsafe { "unsafe" } else if is_try { "try" } else { "move" };
+      let flavor = if is_async {
+        "async"
+      } else if is_unsafe {
+        "unsafe"
+      } else if is_try {
+        "try"
+      } else {
+        "move"
+      };
       self.emit(self.err_expected_block_after_flavor(start_span, flavor));
       return Err(());
     }
@@ -159,22 +175,22 @@ impl Parser {
         i += 1;
       }
 
-      return matches!(self.peek(i).kind, TokenKind::OpenBrace);
+      return matches!(self.peek(i).kind, TokenKind::LBrace);
     }
 
     // Case 2 unsafe
     if matches!(self.peek(i).kind, TokenKind::KwUnsafe) {
       i += 1;
-      return matches!(self.peek(i).kind, TokenKind::OpenBrace);
+      return matches!(self.peek(i).kind, TokenKind::LBrace);
     }
 
     // Case 3 try (nightly only)
     if matches!(self.peek(i).kind, TokenKind::KwTry) {
       i += 1;
-      return matches!(self.peek(i).kind, TokenKind::OpenBrace);
+      return matches!(self.peek(i).kind, TokenKind::LBrace);
     }
 
     // Case 4 plain block
-    matches!(self.peek(i).kind, TokenKind::OpenBrace)
+    matches!(self.peek(i).kind, TokenKind::LBrace)
   }
 }

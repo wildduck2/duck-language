@@ -29,7 +29,7 @@ impl Parser {
     let mut elements = vec![];
 
     // Case 1: Empty array: `[]`
-    if self.current_token().kind == TokenKind::CloseBracket {
+    if self.current_token().kind == TokenKind::RBracket {
       self.advance();
       return Ok((elements, None));
     }
@@ -51,42 +51,42 @@ impl Parser {
             DiagnosticError::UnexpectedToken,
             "invalid repeat expression",
           )
-        .with_label(
-          bad.span,
-          Some(format!(
-            "expected an integer literal here, found `{lexeme}`"
-          )),
-          LabelStyle::Primary,
-        )
-        .with_note(
-          "repeat array syntax is: `[value; N]` where `N` is a compile-time constant integer."
-            .into(),
-        )
-        .with_help("example: `[x; 4]`".into());
+          .with_label(
+            bad.span,
+            Some(format!(
+              "expected an integer literal here, found `{lexeme}`"
+            )),
+            LabelStyle::Primary,
+          )
+          .with_note(
+            "repeat array syntax is: `[value; N]` where `N` is a compile-time constant integer."
+              .into(),
+          )
+          .with_help("example: `[x; 4]`".into());
 
         self.emit(diagnostic);
         return Err(());
       }
 
       let repeat_count = self.parse_expression(vec![], ExprContext::Default)?;
-      self.expect(TokenKind::CloseBracket)?;
+      self.expect(TokenKind::RBracket)?;
       return Ok((elements, Some(repeat_count)));
     }
 
     // Case 3: Standard comma-separated array                                 */
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBracket) {
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBracket) {
       if matches!(self.current_token().kind, TokenKind::Comma) {
         self.advance();
       }
 
-      if self.current_token().kind == TokenKind::CloseBracket {
+      if self.current_token().kind == TokenKind::RBracket {
         break;
       }
 
       elements.push(self.parse_expression(vec![], ExprContext::Default)?);
     }
 
-    self.expect(TokenKind::CloseBracket)?;
+    self.expect(TokenKind::RBracket)?;
     Ok((elements, None))
   }
 }

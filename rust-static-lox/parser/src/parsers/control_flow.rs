@@ -89,10 +89,14 @@ impl Parser {
 
     if !matches!(
       self.current_token().kind,
-      TokenKind::Colon | TokenKind::CloseBrace
+      TokenKind::Colon | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(self.current_token().span, "colon or closing brace", &lexeme));
+      self.emit(self.err_unexpected_token(
+        self.current_token().span,
+        "colon or closing brace",
+        &lexeme,
+      ));
       return Err(());
     }
 
@@ -122,7 +126,7 @@ impl Parser {
 
     let value = if !matches!(
       self.current_token().kind,
-      TokenKind::Semi | TokenKind::CloseBrace
+      TokenKind::Semi | TokenKind::RBrace
     ) {
       Some(self.parse_expression(vec![], ExprContext::Default)?)
     } else {
@@ -131,10 +135,14 @@ impl Parser {
 
     if !matches!(
       self.current_token().kind,
-      TokenKind::Semi | TokenKind::CloseBrace
+      TokenKind::Semi | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(self.current_token().span, "semicolon or closing brace", &lexeme));
+      self.emit(self.err_unexpected_token(
+        self.current_token().span,
+        "semicolon or closing brace",
+        &lexeme,
+      ));
       return Err(());
     }
 
@@ -169,7 +177,7 @@ impl Parser {
 
     let value = if !matches!(
       self.current_token().kind,
-      TokenKind::Semi | TokenKind::CloseBrace
+      TokenKind::Semi | TokenKind::RBrace
     ) {
       Some(self.parse_expression(vec![], ExprContext::Default)?)
     } else {
@@ -178,10 +186,14 @@ impl Parser {
 
     if !matches!(
       self.current_token().kind,
-      TokenKind::Semi | TokenKind::CloseBrace
+      TokenKind::Semi | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(self.current_token().span, "semicolon or closing brace", &lexeme));
+      self.emit(self.err_unexpected_token(
+        self.current_token().span,
+        "semicolon or closing brace",
+        &lexeme,
+      ));
       return Err(());
     }
 
@@ -215,7 +227,6 @@ impl Parser {
 
       // everything else is not a valid boolean condition
       ExprKind::Struct { .. }
-      | ExprKind::TupleStruct { .. }
       | ExprKind::Assign { .. }
       | ExprKind::AssignOp { .. }
       | ExprKind::Range { .. }

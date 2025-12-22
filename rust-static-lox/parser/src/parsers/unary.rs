@@ -12,17 +12,13 @@ impl Parser {
     match token.kind {
       TokenKind::Minus | TokenKind::Bang | TokenKind::Star => {
         self.advance(); // consume operator
-
         let op = match token.kind {
           TokenKind::Minus => UnaryOp::Neg,
           TokenKind::Bang => UnaryOp::Not,
           TokenKind::Star => UnaryOp::Deref,
           _ => unreachable!(),
         };
-
         let rhs = self.parse_unary(context)?;
-        token.span.merge(self.current_token().span);
-
         Ok(Expr {
           attributes: vec![],
           kind: ExprKind::Unary {
@@ -32,19 +28,14 @@ impl Parser {
           span: *token.span.merge(self.current_token().span),
         })
       },
-      TokenKind::And => {
+      TokenKind::Amp => {
         self.advance(); // consume the first '&'
-
         let mut depth = 1;
-        while !self.is_eof() && match_and_consume!(self, TokenKind::And)? {
+        while !self.is_eof() && match_and_consume!(self, TokenKind::Amp)? {
           depth += 1;
         }
-
         let mutability = self.parse_mutability()?;
-
         let rhs = self.parse_unary(context)?;
-        token.span.merge(self.current_token().span);
-
         Ok(Expr {
           attributes: vec![],
           kind: ExprKind::Unary {
@@ -53,12 +44,6 @@ impl Parser {
           },
           span: *token.span.merge(self.current_token().span),
         })
-
-        // Ok(Expr::Unary {
-        //   expr: Box::new(rhs),
-        //   op: UnaryOp::Ref { mutable, depth },
-        //   span: token.span,
-        // })
       },
       _ => self.parse_postfix(context),
     }

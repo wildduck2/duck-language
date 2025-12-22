@@ -1,1 +1,1 @@
-struct Hello  where 'a: 'b + 'c {};
+1 << 2..3

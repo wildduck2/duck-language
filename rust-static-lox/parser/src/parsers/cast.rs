@@ -27,9 +27,6 @@ impl Parser {
             span: *token.span.merge(self.current_token().span),
           };
         },
-        TokenKind::OpenParen | TokenKind::Dot | TokenKind::OpenBracket | TokenKind::Question => {
-          lhs = self.parse_postfix_chain(lhs, context)?;
-        },
         _ => break,
       }
     }

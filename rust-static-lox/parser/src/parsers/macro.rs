@@ -3,10 +3,7 @@ use crate::{
   match_and_consume, Parser,
 };
 
-use diagnostic::{
-  diagnostic::LabelStyle,
-  types::error::DiagnosticError,
-};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 // TODO: token tree parsing here is still a syntax only approximation.
@@ -48,21 +45,9 @@ impl Parser {
     let mut token = self.current_token();
 
     let (open_kind, delimiter, close_kind) = match token.kind {
-      TokenKind::OpenParen => (
-        TokenKind::OpenParen,
-        Delimiter::Paren,
-        TokenKind::CloseParen,
-      ),
-      TokenKind::OpenBracket => (
-        TokenKind::OpenBracket,
-        Delimiter::Bracket,
-        TokenKind::CloseBracket,
-      ),
-      TokenKind::OpenBrace => (
-        TokenKind::OpenBrace,
-        Delimiter::Brace,
-        TokenKind::CloseBrace,
-      ),
+      TokenKind::LParen => (TokenKind::LParen, Delimiter::Paren, TokenKind::RParen),
+      TokenKind::LBracket => (TokenKind::LBracket, Delimiter::Bracket, TokenKind::RBracket),
+      TokenKind::LBrace => (TokenKind::LBrace, Delimiter::Brace, TokenKind::RBrace),
       _ => {
         let lexeme = self.get_token_lexeme(&token);
         let diagnostic = self
@@ -70,12 +55,12 @@ impl Parser {
             DiagnosticError::UnexpectedToken,
             format!("unexpected token `{lexeme}` in macro invocation"),
           )
-        .with_label(
-          token.span,
-          Some("Expected `(`, `[` or `{` to start macro arguments".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("Macro invocations must be followed by a delimited token tree.".to_string());
+          .with_label(
+            token.span,
+            Some("Expected `(`, `[` or `{` to start macro arguments".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("Macro invocations must be followed by a delimited token tree.".to_string());
         self.emit(diagnostic);
         return Err(());
       },
@@ -99,7 +84,7 @@ impl Parser {
     while !self.is_eof()
       && !matches!(
         self.current_token().kind,
-        TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace
+        TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace
       )
     {
       tokens.push(self.parse_token_tree()?);
@@ -118,11 +103,11 @@ impl Parser {
         Ok(TokenTree::Token(self.get_token_lexeme(&token)))
       },
 
-      TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace => {
+      TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => {
         let delimiter = match token.kind {
-          TokenKind::OpenParen => Delimiter::Paren,
-          TokenKind::OpenBracket => Delimiter::Bracket,
-          TokenKind::OpenBrace => Delimiter::Brace,
+          TokenKind::LParen => Delimiter::Paren,
+          TokenKind::LBracket => Delimiter::Bracket,
+          TokenKind::LBrace => Delimiter::Brace,
           _ => unreachable!(),
         };
 
@@ -130,9 +115,9 @@ impl Parser {
         let tokens = self.parse_macro_tokens()?;
 
         match delimiter {
-          Delimiter::Paren => self.expect(TokenKind::CloseParen)?,
-          Delimiter::Bracket => self.expect(TokenKind::CloseBracket)?,
-          Delimiter::Brace => self.expect(TokenKind::CloseBrace)?,
+          Delimiter::Paren => self.expect(TokenKind::RParen)?,
+          Delimiter::Bracket => self.expect(TokenKind::RBracket)?,
+          Delimiter::Brace => self.expect(TokenKind::RBrace)?,
         };
 
         Ok(TokenTree::Delimited { delimiter, tokens })
@@ -162,12 +147,12 @@ impl Parser {
             DiagnosticError::UnexpectedToken,
             format!("unexpected token `{lexeme}` in macro token tree"),
           )
-        .with_label(
-          token.span,
-          Some("Expected a token-tree element".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("This macro parser is currently syntax only.".to_string());
+          .with_label(
+            token.span,
+            Some("Expected a token-tree element".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("This macro parser is currently syntax only.".to_string());
         self.emit(diagnostic);
         Err(())
       },

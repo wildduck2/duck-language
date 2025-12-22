@@ -1,4 +1,3 @@
-use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, Expr, ExprKind};
@@ -30,31 +29,6 @@ impl Parser {
       self.advance();
 
       let rhs = self.parse_term(context)?;
-
-      // Reject invalid chaining with range operators after shifting
-      if matches!(
-        self.current_token().kind,
-        TokenKind::DotDot | TokenKind::DotDotEq
-      ) {
-        let bad = self.current_token();
-        let lexeme = self.get_token_lexeme(&bad);
-
-        let diagnostic = self
-          .diagnostic(
-            DiagnosticError::UnexpectedToken,
-            "chained range expressions are not allowed",
-          )
-        .with_label(
-          bad.span,
-          Some(format!("found `{lexeme}` after a range expression")),
-          LabelStyle::Primary,
-        )
-        .with_help("only one `..` or `..=` may appear in a range expression".to_string())
-        .with_note("`a..b..c` is invalid; use `(a..b)` or `(b..c)` instead".to_string());
-
-        self.emit(diagnostic);
-        return Err(());
-      }
 
       lhs = Expr {
         attributes: vec![],

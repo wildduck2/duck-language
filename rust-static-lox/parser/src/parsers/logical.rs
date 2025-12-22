@@ -25,17 +25,18 @@ impl Parser {
                 DiagnosticError::UnexpectedToken,
                 "invalid right-hand side of logical OR expression",
               )
-            .with_label(
-              bad.span,
-              Some(format!(
-                "expected an expression after `||`, found `{lexeme}`"
-              )),
-              LabelStyle::Primary,
-            )
-            .with_help(
-              "logical OR requires a left and a right expression, for example: a || b".to_string(),
-            )
-            .with_note("examples: x || y, flags || MASK, (a && b) || c".to_string());
+              .with_label(
+                bad.span,
+                Some(format!(
+                  "expected an expression after `||`, found `{lexeme}`"
+                )),
+                LabelStyle::Primary,
+              )
+              .with_help(
+                "logical OR requires a left and a right expression, for example: a || b"
+                  .to_string(),
+              )
+              .with_note("examples: x || y, flags || MASK, (a && b) || c".to_string());
 
             self.emit(diagnostic);
             return Err(());
@@ -65,7 +66,7 @@ impl Parser {
     loop {
       let token = self.current_token();
       match token.kind {
-        TokenKind::And if self.peek(1).kind == TokenKind::And => {
+        TokenKind::Amp if self.peek(1).kind == TokenKind::Amp => {
           self.advance();
           self.advance();
 
@@ -78,17 +79,18 @@ impl Parser {
                 DiagnosticError::UnexpectedToken,
                 "invalid right-hand side of logical AND expression",
               )
-            .with_label(
-              bad.span,
-              Some(format!(
-                "expected an expression after `&&`, found `{lexeme}`"
-              )),
-              LabelStyle::Primary,
-            )
-            .with_help(
-              "logical AND requires a left and a right expression, for example: a && b".to_string(),
-            )
-            .with_note("examples: x && y, flags && MASK, (a || b) && c".to_string());
+              .with_label(
+                bad.span,
+                Some(format!(
+                  "expected an expression after `&&`, found `{lexeme}`"
+                )),
+                LabelStyle::Primary,
+              )
+              .with_help(
+                "logical AND requires a left and a right expression, for example: a && b"
+                  .to_string(),
+              )
+              .with_note("examples: x && y, flags && MASK, (a || b) && c".to_string());
 
             self.emit(diagnostic);
             return Err(());

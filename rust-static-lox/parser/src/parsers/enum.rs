@@ -41,14 +41,14 @@ impl Parser {
 
   fn parse_enum_variants(&mut self) -> Result<Vec<EnumVariant>, ()> {
     let mut variants = vec![];
-    self.expect(TokenKind::OpenBrace)?; // consume '{'
+    self.expect(TokenKind::LBrace)?; // consume '{'
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
       variants.push(self.parse_enum_variant()?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseBrace)?; // consume '}'
+    self.expect(TokenKind::RBrace)?; // consume '}'
     Ok(variants)
   }
 
@@ -58,11 +58,11 @@ impl Parser {
     let visibility = self.parse_visibility()?;
     let name = self.parse_name(false)?;
 
-    let kind = if matches!(self.current_token().kind, TokenKind::OpenBrace) {
+    let kind = if matches!(self.current_token().kind, TokenKind::LBrace) {
       EnumVariantKind::Struct {
         fields: self.parse_record_fields()?,
       }
-    } else if matches!(self.current_token().kind, TokenKind::OpenParen) {
+    } else if matches!(self.current_token().kind, TokenKind::LParen) {
       EnumVariantKind::Tuple {
         fields: self.parse_tuple_fields()?,
       }

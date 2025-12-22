@@ -37,12 +37,30 @@ impl Parser {
     // Determine whether an expression follows the operator
     let has_end = !matches!(
       self.current_token().kind,
-      TokenKind::CloseBracket
-        | TokenKind::CloseParen
-        | TokenKind::CloseBrace
+      TokenKind::RBracket
+        | TokenKind::RParen
+        | TokenKind::RBrace
+        | TokenKind::Comma
         | TokenKind::Semi
         | TokenKind::Eof
     );
+
+    if matches!(token.kind, TokenKind::DotDotEq) && !has_end {
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          "inclusive range requires an end expression",
+        )
+        .with_label(
+          token.span,
+          Some("`..=` must be followed by an end expression".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("use `..` for an open-ended range".to_string());
+
+      self.emit(diagnostic);
+      return Err(());
+    }
 
     let end = if has_end {
       Some(Box::new(self.parse_logical_or(context)?))
@@ -56,7 +74,6 @@ impl Parser {
       (TokenKind::DotDot, true, false) => RangeExprKind::From,
       (TokenKind::DotDot, _, true) => RangeExprKind::To,
       (TokenKind::DotDotEq, _, true) => RangeExprKind::ToInclusive,
-      (TokenKind::DotDotEq, true, false) => RangeExprKind::FromInclusive,
       _ => RangeExprKind::Exclusive,
     };
 
@@ -73,13 +90,13 @@ impl Parser {
           DiagnosticError::UnexpectedToken,
           "chained range expressions are not allowed",
         )
-      .with_label(
-        bad.span,
-        Some(format!("found `{lexeme}` after a range expression")),
-        LabelStyle::Primary,
-      )
-      .with_help("only one `..` or `..=` may appear in a range expression".to_string())
-      .with_note("`a..b..c` is invalid; use `(a..b)` or `(b..c)` instead".to_string());
+        .with_label(
+          bad.span,
+          Some(format!("found `{lexeme}` after a range expression")),
+          LabelStyle::Primary,
+        )
+        .with_help("only one `..` or `..=` may appear in a range expression".to_string())
+        .with_note("`a..b..c` is invalid; use `(a..b)` or `(b..c)` instead".to_string());
 
       self.emit(diagnostic);
       return Err(());

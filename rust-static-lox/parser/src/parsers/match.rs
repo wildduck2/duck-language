@@ -7,15 +7,15 @@ impl Parser {
     self.advance(); // consume "match"
 
     let scrutinee = self.parse_expression(vec![], context)?;
-    self.expect(TokenKind::OpenBrace)?;
+    self.expect(TokenKind::LBrace)?;
     let mut arms = Vec::new();
 
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::CloseBrace) {
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
       arms.push(self.parse_match_arm(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
-    self.expect(TokenKind::CloseBrace)?;
+    self.expect(TokenKind::RBrace)?;
 
     Ok(Expr {
       attributes: Vec::new(),
