@@ -2,7 +2,8 @@ use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
 
 use crate::{
-  ast::{Expr, ExprKind, FieldAccess},
+  ast::{Expr, ExprKind, FieldAccess, Path},
+  match_and_consume,
   parser_utils::ExprContext,
   Parser,
 };
@@ -10,8 +11,9 @@ use crate::{
 impl Parser {
   pub(crate) fn parse_postfix(&mut self, context: ExprContext) -> Result<Expr, ()> {
     let expr = self.parse_primary(context)?;
-    let expr = self.parse_postfix_chain(expr, context)?;
-    self.parse_try_suffix(expr)
+    let mut seen_await = false;
+    let expr = self.parse_postfix_chain(expr, context, &mut seen_await)?;
+    self.parse_postfix_suffix(expr, &mut seen_await)
   }
 
   /// Continues parsing postfix operators for an already parsed expression.
@@ -19,6 +21,7 @@ impl Parser {
     &mut self,
     mut expr: Expr,
     context: ExprContext,
+    seen_await: &mut bool,
   ) -> Result<Expr, ()> {
     loop {
       match self.current_token().kind {
@@ -27,7 +30,7 @@ impl Parser {
         },
         TokenKind::Dot => {
           if self.peek(1).kind == TokenKind::KwAwait {
-            expr = self.parse_await(expr)?;
+            expr = self.parse_await(expr, seen_await)?;
           } else {
             expr = self.parse_field_or_method(context, expr)?;
           }
@@ -42,17 +45,66 @@ impl Parser {
     Ok(expr)
   }
 
-  fn parse_try_suffix(&mut self, mut expr: Expr) -> Result<Expr, ()> {
-    while matches!(self.current_token().kind, TokenKind::Question) {
-      expr = self.parse_try(expr)?;
+  fn parse_postfix_suffix(
+    &mut self,
+    mut expr: Expr,
+    seen_await: &mut bool,
+  ) -> Result<Expr, ()> {
+    loop {
+      match self.current_token().kind {
+        TokenKind::Question => {
+          expr = self.parse_try(expr)?;
+        },
+        TokenKind::Dot if self.peek(1).kind == TokenKind::KwAwait => {
+          expr = self.parse_await(expr, seen_await)?;
+        },
+        _ => break,
+      }
     }
     Ok(expr)
   }
 
-  pub(crate) fn parse_await(&mut self, expr: Expr) -> Result<Expr, ()> {
+  pub(crate) fn parse_await(&mut self, expr: Expr, seen_await: &mut bool) -> Result<Expr, ()> {
     self.expect(TokenKind::Dot)?;
     let mut token = self.current_token();
     self.advance(); // consume `await`
+
+    if *seen_await {
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          "await expression cannot be followed by another await expression".to_string(),
+        )
+        .with_label(
+          token.span,
+          Some("await expressions cannot be chained".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("Examples: `await foo.await`, `await await foo`".to_string());
+      self.emit(diagnostic);
+      return Err(());
+    }
+
+    *seen_await = true;
+
+    // Handle the call on await like : await()
+    if matches!(self.current_token().kind, TokenKind::LParen) {
+      let token = self.current_token();
+      let lexeme = self.get_token_lexeme(&token);
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("unexpected token `{}`", lexeme),
+        )
+        .with_label(
+          token.span,
+          Some("Expected an identifier, tuple index, or method call target".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("Examples: `.foo`, `.0`, `.await`, or `.method(args)`.".to_string());
+      self.emit(diagnostic);
+      return Err(());
+    }
 
     Ok(Expr {
       attributes: vec![],
@@ -99,8 +151,40 @@ impl Parser {
     match &token.kind {
       // Named field or method access
       TokenKind::Ident => {
-        let name = self.get_token_lexeme(&token);
-        self.advance(); // consume identifier
+        let name = self.parse_name(false)?;
+
+        let turbofish = if match_and_consume!(self, TokenKind::ColonColon)? {
+          self.parse_generic_args(context)?
+        } else {
+          None
+        };
+
+        if turbofish.is_some() && self.current_token().kind != TokenKind::LParen {
+          let found = self.get_token_lexeme(&self.current_token());
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              "turbofish is only allowed on method calls",
+            )
+            .with_label(
+              self.current_token().span,
+              Some(format!("expected `(` after turbofish, found `{found}`")),
+              LabelStyle::Primary,
+            )
+            .with_help("use `.method::<T>(...)` to apply turbofish to a method call".to_string());
+          self.emit(diagnostic);
+          return Err(());
+        }
+
+        // `.foo!`
+        if match_and_consume!(self, TokenKind::Bang)? {
+          let mac = self.parse_macro_invocation(Path::from_ident(name))?;
+          return Ok(Expr {
+            attributes: vec![],
+            kind: ExprKind::Macro { mac },
+            span: *token.span.merge(self.current_token().span),
+          });
+        }
 
         // `.method(args)`
         if self.current_token().kind == TokenKind::LParen {
@@ -113,7 +197,7 @@ impl Parser {
             kind: ExprKind::MethodCall {
               receiver: Box::new(object),
               method: name,
-              turbofish: None,
+              turbofish,
               args,
             },
             span: *token.span.merge(self.current_token().span),
@@ -169,7 +253,41 @@ impl Parser {
     }
   }
 
-  fn parse_call(&mut self, context: ExprContext, callee: Expr) -> Result<Expr, ()> {
+  fn parse_call(&mut self, context: ExprContext, mut callee: Expr) -> Result<Expr, ()> {
+    fn has_terminal_turbofish(expr: &Expr) -> bool {
+      match &expr.kind {
+        ExprKind::Group { expr } => has_terminal_turbofish(expr),
+        ExprKind::Path { path, .. } => {
+          if path.segments.len() != 1 {
+            return false;
+          }
+          match path.segments.last() {
+            Some(segment) => segment.args.is_some(),
+            None => false,
+          }
+        },
+        _ => false,
+      }
+    }
+
+    if has_terminal_turbofish(&callee) {
+      let span = *callee.span.merge(self.current_token().span);
+
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          "turbofish is not allowed on a call target",
+        )
+        .with_label(
+          span,
+          Some("remove the turbofish or use it on a qualified path or method".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("examples: `Vec::<T>::new()` or `value.method::<T>()`".to_string());
+      self.emit(diagnostic);
+      return Err(());
+    }
+
     let mut token = self.current_token();
     self.expect(TokenKind::LParen)?;
     let args = self.parse_call_params(context)?;

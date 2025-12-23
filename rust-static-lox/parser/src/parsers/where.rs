@@ -1,9 +1,12 @@
 use lexer::token::TokenKind;
 
-use crate::{ast::generic::*, match_and_consume, Parser};
+use crate::{ast::generic::*, match_and_consume, parser_utils::ExprContext, Parser};
 
 impl Parser {
-  pub(crate) fn parse_where_clause(&mut self) -> Result<Option<WhereClause>, ()> {
+  pub(crate) fn parse_where_clause(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Option<WhereClause>, ()> {
     if !matches!(self.current_token().kind, TokenKind::KwWhere) {
       return Ok(None);
     }
@@ -18,7 +21,7 @@ impl Parser {
         TokenKind::LBrace | TokenKind::Semi | TokenKind::Eq
       )
     {
-      predicates.push(self.parse_type_predicate()?);
+      predicates.push(self.parse_type_predicate(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
@@ -32,7 +35,10 @@ impl Parser {
     Ok(Some(WhereClause { predicates }))
   }
 
-  pub(crate) fn parse_type_predicate(&mut self) -> Result<WherePredicate, ()> {
+  pub(crate) fn parse_type_predicate(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<WherePredicate, ()> {
     let token = self.current_token();
 
     // Lifetime predicate: `'a: 'b + 'c`
@@ -44,12 +50,12 @@ impl Parser {
     let for_lifetimes = self.parse_for_lifetimes()?;
 
     // Parse the left-hand type (e.g. T, <T as Trait>::Item, etc.)
-    let ty = self.parse_type()?;
+    let ty = self.parse_type(context)?;
 
     // Handle either `:` (bounds) or `=` (equality)
     match self.current_token().kind {
       TokenKind::Colon => {
-        let bounds = self.parse_trait_bounds("where-clause")?;
+        let bounds = self.parse_trait_bounds("where-clause", context)?;
 
         if bounds.is_empty() {
           let token = self.current_token();
@@ -69,7 +75,7 @@ impl Parser {
         self.advance(); // consume '='
         Ok(WherePredicate::Equality {
           ty,
-          equals: self.parse_type()?,
+          equals: self.parse_type(context)?,
         })
       },
 
@@ -93,9 +99,9 @@ impl Parser {
       vec![]
     };
 
-    return Ok(WherePredicate::Lifetime {
+    Ok(WherePredicate::Lifetime {
       lifetime,
       bounds: lifetime_bounds,
-    });
+    })
   }
 }

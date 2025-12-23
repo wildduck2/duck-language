@@ -37,6 +37,7 @@ mod logical_tests {
     match expr {
       ExprKind::Literal(Lit::Bool(value)) => boolean(*value),
       ExprKind::Literal(Lit::Integer { value, .. }) => SimpleExpr::Int(*value),
+      ExprKind::Group { expr } => simplify(&expr.kind),
       ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
       _ => panic!("unexpected expression in logical tests: {:?}", expr),
     }
@@ -103,5 +104,27 @@ mod logical_tests {
   #[test]
   fn errors_when_and_missing_rhs() {
     assert_err("true &&");
+  }
+
+  #[test]
+  fn parentheses_override_precedence() {
+    assert_expr(
+      "(1 || 0) && 2",
+      bin(
+        BinaryOp::And,
+        bin(BinaryOp::Or, SimpleExpr::Int(1), SimpleExpr::Int(0)),
+        SimpleExpr::Int(2),
+      ),
+    );
+  }
+
+  #[test]
+  fn single_and_is_not_logical_and() {
+    assert_err("true & false");
+  }
+
+  #[test]
+  fn single_or_is_not_logical_or() {
+    assert_err("true | false");
   }
 }

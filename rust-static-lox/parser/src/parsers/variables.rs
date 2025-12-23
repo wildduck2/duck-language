@@ -10,8 +10,8 @@ use crate::{
 impl Parser {
   pub(crate) fn parse_let_statement(
     &mut self,
-    context: ExprContext,
     attributes: Vec<Attribute>,
+    context: ExprContext,
   ) -> Result<Stmt, ()> {
     let token = self.current_token();
     self.advance(); // consume `let`
@@ -19,7 +19,7 @@ impl Parser {
     let pattern = self.parse_pattern_with_or(context)?;
 
     let ty = if match_and_consume!(self, TokenKind::Colon)? {
-      Some(self.parse_type()?)
+      Some(self.parse_type(context)?)
     } else {
       None
     };

@@ -30,7 +30,7 @@ impl Parser {
   fn parse_match_arm(&mut self, context: ExprContext) -> Result<MatchArm, ()> {
     let mut token = self.current_token();
 
-    let attributes = self.parse_outer_attributes()?;
+    let attributes = self.parse_outer_attributes(context)?;
     let pattern = self.parse_pattern_with_or(context)?;
 
     let guard = if matches!(self.current_token().kind, TokenKind::KwIf) {

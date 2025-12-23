@@ -10,13 +10,14 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
+    context: ExprContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.advance(); // consume the "static"
 
     let mutability = self.parse_mutability()?;
     let name = self.parse_name(false)?;
-    let ty = self.parse_type()?;
+    let ty = self.parse_type(context)?;
     let value = if matches!(self.current_token().kind, TokenKind::Eq) {
       self.advance(); // consume '='
       Some(self.parse_expression(vec![], ExprContext::Default)?)

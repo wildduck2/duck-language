@@ -95,8 +95,8 @@ impl Parser {
   fn parse_path_based_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
     let mut start = self.current_token();
 
-    let qself_header = self.parse_qself_type_header()?;
-    let path = self.parse_path(true)?;
+    let qself_header = self.parse_qself_type_header(context)?;
+    let path = self.parse_path(true, context)?;
     let (qself, path) = self.merge_qself_with_path(qself_header, path);
 
     if match_and_consume!(self, TokenKind::Bang)? {
@@ -356,7 +356,7 @@ impl Parser {
   fn parse_field_pattern(&mut self, context: ExprContext) -> Result<FieldPattern, ()> {
     let mut token = self.current_token();
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_outer_attributes()?
+      self.parse_outer_attributes(context)?
     } else {
       vec![]
     };

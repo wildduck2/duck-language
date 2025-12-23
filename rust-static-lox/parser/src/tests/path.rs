@@ -28,9 +28,7 @@ mod path_tests {
     );
   }
 
-  // ============================================================================
   // Simple Path Tests
-  // ============================================================================
 
   #[test]
   fn test_simple_ident_path() {
@@ -149,9 +147,7 @@ mod path_tests {
     );
   }
 
-  // ============================================================================
   // Self/Super/Crate Path Tests
-  // ============================================================================
 
   #[test]
   fn test_self_path() {
@@ -411,9 +407,7 @@ mod path_tests {
     );
   }
 
-  // ============================================================================
   // Generic Arguments Tests
-  // ============================================================================
 
   #[test]
   fn test_path_with_single_generic_arg() {
@@ -777,9 +771,7 @@ mod path_tests {
     );
   }
 
-  // ============================================================================
   // SelfType Path Tests
-  // ============================================================================
 
   #[test]
   fn test_self_type_with_generic() {
@@ -1131,9 +1123,7 @@ mod path_tests {
     );
   }
 
-  // ============================================================================
   // Qualified Path Tests (QSelf)
-  // ============================================================================
 
   #[test]
   fn test_qualified_path_simple() {
@@ -1217,34 +1207,7 @@ mod path_tests {
 
   #[test]
   fn test_qualified_path_with_dollar_crate_type() {
-    assert_path(
-      "<$crate::Type>::Assoc",
-      ExprKind::Path {
-        qself: Some(QSelf {
-          self_ty: Box::new(Type::Path(Path {
-            leading_colon: false,
-            segments: vec![
-              PathSegment {
-                kind: PathSegmentKind::DollarCrate,
-                args: None,
-              },
-              PathSegment {
-                kind: PathSegmentKind::Ident("Type".to_string()),
-                args: None,
-              },
-            ],
-          })),
-          as_trait: None,
-        }),
-        path: Path {
-          leading_colon: false,
-          segments: vec![PathSegment {
-            kind: PathSegmentKind::Ident("Assoc".to_string()),
-            args: None,
-          }],
-        },
-      },
-    );
+    assert_err("<$crate::Type>::Assoc");
   }
 
   #[test]
@@ -1891,9 +1854,7 @@ mod path_tests {
     );
   }
 
-  // ============================================================================
   // Error/Invalid Syntax Tests
-  // ============================================================================
 
   #[test]
   fn test_invalid_lifetime_generics_should_error() {
@@ -2066,5 +2027,213 @@ mod path_tests {
     for src in cases {
       assert_err(src);
     }
+  }
+
+  #[test]
+  fn test_path_then_call_not_a_path() {
+    assert_err("foo::bar()");
+  }
+
+  #[test]
+  fn test_turbofish_after_complete_path_should_error() {
+    assert_err("foo::<T>()");
+    assert_err("foo::bar::<T>()");
+  }
+
+  #[test]
+  fn test_trailing_generic_without_segment_should_error() {
+    assert_err("foo::<T>::");
+    assert_err("foo::bar::<T>::");
+  }
+
+  #[test]
+  fn test_multiple_leading_colons_should_error() {
+    assert_err("::::foo");
+    assert_err(":::foo::bar");
+  }
+
+  #[test]
+  fn test_invalid_keyword_path_segments() {
+    let cases = [
+      "foo::fn",
+      "foo::let",
+      "foo::loop",
+      "foo::match",
+      "foo::async",
+      "foo::await",
+      "foo::try",
+    ];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_lifetime_as_path_segment_should_error() {
+    assert_err("foo::'a");
+    assert_err("::'a");
+  }
+
+  #[test]
+  fn test_qself_followed_by_invalid_segment_should_error() {
+    assert_err("<T>::0");
+    assert_err("<T>::()");
+    assert_err("<T>::[]");
+  }
+
+  #[test]
+  fn test_nested_qself_should_error() {
+    assert_err("<<T>>::Item");
+    assert_err("<<T as Trait>>::Item");
+  }
+
+  #[test]
+  fn test_dollar_crate_deep_invalid_usage() {
+    assert_err("foo::$crate::bar");
+    assert_err("<$crate::Type as Trait>::$crate");
+  }
+
+  #[test]
+  fn test_path_ending_with_generic_without_ident_should_error() {
+    assert_err("::<T>");
+    assert_err("foo::::<T>");
+  }
+
+  #[test]
+  fn test_generics_on_special_segments_should_error() {
+    let cases = ["self::<T>", "super::<T>", "crate::<T>", "$crate::<T>"];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_qself_invalid_as_placement() {
+    let cases = [
+      "<T as>::Item",
+      "<T as Trait as Other>::Item",
+      "<T as Trait Trait>::Item",
+    ];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_qself_with_empty_tail_should_error() {
+    let cases = ["<T>::", "<T as Trait>::", "<Self>::"];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_invalid_generic_argument_kinds_should_error() {
+    let cases = [
+      "foo::<1>",
+      "foo::<true>",
+      "foo::<()>",
+      "foo::<{}>",
+      "foo::<[T]>",
+    ];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_trailing_comma_outside_generics_should_error() {
+    let cases = ["foo::bar,", "foo::bar::", "<T>::Item,"];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_path_followed_by_invalid_tokens_should_error() {
+    let cases = ["foo::bar @", "foo::bar #", "foo::bar $", "foo::bar !"];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_qself_reintroduced_after_generics_should_error() {
+    let cases = ["<T>::Item::<U>::<V>", "<T>::Item::<U>::<V as Trait>"];
+
+    for src in cases {
+      assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_global_path_only_generics_should_error() {
+    assert_err("::<T>");
+    assert_err("::<T>::");
+  }
+
+  #[test]
+  fn test_dollar_crate_with_generics_should_error() {
+    assert_err("$crate::<T>");
+    assert_err("::$crate::<T>");
+  }
+
+  #[test]
+  fn test_qself_lifetime_type_should_error() {
+    assert_err("<&'a T>::Item");
+    assert_err("<'a>::Item");
+  }
+
+  #[test]
+  fn test_keyword_as_root_path_should_error() {
+    assert_err("fn");
+    assert_err("let");
+    assert_err("async");
+  }
+
+  #[test]
+  fn test_qself_with_extra_colons_should_error() {
+    assert_err("<::>::Item");
+    assert_err("<::foo::>::Item");
+  }
+
+  #[test]
+  fn test_qself_empty_generic_args_should_error() {
+    assert_err("<T>::Item::<>");
+  }
+
+  #[test]
+  fn test_numeric_segment_after_valid_path_should_error() {
+    assert_err("foo::bar::0");
+  }
+
+  #[test]
+  fn test_static_lifetime_as_path_segment_should_error() {
+    assert_err("foo::'static");
+  }
+
+  #[test]
+  #[ignore = " we have not implemented the raw identifier path syntax yet"]
+  fn test_raw_identifier_path() {
+    assert_path(
+      "r#type",
+      ExprKind::Path {
+        qself: None,
+        path: Path {
+          leading_colon: false,
+          segments: vec![PathSegment {
+            kind: PathSegmentKind::Ident("type".to_string()),
+            args: None,
+          }],
+        },
+      },
+    );
   }
 }

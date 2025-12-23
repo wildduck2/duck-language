@@ -15,15 +15,16 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
+    context: ExprContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.expect(TokenKind::KwType)?; // consume the "type"
     let name = self.parse_name(false)?;
-    let generics = self.parse_generic_params(&mut token)?;
-    let bounds = self.parse_trait_bounds("type alias")?;
-    let where_clause = self.parse_where_clause()?;
+    let generics = self.parse_generic_params(&mut token, context)?;
+    let bounds = self.parse_trait_bounds("type alias", context)?;
+    let where_clause = self.parse_where_clause(context)?;
     self.expect(TokenKind::Eq)?; // consume '='
-    let ty = self.parse_type()?;
+    let ty = self.parse_type(context)?;
 
     Ok(Item::Vis(VisItem {
       attributes,
@@ -39,14 +40,16 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_type(&mut self) -> Result<Type, ()> {
+  pub(crate) fn parse_type(&mut self, context: ExprContext) -> Result<Type, ()> {
     let mut token = self.current_token();
     let lexeme = self.get_token_lexeme(&token);
     self.advance(); // consume the first token of the type
 
     match token.kind {
-      TokenKind::KwFn | TokenKind::KwFor | TokenKind::KwUnsafe => self.parse_bare_function_type(),
-      TokenKind::Lt => self.parse_qpath_type(),
+      TokenKind::KwFn | TokenKind::KwFor | TokenKind::KwUnsafe => {
+        self.parse_bare_function_type(context)
+      },
+      TokenKind::Lt => self.parse_qpath_type(context),
 
       TokenKind::Bang => Ok(Type::Never),
 
@@ -84,22 +87,22 @@ impl Parser {
           _ => {
             // Reset position so parse_path can consume the ident or crate token
             self.current -= 1;
-            Ok(Type::Path(self.parse_path(true)?))
+            Ok(Type::Path(self.parse_path(true, context)?))
           },
         }
       },
 
       // Tuple and parenthesized types: (T, U, V)
-      TokenKind::LParen => self.parse_tuple_or_parenthesized_type(),
+      TokenKind::LParen => self.parse_tuple_type(context),
 
       // Array type: [ T ; expr ]
-      TokenKind::LBracket => self.parse_array_type(),
+      TokenKind::LBracket => self.parse_array_type(context),
 
       // Raw pointer: *const T or *mut T
-      TokenKind::Star => self.parse_raw_pointer_type(),
+      TokenKind::Star => self.parse_raw_pointer_type(context),
 
       // Reference types: &T, &'a T, &mut T, &'a mut T
-      TokenKind::Amp => self.parse_reference_type(),
+      TokenKind::Amp => self.parse_reference_type(context),
 
       TokenKind::KwSelfType => Ok(Type::SelfType),
 
@@ -121,7 +124,7 @@ impl Parser {
     }
   }
 
-  fn parse_reference_type(&mut self) -> Result<Type, ()> {
+  fn parse_reference_type(&mut self, context: ExprContext) -> Result<Type, ()> {
     // Forbid patterns like &const T which are not valid reference types.
     if matches!(self.current_token().kind, TokenKind::KwConst) {
       let diagnostic = self
@@ -151,7 +154,7 @@ impl Parser {
       return Ok(Type::Reference {
         lifetime: None,
         mutability: Mutability::Immutable,
-        inner: Box::new(self.parse_type()?),
+        inner: Box::new(self.parse_type(context)?),
       });
     }
 
@@ -163,11 +166,11 @@ impl Parser {
     Ok(Type::Reference {
       lifetime,
       mutability,
-      inner: Box::new(self.parse_type()?),
+      inner: Box::new(self.parse_type(context)?),
     })
   }
 
-  fn parse_raw_pointer_type(&mut self) -> Result<Type, ()> {
+  fn parse_raw_pointer_type(&mut self, context: ExprContext) -> Result<Type, ()> {
     // If we see *T directly, this is missing the const or mut qualifier.
     if matches!(self.current_token().kind, TokenKind::Ident) {
       let diagnostic = self
@@ -199,12 +202,12 @@ impl Parser {
 
     Ok(Type::RawPointer {
       mutability,
-      inner: Box::new(self.parse_type()?),
+      inner: Box::new(self.parse_type(context)?),
     })
   }
 
-  fn parse_array_type(&mut self) -> Result<Type, ()> {
-    let element = self.parse_type()?;
+  fn parse_array_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+    let element = self.parse_type(context)?;
     if !matches!(self.current_token().kind, TokenKind::Semi) {
       self.expect(TokenKind::RBracket)?; // consume ']'
       return Ok(Type::Slice(Box::new(element)));
@@ -220,31 +223,36 @@ impl Parser {
     })
   }
 
-  fn parse_tuple_or_parenthesized_type(&mut self) -> Result<Type, ()> {
+  fn parse_tuple_type(&mut self, context: ExprContext) -> Result<Type, ()> {
     let mut types = vec![];
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
-      types.push(self.parse_type()?);
+      types.push(self.parse_type(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
     self.expect(TokenKind::RParen)?;
+
+    if types.is_empty() {
+      return Ok(Type::Unit);
+    }
+
     Ok(Type::Tuple(types))
   }
 
-  fn parse_bare_function_type(&mut self) -> Result<Type, ()> {
+  fn parse_bare_function_type(&mut self, context: ExprContext) -> Result<Type, ()> {
     self.current -= 1;
     let for_lifetimes = self.parse_for_lifetimes()?;
 
     let (.., is_unsafe, _, abi) = self.parse_function_flavors()?;
     self.expect(TokenKind::KwFn)?;
     self.expect(TokenKind::LParen)?;
-    let (params, is_variadic) = self.parse_bare_function_type_params()?;
+    let (params, is_variadic) = self.parse_bare_function_type_params(context)?;
     self.expect(TokenKind::RParen)?;
 
     let return_type = if matches!(self.current_token().kind, TokenKind::ThinArrow) {
       self.advance(); // consume `->`
-      Some(self.parse_type()?)
+      Some(self.parse_type(context)?)
     } else {
       None
     };
@@ -262,7 +270,10 @@ impl Parser {
     })
   }
 
-  fn parse_bare_function_type_params(&mut self) -> Result<(Vec<Type>, bool), ()> {
+  fn parse_bare_function_type_params(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<(Vec<Type>, bool), ()> {
     let mut params = vec![];
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
       if matches!(self.current_token().kind, TokenKind::DotDot) {
@@ -290,17 +301,17 @@ impl Parser {
         return Ok((params, true));
       }
 
-      params.push(self.parse_type()?);
+      params.push(self.parse_type(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
     Ok((params, false))
   }
 
-  fn parse_qpath_type(&mut self) -> Result<Type, ()> {
+  fn parse_qpath_type(&mut self, context: ExprContext) -> Result<Type, ()> {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
-    let qself = self.parse_qself_type_header()?;
-    let path = self.parse_path(false)?;
+    let qself = self.parse_qself_type_header(context)?;
+    let path = self.parse_path(false, context)?;
 
     Ok(Type::QualifiedPath { qself, path })
   }
@@ -317,7 +328,7 @@ impl Parser {
     }
   }
 
-  pub(crate) fn parse_qself_type_header(&mut self) -> Result<QSelf, ()> {
+  pub(crate) fn parse_qself_type_header(&mut self, context: ExprContext) -> Result<QSelf, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt)
       || !matches!(
         self.peek(1).kind,
@@ -349,9 +360,25 @@ impl Parser {
       return Err(());
     }
 
+    if matches!(self.peek(1).kind, TokenKind::Dollar)
+      && matches!(self.peek(2).kind, TokenKind::KwCrate)
+    {
+      let span = *self.peek(1).span.merge(self.peek(2).span);
+      let diagnostic = self
+        .diagnostic(DiagnosticError::UnexpectedToken, "invalid path segment")
+        .with_label(
+          span,
+          Some("`$crate` is not allowed after `$`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("`$crate` is only allowed as the first segment of a path.".to_string());
+      self.emit(diagnostic);
+      return Err(());
+    }
+
     // assumes current token is `<`
     self.expect(TokenKind::Lt)?;
-    let self_ty = Box::new(self.parse_type()?);
+    let self_ty = Box::new(self.parse_type(context)?);
 
     let as_trait = if match_and_consume!(self, TokenKind::KwAs)?
       && !matches!(
@@ -362,7 +389,7 @@ impl Parser {
           | TokenKind::KwSuper
           | TokenKind::KwSelfType
       ) {
-      Some(self.parse_path(true)?)
+      Some(self.parse_path(true, context)?)
     } else {
       None
     };

@@ -156,4 +156,99 @@ mod match_tests {
   fn stray_tokens_after_match_errors() {
     assert_err("match x { a => 1 } 2");
   }
+
+  #[test]
+  fn match_empty_arms_allowed() {
+    assert_ok("match x { }");
+  }
+
+  #[test]
+  fn match_arm_with_parenthesized_pattern() {
+    assert_ok("match x { (y) => 1 }");
+  }
+
+  #[test]
+  fn match_arm_with_or_pattern_simple() {
+    assert_ok("match x { a | b => 1 }");
+  }
+
+  #[test]
+  fn match_arm_with_or_pattern_multiple() {
+    assert_ok("match x { a | b | c => 1 }");
+  }
+
+  #[test]
+  fn match_arm_with_or_pattern_and_guard() {
+    assert_ok("match x { a | b if cond => 1 }");
+  }
+
+  #[test]
+  fn match_range_pattern() {
+    assert_ok("match x { 1..=5 => 1 }");
+  }
+
+  #[test]
+  fn match_literal_pattern() {
+    assert_ok("match x { 42 => 1 }");
+  }
+
+  #[test]
+  fn match_boolean_literal_pattern() {
+    assert_ok("match x { true => 1, false => 0 }");
+  }
+
+  #[test]
+  fn match_nested_match_in_scrutinee() {
+    assert_ok("match match x { _ => y } { z => 1 }");
+  }
+
+  #[test]
+  fn match_arm_missing_pattern_errors() {
+    assert_err("match x { => 1 }");
+  }
+
+  #[test]
+  fn match_arm_missing_fat_arrow_errors() {
+    assert_err("match x { a = 1 }");
+  }
+
+  #[test]
+  fn match_arm_extra_arrow_errors() {
+    assert_err("match x { a => => 1 }");
+  }
+
+  #[test]
+  fn match_guard_after_arrow_errors() {
+    assert_err("match x { a => if cond 1 }");
+  }
+
+  #[test]
+  fn match_or_pattern_without_rhs_errors() {
+    assert_err("match x { a | => 1 }");
+  }
+
+  #[test]
+  fn match_or_pattern_leading_pipe_errors() {
+    assert_err("match x { | a => 1 }");
+  }
+
+  #[test]
+  fn match_guard_before_pattern_errors() {
+    assert_err("match x { if cond a => 1 }");
+  }
+
+  #[test]
+  fn match_arm_with_multiple_guards_errors() {
+    assert_err("match x { a if c1 if c2 => 1 }");
+  }
+
+  #[test]
+  fn match_comma_outside_arm_errors() {
+    assert_err("match x , { a => 1 }");
+  }
+
+  #[test]
+  fn match_arm_trailing_tokens_errors() {
+    assert_err("match x { a => 1 b }");
+  }
 }

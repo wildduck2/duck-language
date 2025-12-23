@@ -15,9 +15,7 @@ mod loop_tests {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
   }
 
-  // ============================
   // Loop expressions
-  // ============================
 
   #[test]
   fn loop_empty_block() {
@@ -44,9 +42,7 @@ mod loop_tests {
     assert_ok("{ loop { } }");
   }
 
-  // ============================
   // While expressions
-  // ============================
 
   #[test]
   fn while_true_literal() {
@@ -68,9 +64,7 @@ mod loop_tests {
     assert_ok("loop { while true { } }");
   }
 
-  // ============================
   // Labeled block expressions
-  // ============================
 
   #[test]
   fn labeled_block_basic() {
@@ -87,9 +81,7 @@ mod loop_tests {
     assert_ok("'a: { loop { } }");
   }
 
-  // ============================
   // Unsupported constructs (documented for future work)
-  // ============================
 
   #[test]
   fn loop_outer_attributes_not_supported() {
@@ -129,9 +121,7 @@ mod loop_tests {
     assert_err("'label: while let Some(x) = y { }");
   }
 
-  // ============================
   // Error cases for supported constructs
-  // ============================
 
   #[test]
   fn loop_missing_block_errors() {
@@ -171,5 +161,65 @@ mod loop_tests {
   #[test]
   fn stray_tokens_after_while_errors() {
     assert_err("while true { } 1");
+  }
+
+  #[test]
+  fn infinite_loop_with_break() {
+    assert_ok("loop { break; }");
+  }
+
+  #[test]
+  fn infinite_loop_with_continue() {
+    assert_ok("loop { continue; }");
+  }
+
+  #[test]
+  fn loop_with_break_value() {
+    assert_ok("loop { break 1; }");
+  }
+
+  #[test]
+  fn labeled_break() {
+    assert_ok("'a: loop { break 'a; }");
+  }
+
+  #[test]
+  fn labeled_continue() {
+    assert_ok("'a: loop { continue 'a; }");
+  }
+
+  #[test]
+  fn while_grouped_condition() {
+    assert_ok("while (true) { }");
+  }
+
+  #[test]
+  fn loop_block_with_expression_tail() {
+    assert_ok("loop { 1 }");
+  }
+
+  #[test]
+  fn while_block_with_expression_tail() {
+    assert_ok("while true { 1 }");
+  }
+
+  #[test]
+  fn nested_labeled_loops() {
+    assert_ok("'a: loop { 'b: loop { break 'a; } }");
+  }
+
+  #[test]
+  fn break_outside_loop_errors() {
+    assert_err("break;");
+  }
+
+  #[test]
+  fn continue_outside_loop_errors() {
+    assert_err("continue;");
+  }
+
+  #[test]
+  fn label_on_non_loop_block_errors() {
+    assert_err("'a: 1");
   }
 }

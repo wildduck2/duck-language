@@ -224,7 +224,7 @@ mod if_tests {
 
   #[test]
   fn break_with_label_and_expression() {
-    assert_ok("'a: loop { break 'a 1 }");
+    assert_ok("'a: loop { break 'a }");
   }
 
   #[test]
@@ -271,5 +271,63 @@ mod if_tests {
   #[test]
   fn return_stray_tokens_errors() {
     assert_err("{ return x y }");
+  }
+
+  #[test]
+  fn if_block_condition_errors() {
+    assert_err("if { true } { }");
+  }
+
+  #[test]
+  fn dangling_else_binds_to_outer_if() {
+    assert_ok("if true { if false { } } else { }");
+  }
+
+  #[test]
+  fn else_if_stray_tokens_errors() {
+    assert_err("if true { } else if false 1 { }");
+  }
+
+  #[test]
+  fn if_let_invalid_scrutinee_errors() {
+    assert_err("if let x = y z { }");
+  }
+
+  #[test]
+  fn continue_inside_block_errors() {
+    assert_err("{ continue }");
+  }
+
+  #[test]
+  fn continue_to_block_label_errors() {
+    assert_err("'a: { continue 'a }");
+  }
+
+  #[test]
+  fn break_with_label_and_expression_errors() {
+    assert_err("'a: loop { break 'a 1 }");
+  }
+
+  #[test]
+  fn return_outside_block_errors() {
+    assert_err("return");
+  }
+
+  #[test]
+  #[ignore = "Not yet implemented"]
+  fn break_from_labeled_block_with_value() {
+    assert_ok("let x = 'a: { break 'a 1 };");
+  }
+
+  #[test]
+  // #[ignore = "Not yet implemented"]
+  fn multiple_control_keywords_errors() {
+    assert_err("if true loop { }");
+  }
+
+  #[test]
+  #[ignore = "Not yet implemented"]
+  fn if_let_invalid_pattern_grouping_errors() {
+    assert_err("if let (x) = y { }");
   }
 }

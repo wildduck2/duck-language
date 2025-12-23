@@ -1,6 +1,8 @@
 use crate::{
   ast::{path::Path, Delimiter, Expr, ExprKind, MacroInvocation, RepeatKind, Stmt, TokenTree},
-  match_and_consume, Parser,
+  match_and_consume,
+  parser_utils::ExprContext,
+  Parser,
 };
 
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
@@ -11,10 +13,13 @@ use lexer::token::TokenKind;
 // Keep it as is until you implement full macro parsing.
 
 impl Parser {
-  pub(crate) fn parse_macro_invocation_statement(&mut self) -> Result<Stmt, ()> {
+  pub(crate) fn parse_macro_invocation_statement(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Stmt, ()> {
     let mut token = self.current_token();
 
-    let expr = self.parse_macro_invocation_expression()?;
+    let expr = self.parse_macro_invocation_expression(context)?;
     let mac = match expr.kind {
       ExprKind::Macro { mac } => mac,
       _ => unreachable!(),
@@ -26,10 +31,13 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_macro_invocation_expression(&mut self) -> Result<Expr, ()> {
+  pub(crate) fn parse_macro_invocation_expression(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
-    let path = self.parse_path(true)?;
+    let path = self.parse_path(true, context)?;
 
     self.expect(TokenKind::Bang)?;
     let mac = self.parse_macro_invocation(path)?;

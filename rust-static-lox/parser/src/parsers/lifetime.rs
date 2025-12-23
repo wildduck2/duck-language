@@ -51,6 +51,10 @@ impl Parser {
     }
   }
 
+  fn is_lifetime_start(kind: &TokenKind) -> bool {
+    matches!(kind, TokenKind::Lifetime { .. })
+  }
+
   pub(crate) fn parse_lifetime_bounds(&mut self) -> Result<Vec<String>, ()> {
     let mut bounds = vec![];
     while !self.is_eof() && !Self::is_bound_terminator(&self.current_token().kind) {

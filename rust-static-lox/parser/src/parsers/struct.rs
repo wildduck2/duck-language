@@ -13,18 +13,19 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
+    context: ExprContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.advance(); // consume 'struct'
 
     let name = self.parse_name(false)?;
-    let generics = self.parse_generic_params(&mut token)?;
-    let where_clause = self.parse_where_clause()?;
+    let generics = self.parse_generic_params(&mut token, context)?;
+    let where_clause = self.parse_where_clause(context)?;
 
     if matches!(self.current_token().kind, TokenKind::LBrace) {
       // record: optional where BEFORE '{'
       // struct Name<T> where ... { fields }   (no trailing ';')
-      let fields = self.parse_record_fields()?;
+      let fields = self.parse_record_fields(context)?;
       return Ok(Item::Vis(VisItem {
         attributes,
         visibility,
@@ -39,8 +40,8 @@ impl Parser {
     } else if matches!(self.current_token().kind, TokenKind::LParen) {
       // tuple: fields first, then where, then ';'
       // struct Name<T>(...) where ... ;
-      let fields = self.parse_tuple_fields()?;
-      let where_clause = self.parse_where_clause()?;
+      let fields = self.parse_tuple_fields(context)?;
+      let where_clause = self.parse_where_clause(context)?;
       self.expect(TokenKind::Semi)?; // required
       return Ok(Item::Vis(VisItem {
         attributes,
@@ -72,7 +73,7 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_record_fields(&mut self) -> Result<Vec<FieldDecl>, ()> {
+  pub(crate) fn parse_record_fields(&mut self, context: ExprContext) -> Result<Vec<FieldDecl>, ()> {
     self.expect(TokenKind::LBrace)?; // consume '{'
     let mut fields = vec![];
 
@@ -87,7 +88,7 @@ impl Parser {
           break;
         },
         _ => {
-          fields.push(self.parse_record_field()?);
+          fields.push(self.parse_record_field(context)?);
           if matches!(self.current_token().kind, TokenKind::RBrace) {
             self.advance();
             break;
@@ -99,20 +100,20 @@ impl Parser {
     Ok(fields)
   }
 
-  pub(crate) fn parse_record_field(&mut self) -> Result<FieldDecl, ()> {
+  pub(crate) fn parse_record_field(&mut self, context: ExprContext) -> Result<FieldDecl, ()> {
     let mut token = self.current_token();
 
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_outer_attributes()?
+      self.parse_outer_attributes(context)?
     } else {
       vec![]
     };
 
-    let visibility = self.parse_visibility()?;
+    let visibility = self.parse_visibility(context)?;
     let name = self.parse_name(false)?;
 
     self.expect(TokenKind::Colon)?; // consume ':'
-    let ty = self.parse_type()?;
+    let ty = self.parse_type(context)?;
 
     Ok(FieldDecl {
       attributes,
@@ -123,7 +124,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_tuple_fields(&mut self) -> Result<Vec<TupleField>, ()> {
+  pub(crate) fn parse_tuple_fields(&mut self, context: ExprContext) -> Result<Vec<TupleField>, ()> {
     let mut fields = vec![];
     self.expect(TokenKind::LParen)?; // consume '('
 
@@ -138,7 +139,7 @@ impl Parser {
           break;
         },
         _ => {
-          fields.push(self.parse_tuple_field()?);
+          fields.push(self.parse_tuple_field(context)?);
           if matches!(self.current_token().kind, TokenKind::RParen) {
             self.advance();
             break;
@@ -150,11 +151,11 @@ impl Parser {
     Ok(fields)
   }
 
-  fn parse_tuple_field(&mut self) -> Result<TupleField, ()> {
+  fn parse_tuple_field(&mut self, context: ExprContext) -> Result<TupleField, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_outer_attributes()?;
-    let visibility = self.parse_visibility()?;
-    let ty = self.parse_type()?;
+    let attributes = self.parse_outer_attributes(context)?;
+    let visibility = self.parse_visibility(context)?;
+    let ty = self.parse_type(context)?;
 
     Ok(TupleField {
       visibility,
@@ -194,9 +195,9 @@ impl Parser {
     Err(())
   }
 
-  pub(crate) fn parse_struct_expr(&mut self, path: Path) -> Result<Expr, ()> {
+  pub(crate) fn parse_struct_expr(&mut self, path: Path, context: ExprContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
-    let (fields, base) = self.parse_struct_record_init_fields()?;
+    let (fields, base) = self.parse_struct_record_init_fields(context)?;
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Struct { path, fields, base },
@@ -204,7 +205,10 @@ impl Parser {
     })
   }
 
-  fn parse_struct_record_init_fields(&mut self) -> Result<(Vec<FieldInit>, Option<Box<Expr>>), ()> {
+  fn parse_struct_record_init_fields(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<(Vec<FieldInit>, Option<Box<Expr>>), ()> {
     self.expect(TokenKind::LBrace)?; // consume '{'
     let mut fields = vec![];
     let mut base = None;
@@ -227,7 +231,7 @@ impl Parser {
           break;
         },
         _ => {
-          fields.push(self.parse_struct_record_init_field()?);
+          fields.push(self.parse_struct_record_init_field(context)?);
           if matches!(self.current_token().kind, TokenKind::RBrace) {
             self.advance();
             break;
@@ -239,11 +243,11 @@ impl Parser {
     Ok((fields, base))
   }
 
-  fn parse_struct_record_init_field(&mut self) -> Result<FieldInit, ()> {
+  fn parse_struct_record_init_field(&mut self, context: ExprContext) -> Result<FieldInit, ()> {
     let mut token = self.current_token();
 
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
-      self.parse_outer_attributes()?
+      self.parse_outer_attributes(context)?
     } else {
       vec![]
     };
