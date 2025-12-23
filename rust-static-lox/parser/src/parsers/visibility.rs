@@ -1,10 +1,10 @@
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
-use crate::{ast::Visibility, parser_utils::ExprContext, Parser};
+use crate::{ast::Visibility, parser_utils::ParserContext, Parser};
 
 impl Parser {
-  pub(crate) fn parse_visibility(&mut self, context: ExprContext) -> Result<Visibility, ()> {
+  pub(crate) fn parse_visibility(&mut self, context: ParserContext) -> Result<Visibility, ()> {
     let token = self.current_token();
 
     // not `pub` means private visibility

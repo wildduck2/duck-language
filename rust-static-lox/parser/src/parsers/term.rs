@@ -1,11 +1,11 @@
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
-use crate::parser_utils::ExprContext;
+use crate::parser_utils::ParserContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_term(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_term(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_factor(context)?;
 
     'term_find: while !self.is_eof() {

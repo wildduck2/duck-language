@@ -7,12 +7,12 @@ mod unary_tests {
       path::PathSegmentKind,
       Lit, Mutability,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_expression,
   };
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "unary_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "unary_expr_test_temp", ParserContext::Default)
   }
 
   fn assert_int(expr: &ExprKind, expected: i128) {

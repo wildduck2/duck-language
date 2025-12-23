@@ -6,7 +6,7 @@ mod bitwise_tests {
       expr::{BinaryOp, ExprKind},
       Lit,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_expression,
   };
 
@@ -41,7 +41,7 @@ mod bitwise_tests {
   }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "bitwise_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "bitwise_expr_test_temp", ParserContext::Default)
   }
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
@@ -122,7 +122,7 @@ mod bitwise_tests {
 
   #[test]
   fn match_context_short_circuits_bitwise_or() {
-    let expr = parse_expression("1", "bitwise_match_context", ExprContext::Match).unwrap();
+    let expr = parse_expression("1", "bitwise_match_context", ParserContext::Match).unwrap();
     assert_eq!(simplify(&expr), int(1));
   }
 }

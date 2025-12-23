@@ -5,7 +5,7 @@ use crate::{
     Attribute, EnumDecl, EnumVariant, EnumVariantKind, Item, VisItem, VisItemKind, Visibility,
   },
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -14,7 +14,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.advance(); // consume the "enum"
@@ -38,7 +38,7 @@ impl Parser {
     }))
   }
 
-  fn parse_enum_variants(&mut self, context: ExprContext) -> Result<Vec<EnumVariant>, ()> {
+  fn parse_enum_variants(&mut self, context: ParserContext) -> Result<Vec<EnumVariant>, ()> {
     let mut variants = vec![];
     self.expect(TokenKind::LBrace)?; // consume '{'
 
@@ -51,7 +51,7 @@ impl Parser {
     Ok(variants)
   }
 
-  fn parse_enum_variant(&mut self, context: ExprContext) -> Result<EnumVariant, ()> {
+  fn parse_enum_variant(&mut self, context: ParserContext) -> Result<EnumVariant, ()> {
     let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(context)?;
     let visibility = self.parse_visibility(context)?;
@@ -71,7 +71,7 @@ impl Parser {
 
     let discriminant = if matches!(self.current_token().kind, TokenKind::Eq) {
       self.advance(); // consume '='
-      Some(self.parse_expression(vec![], ExprContext::Default)?)
+      Some(self.parse_expression(vec![], ParserContext::Default)?)
     } else {
       None
     };

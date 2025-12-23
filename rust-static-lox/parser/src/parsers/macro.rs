@@ -1,7 +1,7 @@
 use crate::{
   ast::{path::Path, Delimiter, Expr, ExprKind, MacroInvocation, RepeatKind, Stmt, TokenTree},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -15,7 +15,7 @@ use lexer::token::TokenKind;
 impl Parser {
   pub(crate) fn parse_macro_invocation_statement(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Stmt, ()> {
     let mut token = self.current_token();
 
@@ -33,7 +33,7 @@ impl Parser {
 
   pub(crate) fn parse_macro_invocation_expression(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
 

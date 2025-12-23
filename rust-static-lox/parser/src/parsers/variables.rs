@@ -3,7 +3,7 @@ use lexer::token::TokenKind;
 use crate::{
   ast::{Attribute, Expr, ExprKind, LetStmt, Stmt},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -11,7 +11,7 @@ impl Parser {
   pub(crate) fn parse_let_statement(
     &mut self,
     attributes: Vec<Attribute>,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Stmt, ()> {
     let token = self.current_token();
     self.advance(); // consume `let`
@@ -25,15 +25,15 @@ impl Parser {
     };
 
     let init = if match_and_consume!(self, TokenKind::Eq)? {
-      Some(self.parse_expression(vec![], ExprContext::Default)?)
+      Some(self.parse_expression(vec![], ParserContext::Default)?)
     } else {
       None
     };
 
-    let context = if matches!(context, ExprContext::LoopCondition) {
+    let context = if matches!(context, ParserContext::LoopCondition) {
       context
     } else {
-      ExprContext::LetElse
+      ParserContext::LetElse
     };
 
     let else_block = if match_and_consume!(self, TokenKind::KwElse)? {
@@ -52,9 +52,8 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_assignment_expr(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_assignment_expr(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_range_expr(context)?;
-
     let token = self.current_token();
 
     if matches!(

@@ -8,7 +8,7 @@ mod struct_tests {
       r#struct::{StructDecl, StructKind},
       Item, Lit, VisItem, VisItemKind, Visibility,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::{parse_expression, run_parser},
   };
 
@@ -17,13 +17,13 @@ mod struct_tests {
   fn parse_struct_item(input: &str) -> Result<VisItem, ()> {
     run_parser(input, "struct_decl_test_temp", |parser| {
       let attributes = if matches!(parser.current_token().kind, TokenKind::Pound) {
-        parser.parse_outer_attributes(ExprContext::Default)?
+        parser.parse_outer_attributes(ParserContext::Default)?
       } else {
         vec![]
       };
 
-      let visibility = parser.parse_visibility(ExprContext::Default)?;
-      let item = parser.parse_struct_decl(attributes, visibility, ExprContext::Default)?;
+      let visibility = parser.parse_visibility(ParserContext::Default)?;
+      let item = parser.parse_struct_decl(attributes, visibility, ParserContext::Default)?;
 
       match item {
         Item::Vis(vis) => Ok(vis),
@@ -53,7 +53,7 @@ mod struct_tests {
 
   // Expr parsing
   fn parse_expr(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "struct_expr_test_temp", ExprContext::Struct)
+    parse_expression(input, "struct_expr_test_temp", ParserContext::Struct)
   }
 
   fn assert_expr_err(input: &str) {

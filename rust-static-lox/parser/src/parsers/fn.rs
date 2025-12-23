@@ -1,7 +1,7 @@
 use crate::{
   ast::{pattern::Pattern, *},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
@@ -12,7 +12,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
 
@@ -21,10 +21,10 @@ impl Parser {
 
     let name = self.parse_name(false)?;
     let generics = self.parse_generic_params(&mut token, context)?;
-    let params = self.parse_function_params(is_extern, ExprContext::Function)?;
+    let params = self.parse_function_params(is_extern, ParserContext::Function)?;
     let return_type = self.parse_return_type(context)?;
     let where_clause = self.parse_where_clause(context)?;
-    let body = Some(self.parse_block(None, ExprContext::Default, vec![])?);
+    let body = Some(self.parse_block(None, ParserContext::Default, vec![])?);
 
     Ok(Item::Vis(VisItem {
       attributes,
@@ -142,7 +142,7 @@ impl Parser {
   fn parse_function_params(
     &mut self,
     is_extern: bool,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Vec<Param>, ()> {
     let mut params = vec![];
 
@@ -156,7 +156,7 @@ impl Parser {
     Ok(params)
   }
 
-  fn parse_function_param(&mut self, is_extern: bool, context: ExprContext) -> Result<Param, ()> {
+  fn parse_function_param(&mut self, is_extern: bool, context: ParserContext) -> Result<Param, ()> {
     let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(context)?;
 
@@ -217,7 +217,7 @@ impl Parser {
     &mut self,
     pattern: &Pattern,
     type_annotation: Option<&Type>,
-    _context: ExprContext,
+    _context: ParserContext,
   ) -> Result<Option<SelfParam>, ()> {
     use crate::ast::{Mutability, Pattern};
 
@@ -303,7 +303,7 @@ impl Parser {
     Ok(None)
   }
 
-  fn parse_return_type(&mut self, context: ExprContext) -> Result<Option<Type>, ()> {
+  fn parse_return_type(&mut self, context: ParserContext) -> Result<Option<Type>, ()> {
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
       return Ok(None);
     }

@@ -4,17 +4,18 @@ use lexer::token::TokenKind;
 use crate::{
   ast::{path::*, Expr, ExprKind},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
 impl Parser {
   pub(crate) fn parse_path_expr(
     &mut self,
-    context: ExprContext,
     with_args: bool,
+    context: ParserContext,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
+
     let path = self.parse_path(with_args, context)?;
 
     if match_and_consume!(self, TokenKind::Bang)? {
@@ -29,7 +30,10 @@ impl Parser {
     }
 
     if matches!(self.current_token().kind, TokenKind::LBrace)
-      && !matches!(context, ExprContext::Match | ExprContext::IfCondition)
+      && !matches!(
+        context,
+        ParserContext::Match | ParserContext::IfCondition | ParserContext::WhileCondition
+      )
     {
       // macro struct expression
       return self.parse_struct_expr(path, context);
@@ -42,7 +46,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_qualified_path(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_qualified_path(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let qself = self.parse_qself_type_header(context)?;
     let path = self.parse_path(true, context)?;
@@ -57,7 +61,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_path(&mut self, with_args: bool, context: ExprContext) -> Result<Path, ()> {
+  pub(crate) fn parse_path(&mut self, with_args: bool, context: ParserContext) -> Result<Path, ()> {
     // Handle leading '::' (absolute paths)
     let mut leading_colon = false;
     if matches!(self.current_token().kind, TokenKind::ColonColon) {
@@ -77,6 +81,7 @@ impl Parser {
           | TokenKind::RBrace
           | TokenKind::Eq
           | TokenKind::Question
+          | TokenKind::Lt
           | TokenKind::LParen
           | TokenKind::LBrace
           | TokenKind::LBracket
@@ -128,7 +133,7 @@ impl Parser {
   pub(crate) fn parse_path_segment(
     &mut self,
     with_args: bool,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<(PathSegment, bool), ()> {
     let mut token = self.current_token();
     self.advance(); // consume the segment identifier or keyword
@@ -155,7 +160,23 @@ impl Parser {
       return Err(());
     }
 
-    let args = match (with_args, self.current_token().kind, self.peek(1).kind) {
+    // This handles the case where we only expect a colon colon in any context other than a
+    // type context
+    if !matches!(context, ParserContext::Type) && matches!(self.peek(1).kind, TokenKind::Lt) {
+      self.expect(TokenKind::ColonColon)?;
+    }
+
+    if matches!(
+      context,
+      ParserContext::WhileCondition | ParserContext::Closure
+    ) {
+      return Ok((
+        PathSegment::new(PathSegmentKind::Ident(self.get_token_lexeme(&token)), None),
+        false,
+      ));
+    }
+
+    let args = match (with_args, self.peek(0).kind, self.peek(1).kind) {
       (true, TokenKind::Lt, TokenKind::Lt) => None,
       (true, TokenKind::Lt, _) => self.parse_generic_args(context)?,
       (_, TokenKind::ColonColon, TokenKind::Lt) => {

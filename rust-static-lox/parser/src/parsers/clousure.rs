@@ -3,14 +3,14 @@ use crate::{
     expr::{ClosureParam, Expr, ExprKind},
     ty::Type,
   },
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_closure(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_closure(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let (is_move, is_async) = self.parse_closure_flavors()?;
     let params = self.parse_closure_params(context)?;
@@ -68,7 +68,7 @@ impl Parser {
     })
   }
 
-  fn parse_closure_params(&mut self, context: ExprContext) -> Result<Vec<ClosureParam>, ()> {
+  fn parse_closure_params(&mut self, context: ParserContext) -> Result<Vec<ClosureParam>, ()> {
     self.expect(TokenKind::Or)?;
     let mut params = vec![];
 
@@ -95,7 +95,7 @@ impl Parser {
     Ok(params)
   }
 
-  fn parse_closure_param(&mut self, context: ExprContext) -> Result<ClosureParam, ()> {
+  fn parse_closure_param(&mut self, context: ParserContext) -> Result<ClosureParam, ()> {
     let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(context)?;
     let pattern = self.parse_pattern(context)?;

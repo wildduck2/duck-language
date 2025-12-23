@@ -6,7 +6,7 @@ mod shift_tests {
       expr::{BinaryOp, ExprKind, RangeExprKind, UnaryOp},
       Lit,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_expression,
   };
 
@@ -63,7 +63,7 @@ mod shift_tests {
   }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "shift_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "shift_expr_test_temp", ParserContext::Default)
   }
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
@@ -99,7 +99,10 @@ mod shift_tests {
     match expr {
       ExprKind::Range { start, end, kind } => {
         assert_eq!(kind, RangeExprKind::To);
-        assert_eq!(simplify(&start.unwrap().kind), bin(BinaryOp::Shl, int(1), int(2)));
+        assert_eq!(
+          simplify(&start.unwrap().kind),
+          bin(BinaryOp::Shl, int(1), int(2))
+        );
         assert_eq!(simplify(&end.unwrap().kind), int(3));
       },
       other => panic!("expected range expression, got: {:?}", other),
@@ -112,7 +115,10 @@ mod shift_tests {
     match expr {
       ExprKind::Range { start, end, kind } => {
         assert_eq!(kind, RangeExprKind::ToInclusive);
-        assert_eq!(simplify(&start.unwrap().kind), bin(BinaryOp::Shr, int(1), int(2)));
+        assert_eq!(
+          simplify(&start.unwrap().kind),
+          bin(BinaryOp::Shr, int(1), int(2))
+        );
         assert_eq!(simplify(&end.unwrap().kind), int(3));
       },
       other => panic!("expected range expression, got: {:?}", other),

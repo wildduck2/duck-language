@@ -2,11 +2,11 @@ use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
-use crate::parser_utils::ExprContext;
+use crate::parser_utils::ParserContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_logical_or(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_logical_or(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_logical_and(context)?;
 
     loop {
@@ -60,7 +60,7 @@ impl Parser {
     Ok(lhs)
   }
 
-  pub(crate) fn parse_logical_and(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_logical_and(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_comparison(context)?;
 
     loop {

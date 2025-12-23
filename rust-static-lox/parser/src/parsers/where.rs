@@ -1,11 +1,11 @@
 use lexer::token::TokenKind;
 
-use crate::{ast::generic::*, match_and_consume, parser_utils::ExprContext, Parser};
+use crate::{ast::generic::*, match_and_consume, parser_utils::ParserContext, Parser};
 
 impl Parser {
   pub(crate) fn parse_where_clause(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Option<WhereClause>, ()> {
     if !matches!(self.current_token().kind, TokenKind::KwWhere) {
       return Ok(None);
@@ -37,7 +37,7 @@ impl Parser {
 
   pub(crate) fn parse_type_predicate(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<WherePredicate, ()> {
     let token = self.current_token();
 

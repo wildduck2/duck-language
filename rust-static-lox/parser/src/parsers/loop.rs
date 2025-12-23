@@ -1,6 +1,6 @@
 use crate::{
   ast::{Attribute, Expr, ExprKind},
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use lexer::token::TokenKind;
@@ -10,7 +10,7 @@ impl Parser {
     &mut self,
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
@@ -18,7 +18,7 @@ impl Parser {
     }
 
     self.advance(); // consume the "loop"
-    let body = self.parse_block(None, ExprContext::LoopCondition, outer_attributes)?;
+    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
 
     token.span.merge(self.current_token().span);
     Ok(Expr {
@@ -35,7 +35,7 @@ impl Parser {
     &mut self,
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
@@ -44,9 +44,8 @@ impl Parser {
 
     self.advance(); // consume the "while"
 
-    let condition = self.parse_expression(vec![], ExprContext::Default)?;
-
-    let body = self.parse_block(None, ExprContext::Default, outer_attributes)?;
+    let condition = self.parse_expression(vec![], ParserContext::WhileCondition)?;
+    let body = self.parse_block(None, ParserContext::Default, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -63,7 +62,7 @@ impl Parser {
     &mut self,
     label: Option<String>,
     outer_attributes: Vec<Attribute>,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     if !outer_attributes.is_empty() {
@@ -72,10 +71,10 @@ impl Parser {
 
     self.advance(); // consume the "for"
 
-    let pattern = self.parse_pattern(ExprContext::Default)?;
+    let pattern = self.parse_pattern(ParserContext::Default)?;
     self.expect(TokenKind::KwIn)?;
-    let iterator = self.parse_expression(vec![], ExprContext::Default)?;
-    let body = self.parse_block(None, ExprContext::Default, outer_attributes)?;
+    let iterator = self.parse_expression(vec![], ParserContext::Default)?;
+    let body = self.parse_block(None, ParserContext::Default, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],

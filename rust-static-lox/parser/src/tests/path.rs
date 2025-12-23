@@ -5,13 +5,13 @@ mod path_tests {
     ast::{
       expr::ExprKind, GenericArg, GenericArgs, Path, PathSegment, PathSegmentKind, QSelf, Type,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_primary_expr,
   };
 
   // Helper function to parse a single expression from a string
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_primary_expr(input, "path_test_temp", ExprContext::Default)
+    parse_primary_expr(input, "path_test_temp", ParserContext::Default)
   }
 
   fn assert_path(input: &str, expected: ExprKind) {

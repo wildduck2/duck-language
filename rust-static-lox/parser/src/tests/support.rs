@@ -2,7 +2,7 @@
 
 use crate::{
   ast::{expr::ExprKind, Attribute},
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
@@ -54,7 +54,7 @@ where
 pub(crate) fn parse_primary_expr(
   input: &str,
   file_stem: &str,
-  context: ExprContext,
+  context: ParserContext,
 ) -> Result<ExprKind, ()> {
   run_parser(input, file_stem, |parser| {
     parser.parse_primary(context).map(|expr| expr.kind)
@@ -64,7 +64,7 @@ pub(crate) fn parse_primary_expr(
 pub(crate) fn parse_expression(
   input: &str,
   file_stem: &str,
-  context: ExprContext,
+  context: ParserContext,
 ) -> Result<ExprKind, ()> {
   run_parser(input, file_stem, |parser| {
     parser

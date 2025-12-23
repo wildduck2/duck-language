@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod closure_tests {
 
-  use crate::{ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression};
+  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "closure_expr_test_temp", ExprContext::Closure)
+    parse_expression(input, "closure_expr_test_temp", ParserContext::Closure)
   }
 
   fn assert_ok(input: &str) {
@@ -190,5 +190,44 @@ mod closure_tests {
   #[test]
   fn closure_stray_tokens_after_errors() {
     assert_err("|x| x 1");
+  }
+
+  #[test]
+  fn closure_empty_params_with_space() {
+    assert_ok("| | 1");
+  }
+
+  #[test]
+  fn closure_empty_params_with_newline() {
+    assert_ok("|\n| 1");
+  }
+
+  #[test]
+  fn closure_typed_pattern_param() {
+    assert_ok("|(x, y): (i32, i32)| x");
+  }
+
+  #[test]
+  fn closure_ref_typed_param() {
+    assert_ok("|&x: &i32| x");
+  }
+
+  #[test]
+  fn closure_mut_typed_param() {
+    assert_ok("|mut x: i32| x");
+  }
+
+  #[test]
+  fn closure_multiple_pattern_params() {
+    assert_ok("|(x, y), z| z");
+  }
+
+  #[test]
+  fn closure_body_with_logical_expression() {
+    let x = 0;
+    let hi = |x| x > 0 && x < 10;
+    hi(x);
+
+    assert_ok("|x| x > 0 && x < 10");
   }
 }

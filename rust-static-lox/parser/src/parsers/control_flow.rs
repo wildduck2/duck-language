@@ -1,14 +1,14 @@
 use crate::{
   ast::expr::{Expr, ExprKind},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_if_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_if_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     if self.peek(1).kind == TokenKind::KwLet {
       return self.parse_if_let_expression(context);
     }
@@ -48,7 +48,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_if_let_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_if_let_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
     self.advance(); // consume "if"
     self.expect(TokenKind::KwLet)?;
@@ -77,12 +77,12 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_continue_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_continue_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     let allowed = matches!(
       context,
-      ExprContext::LoopCondition | ExprContext::WhileCondition
+      ParserContext::LoopCondition | ParserContext::WhileCondition
     );
 
     if !allowed {
@@ -114,12 +114,12 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_break_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_break_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     let allowed = matches!(
       context,
-      ExprContext::LoopCondition | ExprContext::WhileCondition
+      ParserContext::LoopCondition | ParserContext::WhileCondition
     );
 
     if !allowed {
@@ -135,7 +135,7 @@ impl Parser {
       self.current_token().kind,
       TokenKind::Semi | TokenKind::RBrace
     ) {
-      Some(self.parse_expression(vec![], ExprContext::Default)?)
+      Some(self.parse_expression(vec![], ParserContext::Default)?)
     } else {
       None
     };
@@ -163,16 +163,16 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_return_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_return_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     let allowed = matches!(
       context,
-      ExprContext::Function
-        | ExprContext::IfCondition
-        | ExprContext::Match
-        | ExprContext::LetElse
-        | ExprContext::Block
+      ParserContext::Function
+        | ParserContext::IfCondition
+        | ParserContext::Match
+        | ParserContext::LetElse
+        | ParserContext::Block
     );
 
     if !allowed {
@@ -186,7 +186,7 @@ impl Parser {
       self.current_token().kind,
       TokenKind::Semi | TokenKind::RBrace
     ) {
-      Some(self.parse_expression(vec![], ExprContext::Default)?)
+      Some(self.parse_expression(vec![], ParserContext::Default)?)
     } else {
       None
     };

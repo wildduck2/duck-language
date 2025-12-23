@@ -4,7 +4,7 @@ use crate::{
     Visibility,
   },
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
@@ -15,7 +15,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.expect(TokenKind::KwType)?; // consume the "type"
@@ -40,7 +40,7 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  pub(crate) fn parse_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     let mut token = self.current_token();
     let lexeme = self.get_token_lexeme(&token);
     self.advance(); // consume the first token of the type
@@ -124,7 +124,7 @@ impl Parser {
     }
   }
 
-  fn parse_reference_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  fn parse_reference_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     // Forbid patterns like &const T which are not valid reference types.
     if matches!(self.current_token().kind, TokenKind::KwConst) {
       let diagnostic = self
@@ -170,7 +170,7 @@ impl Parser {
     })
   }
 
-  fn parse_raw_pointer_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  fn parse_raw_pointer_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     // If we see *T directly, this is missing the const or mut qualifier.
     if matches!(self.current_token().kind, TokenKind::Ident) {
       let diagnostic = self
@@ -206,7 +206,7 @@ impl Parser {
     })
   }
 
-  fn parse_array_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  fn parse_array_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     let element = self.parse_type(context)?;
     if !matches!(self.current_token().kind, TokenKind::Semi) {
       self.expect(TokenKind::RBracket)?; // consume ']'
@@ -214,7 +214,7 @@ impl Parser {
     }
 
     self.expect(TokenKind::Semi)?; // consume ';'
-    let size = self.parse_expression(vec![], ExprContext::Default)?;
+    let size = self.parse_expression(vec![], ParserContext::Default)?;
     self.expect(TokenKind::RBracket)?; // consume ']'
 
     Ok(Type::Array {
@@ -223,7 +223,7 @@ impl Parser {
     })
   }
 
-  fn parse_tuple_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  fn parse_tuple_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     let mut types = vec![];
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
@@ -240,7 +240,7 @@ impl Parser {
     Ok(Type::Tuple(types))
   }
 
-  fn parse_bare_function_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  fn parse_bare_function_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     self.current -= 1;
     let for_lifetimes = self.parse_for_lifetimes()?;
 
@@ -272,7 +272,7 @@ impl Parser {
 
   fn parse_bare_function_type_params(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<(Vec<Type>, bool), ()> {
     let mut params = vec![];
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
@@ -307,7 +307,7 @@ impl Parser {
     Ok((params, false))
   }
 
-  fn parse_qpath_type(&mut self, context: ExprContext) -> Result<Type, ()> {
+  fn parse_qpath_type(&mut self, context: ParserContext) -> Result<Type, ()> {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
     let qself = self.parse_qself_type_header(context)?;
@@ -328,7 +328,7 @@ impl Parser {
     }
   }
 
-  pub(crate) fn parse_qself_type_header(&mut self, context: ExprContext) -> Result<QSelf, ()> {
+  pub(crate) fn parse_qself_type_header(&mut self, context: ParserContext) -> Result<QSelf, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt)
       || !matches!(
         self.peek(1).kind,

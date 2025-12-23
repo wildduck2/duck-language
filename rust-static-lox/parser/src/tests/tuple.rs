@@ -3,12 +3,12 @@ mod tuple_tests {
 
   use crate::{
     ast::{ExprKind, Lit},
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_primary_expr,
   };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_primary_expr(input, "tuple_test_temp", ExprContext::Default)
+    parse_primary_expr(input, "tuple_test_temp", ParserContext::Default)
   }
 
   fn assert_err(input: &str) {

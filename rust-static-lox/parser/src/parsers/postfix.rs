@@ -4,12 +4,12 @@ use lexer::token::{LiteralKind, TokenKind};
 use crate::{
   ast::{Expr, ExprKind, FieldAccess, Path},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
 impl Parser {
-  pub(crate) fn parse_postfix(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_postfix(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let expr = self.parse_primary(context)?;
     let mut seen_await = false;
     let expr = self.parse_postfix_chain(expr, context, &mut seen_await)?;
@@ -20,7 +20,7 @@ impl Parser {
   pub(crate) fn parse_postfix_chain(
     &mut self,
     mut expr: Expr,
-    context: ExprContext,
+    context: ParserContext,
     seen_await: &mut bool,
   ) -> Result<Expr, ()> {
     loop {
@@ -45,11 +45,7 @@ impl Parser {
     Ok(expr)
   }
 
-  fn parse_postfix_suffix(
-    &mut self,
-    mut expr: Expr,
-    seen_await: &mut bool,
-  ) -> Result<Expr, ()> {
+  fn parse_postfix_suffix(&mut self, mut expr: Expr, seen_await: &mut bool) -> Result<Expr, ()> {
     loop {
       match self.current_token().kind {
         TokenKind::Question => {
@@ -128,7 +124,7 @@ impl Parser {
     })
   }
 
-  fn parse_index(&mut self, context: ExprContext, object: Expr) -> Result<Expr, ()> {
+  fn parse_index(&mut self, context: ParserContext, object: Expr) -> Result<Expr, ()> {
     let mut token = self.current_token();
     self.expect(TokenKind::LBracket)?;
     let index = self.parse_expression(vec![], context)?;
@@ -144,7 +140,7 @@ impl Parser {
     })
   }
 
-  fn parse_field_or_method(&mut self, context: ExprContext, object: Expr) -> Result<Expr, ()> {
+  fn parse_field_or_method(&mut self, context: ParserContext, object: Expr) -> Result<Expr, ()> {
     self.expect(TokenKind::Dot)?;
     let mut token = self.current_token();
 
@@ -253,7 +249,7 @@ impl Parser {
     }
   }
 
-  fn parse_call(&mut self, context: ExprContext, mut callee: Expr) -> Result<Expr, ()> {
+  fn parse_call(&mut self, context: ParserContext, mut callee: Expr) -> Result<Expr, ()> {
     fn has_terminal_turbofish(expr: &Expr) -> bool {
       match &expr.kind {
         ExprKind::Group { expr } => has_terminal_turbofish(expr),
@@ -303,7 +299,7 @@ impl Parser {
     })
   }
 
-  fn parse_call_params(&mut self, context: ExprContext) -> Result<Vec<Expr>, ()> {
+  fn parse_call_params(&mut self, context: ParserContext) -> Result<Vec<Expr>, ()> {
     let mut args = vec![];
 
     while !self.is_eof() && self.current_token().kind != TokenKind::RParen {

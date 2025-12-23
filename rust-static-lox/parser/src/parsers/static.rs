@@ -1,6 +1,6 @@
 use crate::{
   ast::{attrs::Attribute, items::Item, visibility::Visibility},
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use lexer::token::TokenKind;
@@ -10,7 +10,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.advance(); // consume the "static"
@@ -20,7 +20,7 @@ impl Parser {
     let ty = self.parse_type(context)?;
     let value = if matches!(self.current_token().kind, TokenKind::Eq) {
       self.advance(); // consume '='
-      Some(self.parse_expression(vec![], ExprContext::Default)?)
+      Some(self.parse_expression(vec![], ParserContext::Default)?)
     } else {
       None
     };

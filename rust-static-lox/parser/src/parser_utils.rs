@@ -3,7 +3,7 @@ use lexer::token::TokenKind;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExprContext {
+pub enum ParserContext {
   Default,
   IfCondition,
   Match,
@@ -18,6 +18,9 @@ pub enum ExprContext {
   Trait,
   Impl,
   Macro,
+  Static,
+  Type,
+  Enum,
 }
 
 impl Parser {
@@ -27,7 +30,7 @@ impl Parser {
   pub fn parse_program(&mut self) {
     while !self.is_eof() {
       // TODO: check this context
-      match self.parse_stmt(ExprContext::Default) {
+      match self.parse_stmt(ParserContext::Default) {
         // Returns Item, not Stmt
         Ok(item) => {
           // println!("{:#?}", item);
@@ -45,18 +48,18 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Item, ()> {
     match self.current_token().kind {
-      TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility, context),
+      TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility, ParserContext::Struct),
       TokenKind::KwFn
       | TokenKind::KwConst
       | TokenKind::KwAsync
       | TokenKind::KwUnsafe
-      | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, context),
-      TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, context),
-      TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, context),
-      TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, context),
+      | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, ParserContext::Function),
+      TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, ParserContext::Enum),
+      TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, ParserContext::Type),
+      TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, ParserContext::Static),
       // TokenKind::KwConst => self.parse_const_decl(attributes, visibility, ),
       // TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ),
       // TokenKind::KwUse => self.parse_use_decl(attributes, visibility, ),
@@ -80,7 +83,7 @@ impl Parser {
 
   /// Parses a single statement node (stubbed for future grammar branches).
   /// Currently supports empty statements and expression statements.
-  pub(crate) fn parse_stmt(&mut self, context: ExprContext) -> Result<Stmt, ()> {
+  pub(crate) fn parse_stmt(&mut self, context: ParserContext) -> Result<Stmt, ()> {
     let mut token = self.current_token();
     let outer_attributes = self.parse_outer_attributes(context)?;
     let visibility = self.parse_visibility(context)?;
@@ -132,7 +135,7 @@ impl Parser {
   fn parse_expr_stmt(
     &mut self,
     outer_attributes: Vec<Attribute>,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Stmt, ()> {
     let mut token = self.current_token();
     let expr = self.parse_expression(outer_attributes, context)?;
@@ -148,41 +151,41 @@ impl Parser {
   pub(crate) fn parse_expression(
     &mut self,
     outer_attributes: Vec<Attribute>,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Expr, ()> {
     let label = self.parse_label(true)?;
 
     match self.current_token().kind {
-      TokenKind::KwIf => self.parse_if_expression(ExprContext::IfCondition),
+      TokenKind::KwIf => self.parse_if_expression(ParserContext::IfCondition),
 
-      TokenKind::KwMatch => self.parse_match_expression(ExprContext::Match),
-      TokenKind::Or => self.parse_closure(ExprContext::Closure),
+      TokenKind::KwMatch => self.parse_match_expression(ParserContext::Match),
+      TokenKind::Or => self.parse_closure(ParserContext::Closure),
       TokenKind::KwMove | TokenKind::KwAsync if self.can_start_closure() => {
-        self.parse_closure(ExprContext::Closure)
+        self.parse_closure(ParserContext::Closure)
       },
-      TokenKind::LBrace => self.parse_block(label, ExprContext::Block, outer_attributes),
+      TokenKind::LBrace => self.parse_block(label, ParserContext::Block, outer_attributes),
       TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry
         if self.can_start_block_expression() =>
       {
-        self.parse_block(label, ExprContext::Block, outer_attributes)
+        self.parse_block(label, ParserContext::Block, outer_attributes)
       },
       TokenKind::KwContinue => self.parse_continue_expression(context),
       TokenKind::KwBreak => self.parse_break_expression(context),
       TokenKind::KwReturn => self.parse_return_expression(context),
       TokenKind::KwLoop => {
-        self.parse_loop_expression(label, outer_attributes, ExprContext::LoopCondition)
+        self.parse_loop_expression(label, outer_attributes, ParserContext::LoopCondition)
       },
       TokenKind::KwWhile => {
-        self.parse_while_expression(label, outer_attributes, ExprContext::WhileCondition)
+        self.parse_while_expression(label, outer_attributes, ParserContext::WhileCondition)
       },
       TokenKind::KwFor => {
-        self.parse_for_expression(label, outer_attributes, ExprContext::ForCondition)
+        self.parse_for_expression(label, outer_attributes, ParserContext::ForCondition)
       },
       _ => self.parse_assignment_expr(context),
     }
   }
 
-  pub(crate) fn parse_primary(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_primary(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let token = self.current_token();
 
     match token.kind {
@@ -195,16 +198,16 @@ impl Parser {
       TokenKind::Lt => self.parse_qualified_path(context),
 
       TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
-        self.parse_path_expr(context, true)
+        self.parse_path_expr(true, context)
       },
 
-      TokenKind::ColonColon => self.parse_path_expr(context, true),
+      TokenKind::ColonColon => self.parse_path_expr(true, context),
 
       TokenKind::Ident
       | TokenKind::KwSelf
       | TokenKind::KwSuper
       | TokenKind::KwCrate
-      | TokenKind::KwSelfType => self.parse_path_expr(context, true),
+      | TokenKind::KwSelfType => self.parse_path_expr(true, context),
 
       // grouped and tuple expressions
       TokenKind::LParen => self.parse_grouped_and_tuple_expr(),

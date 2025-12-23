@@ -6,7 +6,7 @@ mod range_tests {
       expr::{BinaryOp, ExprKind, RangeExprKind, UnaryOp},
       Lit,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_expression,
   };
 
@@ -83,7 +83,7 @@ mod range_tests {
   }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "range_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "range_expr_test_temp", ParserContext::Default)
   }
 
   fn assert_range(input: &str, expected: SimpleRange) {

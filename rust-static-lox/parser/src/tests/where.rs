@@ -12,7 +12,7 @@ mod where_tests {
 
   fn parse_where_clause(input: &str) -> Result<Option<WhereClause>, ()> {
     run_parser(input, "where_clause_test_temp", |parser| {
-      parser.parse_where_clause(crate::parser_utils::ExprContext::Default)
+      parser.parse_where_clause(crate::parser_utils::ParserContext::Default)
     })
   }
 

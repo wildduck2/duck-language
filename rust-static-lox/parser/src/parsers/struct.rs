@@ -3,7 +3,7 @@ use crate::ast::path::Path;
 use crate::ast::{
   r#struct::*, Attribute, Expr, ExprKind, FieldName, Item, VisItem, VisItemKind, Visibility,
 };
-use crate::parser_utils::ExprContext;
+use crate::parser_utils::ParserContext;
 use crate::Parser;
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
@@ -13,7 +13,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     self.advance(); // consume 'struct'
@@ -73,7 +73,10 @@ impl Parser {
     }))
   }
 
-  pub(crate) fn parse_record_fields(&mut self, context: ExprContext) -> Result<Vec<FieldDecl>, ()> {
+  pub(crate) fn parse_record_fields(
+    &mut self,
+    context: ParserContext,
+  ) -> Result<Vec<FieldDecl>, ()> {
     self.expect(TokenKind::LBrace)?; // consume '{'
     let mut fields = vec![];
 
@@ -100,7 +103,7 @@ impl Parser {
     Ok(fields)
   }
 
-  pub(crate) fn parse_record_field(&mut self, context: ExprContext) -> Result<FieldDecl, ()> {
+  pub(crate) fn parse_record_field(&mut self, context: ParserContext) -> Result<FieldDecl, ()> {
     let mut token = self.current_token();
 
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
@@ -124,7 +127,10 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_tuple_fields(&mut self, context: ExprContext) -> Result<Vec<TupleField>, ()> {
+  pub(crate) fn parse_tuple_fields(
+    &mut self,
+    context: ParserContext,
+  ) -> Result<Vec<TupleField>, ()> {
     let mut fields = vec![];
     self.expect(TokenKind::LParen)?; // consume '('
 
@@ -151,7 +157,7 @@ impl Parser {
     Ok(fields)
   }
 
-  fn parse_tuple_field(&mut self, context: ExprContext) -> Result<TupleField, ()> {
+  fn parse_tuple_field(&mut self, context: ParserContext) -> Result<TupleField, ()> {
     let mut token = self.current_token();
     let attributes = self.parse_outer_attributes(context)?;
     let visibility = self.parse_visibility(context)?;
@@ -195,7 +201,11 @@ impl Parser {
     Err(())
   }
 
-  pub(crate) fn parse_struct_expr(&mut self, path: Path, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_struct_expr(
+    &mut self,
+    path: Path,
+    context: ParserContext,
+  ) -> Result<Expr, ()> {
     let mut token = self.current_token();
     let (fields, base) = self.parse_struct_record_init_fields(context)?;
     Ok(Expr {
@@ -207,7 +217,7 @@ impl Parser {
 
   fn parse_struct_record_init_fields(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<(Vec<FieldInit>, Option<Box<Expr>>), ()> {
     self.expect(TokenKind::LBrace)?; // consume '{'
     let mut fields = vec![];
@@ -221,7 +231,7 @@ impl Parser {
         },
         TokenKind::DotDot => {
           self.advance();
-          let base_expr = self.parse_expression(vec![], ExprContext::Struct)?;
+          let base_expr = self.parse_expression(vec![], ParserContext::Struct)?;
           self.expect(TokenKind::RBrace)?;
           base = Some(Box::new(base_expr));
           break;
@@ -243,7 +253,7 @@ impl Parser {
     Ok((fields, base))
   }
 
-  fn parse_struct_record_init_field(&mut self, context: ExprContext) -> Result<FieldInit, ()> {
+  fn parse_struct_record_init_field(&mut self, context: ParserContext) -> Result<FieldInit, ()> {
     let mut token = self.current_token();
 
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
@@ -294,7 +304,7 @@ impl Parser {
     let value = match self.current_token().kind {
       TokenKind::Colon => {
         self.advance(); // consume ':'
-        Some(self.parse_expression(vec![], ExprContext::Struct)?)
+        Some(self.parse_expression(vec![], ParserContext::Struct)?)
       },
       TokenKind::Comma | TokenKind::RBrace => Some(Expr {
         attributes: vec![],

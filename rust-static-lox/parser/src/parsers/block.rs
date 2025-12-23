@@ -4,7 +4,7 @@ use crate::{
     expr::{BlockFlavor, Expr, ExprKind},
   },
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use lexer::token::TokenKind;
@@ -13,7 +13,7 @@ impl Parser {
   pub(crate) fn parse_block(
     &mut self,
     label: Option<String>,
-    context: ExprContext,
+    context: ParserContext,
     outer_attributes: Vec<Attribute>,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
@@ -21,14 +21,13 @@ impl Parser {
       token.span.merge(outer_attributes[0].span);
     }
 
-    let flavor = self.parse_block_expression_flavors(ExprContext::Default)?;
+    let flavor = self.parse_block_expression_flavors(ParserContext::Default)?;
     self.advance(); // consume the "{"
 
     let mut stmts = vec![];
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
       stmts.push(self.parse_stmt(context)?);
-      match_and_consume!(self, TokenKind::Semi)?;
     }
     self.expect(TokenKind::RBrace)?;
 
@@ -47,9 +46,9 @@ impl Parser {
 
   pub(crate) fn parse_block_expression_flavors(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<BlockFlavor, ()> {
-    if !matches!(context, ExprContext::Default) {
+    if !matches!(context, ParserContext::Default) {
       let token = self.current_token();
       let flavor = "block flavor";
       self.emit(self.err_invalid_block_flavor_context(token.span, flavor, "this context"));

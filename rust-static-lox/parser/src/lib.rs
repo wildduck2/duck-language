@@ -61,13 +61,16 @@ impl Parser {
 
   /// Peeks one token ahead without advancing.
   fn peek(&self, n: usize) -> Token {
-    if self.is_eof() {
+    let idx = self.current + n;
+
+    if idx >= self.tokens.len() {
       return Token {
         kind: TokenKind::Eof,
         span: Span::new(0, 0),
       };
     }
-    self.tokens[self.current + n].clone()
+
+    self.tokens[idx].clone()
   }
 
   /// Returns the token `n` positions behind the cursor without rewinding.

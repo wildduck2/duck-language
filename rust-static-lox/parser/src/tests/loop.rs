@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod loop_tests {
 
-  use crate::{ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression};
+  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "loop_expr_test_temp", ExprContext::LoopCondition)
+    parse_expression(input, "loop_expr_test_temp", ParserContext::LoopCondition)
   }
 
   fn assert_ok(input: &str) {
@@ -102,17 +102,17 @@ mod loop_tests {
 
   #[test]
   fn while_comparison_condition_not_supported_yet() {
-    assert_err("while x < 10 { x = x + 1; }");
+    assert_ok("while x < 10 { x = x + 1; }");
   }
 
   #[test]
-  fn while_identifier_condition_not_supported_yet() {
-    assert_err("while ready { }");
+  fn while_identifier_condition() {
+    assert_ok("while ready { }");
   }
 
   #[test]
-  fn while_unary_condition_not_supported_yet() {
-    assert_err("while !done { done; }");
+  fn while_unary_condition() {
+    assert_ok("while !done { done; }");
   }
 
   #[test]

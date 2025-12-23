@@ -1,21 +1,21 @@
 use crate::{
   ast::expr::{BinaryOp, Expr, ExprKind},
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 
 use lexer::token::TokenKind;
 impl Parser {
-  pub(crate) fn parse_bitwise_or(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_bitwise_or(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_bitwise_xor(context)?;
 
-    if matches!(context, ExprContext::Match | ExprContext::IfCondition) {
+    if matches!(context, ParserContext::Match | ParserContext::IfCondition) {
       return Ok(lhs);
     }
 
     while !self.is_eof()
-      && !matches!(context, ExprContext::Match)
+      && !matches!(context, ParserContext::Match)
       && !matches!(self.peek(1).kind, TokenKind::Or)
     {
       let mut token = self.current_token();
@@ -74,7 +74,7 @@ impl Parser {
     Ok(lhs)
   }
 
-  pub(crate) fn parse_bitwise_xor(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_bitwise_xor(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_bitwise_and(context)?;
 
     while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::Caret) {
@@ -135,7 +135,7 @@ impl Parser {
     Ok(lhs)
   }
 
-  pub(crate) fn parse_bitwise_and(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_bitwise_and(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut lhs = self.parse_shift(context)?;
 
     while !self.is_eof() && !matches!(self.peek(1).kind, TokenKind::Amp) {

@@ -1,7 +1,7 @@
 use crate::{
   ast::{generic::*, Type},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use lexer::token::{Token, TokenKind};
@@ -10,7 +10,7 @@ impl Parser {
   pub(crate) fn parse_generic_params(
     &mut self,
     token: &mut Token,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Option<GenericParams>, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt) {
       return Ok(None);
@@ -35,7 +35,7 @@ impl Parser {
   }
 
   /// Parses a single generic parameter (type, lifetime, or const).
-  pub(crate) fn parse_generic_param(&mut self, context: ExprContext) -> Result<GenericParam, ()> {
+  pub(crate) fn parse_generic_param(&mut self, context: ParserContext) -> Result<GenericParam, ()> {
     let attributes = self.parse_outer_attributes(context)?;
     let token = self.current_token();
 
@@ -50,7 +50,7 @@ impl Parser {
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance();
-          Some(self.parse_expression(vec![], ExprContext::Default)?)
+          Some(self.parse_expression(vec![], ParserContext::Default)?)
         } else {
           None
         };
@@ -127,7 +127,7 @@ impl Parser {
   pub(crate) fn parse_trait_bounds(
     &mut self,
     context_text: &str,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Vec<TypeBound>, ()> {
     let mut bounds = vec![];
     if !matches!(self.current_token().kind, TokenKind::Colon) {
@@ -208,7 +208,7 @@ impl Parser {
 
   pub(crate) fn parse_generic_args(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Option<GenericArgs>, ()> {
     match self.current_token().kind {
       TokenKind::LParen => {
@@ -260,13 +260,16 @@ impl Parser {
         let args = self.parse_angle_bracketed_generic_args_inner(context)?;
         Ok(Some(GenericArgs::AngleBracketed { args }))
       },
-
+      // TokenKind::Lt if matches!(context, ParserContext::Type) => {
+      //   let args = self.parse_angle_bracketed_generic_args_inner(context)?;
+      //   Ok(Some(GenericArgs::AngleBracketed { args }))
+      // },
       _ => Ok(None),
     }
   }
 
   /// Parses a single generic argument (type, lifetime, const, binding, …).
-  pub(crate) fn parse_generic_arg(&mut self, context: ExprContext) -> Result<GenericArg, ()> {
+  pub(crate) fn parse_generic_arg(&mut self, context: ParserContext) -> Result<GenericArg, ()> {
     let mut token = self.current_token();
     let name = self.get_token_lexeme(&token);
 
@@ -277,7 +280,7 @@ impl Parser {
       },
 
       TokenKind::Literal { .. } | TokenKind::LBrace => {
-        let expr = self.parse_expression(vec![], ExprContext::Default)?;
+        let expr = self.parse_expression(vec![], ParserContext::Default)?;
         Ok(GenericArg::Const(expr))
       },
 
@@ -353,7 +356,7 @@ impl Parser {
 
   fn parse_angle_bracketed_generic_args_inner(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Vec<GenericArg>, ()> {
     let token = self.current_token();
     let mut args = Vec::<GenericArg>::new();

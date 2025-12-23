@@ -3,7 +3,7 @@ use crate::{
     attrs::{AttrArgs, AttrInput, AttrStyle, Attribute},
     tokens::{Delimiter, TokenTree},
   },
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -12,7 +12,7 @@ use lexer::token::TokenKind;
 impl Parser {
   pub(crate) fn parse_outer_attributes(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
     while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
@@ -23,7 +23,7 @@ impl Parser {
 
   pub(crate) fn parse_inner_attributes(
     &mut self,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
     while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
@@ -32,7 +32,7 @@ impl Parser {
     Ok(attr)
   }
 
-  fn parse_outer_attribute(&mut self, context: ExprContext) -> Result<Attribute, ()> {
+  fn parse_outer_attribute(&mut self, context: ParserContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     self.expect(TokenKind::Pound)?;
@@ -47,7 +47,7 @@ impl Parser {
     })
   }
 
-  fn parse_inner_attribute(&mut self, context: ExprContext) -> Result<Attribute, ()> {
+  fn parse_inner_attribute(&mut self, context: ParserContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     self.expect(TokenKind::Pound)?;
@@ -63,7 +63,7 @@ impl Parser {
     })
   }
 
-  fn parse_attribute(&mut self, context: ExprContext) -> Result<Attribute, ()> {
+  fn parse_attribute(&mut self, context: ParserContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     let attr_style = match self.current_token().kind {
@@ -96,7 +96,7 @@ impl Parser {
   }
 
   // Parses attribute metadata like `derive(Debug)` or `path = value`.
-  fn parse_attribute_input(&mut self, context: ExprContext) -> Result<AttrInput, ()> {
+  fn parse_attribute_input(&mut self, context: ParserContext) -> Result<AttrInput, ()> {
     // Kept as-is: parse_path(true) means "allow generic args" in your parser.
     let path = self.parse_path(true, context)?;
     let args = self.parse_attribute_input_tail()?;
@@ -111,7 +111,7 @@ impl Parser {
 
       // Matches grammar: attrInputTail -> "=" expression
       // NOTE: expression attrs and cfg eval happen later, parsing stays permissive.
-      let expr = self.parse_expression(vec![], ExprContext::Default)?;
+      let expr = self.parse_expression(vec![], ParserContext::Default)?;
       return Ok(Some(AttrArgs::NameValue {
         value: Box::new(expr),
       }));

@@ -2,8 +2,7 @@ use lexer::token::TokenKind;
 
 use crate::{
   ast::{Expr, ExprKind},
-  match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -26,7 +25,7 @@ impl Parser {
     let mut elements = vec![];
     let mut trailing_comma = false;
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
-      elements.push(self.parse_expression(vec![], ExprContext::Default)?);
+      elements.push(self.parse_expression(vec![], ParserContext::Default)?);
 
       match self.check_comma_with_trailing(true)? {
         v @ true => {

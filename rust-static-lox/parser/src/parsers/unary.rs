@@ -2,11 +2,11 @@ use lexer::token::TokenKind;
 
 use crate::ast::{ExprKind, UnaryOp};
 use crate::match_and_consume;
-use crate::parser_utils::ExprContext;
+use crate::parser_utils::ParserContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_unary(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_unary(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
     match token.kind {
@@ -30,6 +30,7 @@ impl Parser {
       },
       TokenKind::Amp => {
         self.advance(); // consume the first '&'
+
         let mut depth = 1;
         while !self.is_eof() && match_and_consume!(self, TokenKind::Amp)? {
           depth += 1;

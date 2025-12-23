@@ -1,13 +1,13 @@
 use crate::{
   ast::{Expr, ExprKind, RangeExprKind},
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_range_expr(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_range_expr(&mut self, context: ParserContext) -> Result<Expr, ()> {
     // Case 1: a range begins directly with ".." or "..="
     if matches!(
       self.current_token().kind,
@@ -30,7 +30,7 @@ impl Parser {
     }
   }
 
-  fn parse_range(&mut self, context: ExprContext, start: Option<Expr>) -> Result<Expr, ()> {
+  fn parse_range(&mut self, context: ParserContext, start: Option<Expr>) -> Result<Expr, ()> {
     let mut token = self.current_token();
     self.advance(); // consume ".." or "..="
 

@@ -3,12 +3,12 @@ use lexer::token::{Token, TokenKind};
 use crate::{
   ast::{path::Path, pattern::*, BindingMode, ExprKind, Mutability, QSelf, Type},
   match_and_consume,
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
 impl Parser {
-  pub(crate) fn parse_pattern_with_or(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  pub(crate) fn parse_pattern_with_or(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     let mut patterns = vec![self.parse_pattern(context)?];
 
@@ -27,7 +27,7 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  pub(crate) fn parse_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let reference = match_and_consume!(self, TokenKind::KwRef)?;
     let mutability = self.parse_mutability()?;
     let mut token = self.current_token();
@@ -72,7 +72,7 @@ impl Parser {
     &mut self,
     reference: bool,
     mutability: Mutability,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Pattern, ()> {
     if self.looks_like_path_pattern() {
       return self.parse_path_based_pattern(context);
@@ -92,7 +92,7 @@ impl Parser {
       && matches!(self.peek(1).kind, TokenKind::KwCrate))
   }
 
-  fn parse_path_based_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  fn parse_path_based_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut start = self.current_token();
 
     let qself_header = self.parse_qself_type_header(context)?;
@@ -142,7 +142,7 @@ impl Parser {
     qself: Option<Box<Type>>,
     path: Path,
     start: &mut Token,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Pattern, ()> {
     let mut patterns = vec![];
 
@@ -166,7 +166,7 @@ impl Parser {
     qself: Option<Box<Type>>,
     path: Path,
     start: &mut Token,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Pattern, ()> {
     let mut fields = vec![];
     let mut has_rest = false;
@@ -198,7 +198,7 @@ impl Parser {
     &mut self,
     reference: bool,
     mutability: Mutability,
-    context: ExprContext,
+    context: ParserContext,
   ) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     let name = self.get_token_lexeme(&token);
@@ -227,7 +227,7 @@ impl Parser {
     })
   }
 
-  fn parse_reference_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  fn parse_reference_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     let mut depth = 0;
 
@@ -247,7 +247,7 @@ impl Parser {
     })
   }
 
-  fn parse_range_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  fn parse_range_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     let expr = self.parse_expression(vec![], context)?;
 
@@ -277,7 +277,7 @@ impl Parser {
     })
   }
 
-  fn parse_literal_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  fn parse_literal_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     let expr = self.parse_expression(vec![], context)?;
 
@@ -287,7 +287,7 @@ impl Parser {
     })
   }
 
-  fn parse_tuple_or_group_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  fn parse_tuple_or_group_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     self.advance();
 
@@ -312,7 +312,7 @@ impl Parser {
     }
   }
 
-  fn parse_slice_pattern(&mut self, context: ExprContext) -> Result<Pattern, ()> {
+  fn parse_slice_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut token = self.current_token();
     self.advance();
 
@@ -353,7 +353,7 @@ impl Parser {
     Ok(Pattern::Rest { span })
   }
 
-  fn parse_field_pattern(&mut self, context: ExprContext) -> Result<FieldPattern, ()> {
+  fn parse_field_pattern(&mut self, context: ParserContext) -> Result<FieldPattern, ()> {
     let mut token = self.current_token();
     let attributes = if matches!(self.current_token().kind, TokenKind::Pound) {
       self.parse_outer_attributes(context)?

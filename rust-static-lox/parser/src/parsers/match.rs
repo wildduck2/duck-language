@@ -1,8 +1,8 @@
-use crate::{ast::*, match_and_consume, parser_utils::ExprContext, Parser};
+use crate::{ast::*, match_and_consume, parser_utils::ParserContext, Parser};
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_match_expression(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_match_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
     self.advance(); // consume "match"
 
@@ -27,7 +27,7 @@ impl Parser {
     })
   }
 
-  fn parse_match_arm(&mut self, context: ExprContext) -> Result<MatchArm, ()> {
+  fn parse_match_arm(&mut self, context: ParserContext) -> Result<MatchArm, ()> {
     let mut token = self.current_token();
 
     let attributes = self.parse_outer_attributes(context)?;
@@ -41,7 +41,7 @@ impl Parser {
     };
 
     self.expect(TokenKind::FatArrow)?;
-    let body = self.parse_expression(vec![], ExprContext::Default)?;
+    let body = self.parse_expression(vec![], ParserContext::Default)?;
 
     Ok(MatchArm {
       attributes,

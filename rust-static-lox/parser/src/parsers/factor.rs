@@ -2,11 +2,11 @@ use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::ast::{BinaryOp, ExprKind};
-use crate::parser_utils::ExprContext;
+use crate::parser_utils::ParserContext;
 use crate::{ast::Expr, Parser};
 
 impl Parser {
-  pub(crate) fn parse_factor(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_factor(&mut self, context: ParserContext) -> Result<Expr, ()> {
     // start with the next higher-precedence expression
     let mut lhs = self.parse_cast(context)?;
 
@@ -31,18 +31,19 @@ impl Parser {
             DiagnosticError::UnexpectedToken,
             "invalid right-hand side of factor expression",
           )
-        .with_label(
-          bad.span,
-          Some(format!(
-            "expected an expression after the factor operator, found `{lexeme}`"
-          )),
-          LabelStyle::Primary,
-        )
-        .with_help("factor operators must be followed by a valid expression".to_string())
-        .with_note("examples: `x * y`, `x / y`, `x % y`".to_string())
-        .with_note(
-          "Rust parses `a * b * c` as `(a * b) * c`, which is almost always incorrect".to_string(),
-        );
+          .with_label(
+            bad.span,
+            Some(format!(
+              "expected an expression after the factor operator, found `{lexeme}`"
+            )),
+            LabelStyle::Primary,
+          )
+          .with_help("factor operators must be followed by a valid expression".to_string())
+          .with_note("examples: `x * y`, `x / y`, `x % y`".to_string())
+          .with_note(
+            "Rust parses `a * b * c` as `(a * b) * c`, which is almost always incorrect"
+              .to_string(),
+          );
 
         self.emit(diagnostic);
         return Err(());

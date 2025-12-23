@@ -2,11 +2,11 @@ use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::ast::expr::{BinaryOp, Expr, ExprKind};
-use crate::parser_utils::ExprContext;
+use crate::parser_utils::ParserContext;
 use crate::Parser;
 
 impl Parser {
-  pub(crate) fn parse_comparison(&mut self, context: ExprContext) -> Result<Expr, ()> {
+  pub(crate) fn parse_comparison(&mut self, context: ParserContext) -> Result<Expr, ()> {
     // first parse the next higher precedence level
     let lhs = self.parse_bitwise_or(context)?;
 
@@ -49,18 +49,18 @@ impl Parser {
           DiagnosticError::UnexpectedToken,
           "invalid right-hand side of comparison expression",
         )
-      .with_label(
-        bad.span,
-        Some(format!(
-          "expected an expression after the comparison operator, found `{lexeme}`"
-        )),
-        LabelStyle::Primary,
-      )
-      .with_help("comparison operators must be followed by a valid expression".to_string())
-      .with_note("examples: `x == y`, `x != y`, `x < y`, `x <= y`, `x > y`, `x >= y`".to_string())
-      .with_note(
-        "Rust parses `a < b < c` as `(a < b) < c`, which is almost always incorrect".to_string(),
-      );
+        .with_label(
+          bad.span,
+          Some(format!(
+            "expected an expression after the comparison operator, found `{lexeme}`"
+          )),
+          LabelStyle::Primary,
+        )
+        .with_help("comparison operators must be followed by a valid expression".to_string())
+        .with_note("examples: `x == y`, `x != y`, `x < y`, `x <= y`, `x > y`, `x >= y`".to_string())
+        .with_note(
+          "Rust parses `a < b < c` as `(a < b) < c`, which is almost always incorrect".to_string(),
+        );
 
       self.emit(diagnostic);
       return Err(());
@@ -68,7 +68,12 @@ impl Parser {
 
     if matches!(
       self.current_token().kind,
-      TokenKind::EqEq | TokenKind::Ne | TokenKind::Lt | TokenKind::Le | TokenKind::Gt | TokenKind::Ge
+      TokenKind::EqEq
+        | TokenKind::Ne
+        | TokenKind::Lt
+        | TokenKind::Le
+        | TokenKind::Gt
+        | TokenKind::Ge
     ) {
       let bad = self.current_token();
       let lexeme = self.get_token_lexeme(&bad);

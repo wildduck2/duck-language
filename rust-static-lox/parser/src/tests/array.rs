@@ -3,12 +3,12 @@ mod array_tests {
 
   use crate::{
     ast::{expr::ExprKind, Lit},
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_primary_expr,
   };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_primary_expr(input, "array_test_temp", ExprContext::Default)
+    parse_primary_expr(input, "array_test_temp", ParserContext::Default)
   }
 
   fn assert_err(input: &str) {

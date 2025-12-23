@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod match_tests {
 
-  use crate::{ast::expr::ExprKind, parser_utils::ExprContext, tests::support::parse_expression};
+  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "match_expr_test_temp", ExprContext::Match)
+    parse_expression(input, "match_expr_test_temp", ParserContext::Match)
   }
 
   fn assert_ok(input: &str) {

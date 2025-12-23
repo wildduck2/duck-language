@@ -3,7 +3,7 @@ use lexer::token::TokenKind;
 
 use crate::{
   ast::expr::{Expr, ExprKind},
-  parser_utils::ExprContext,
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -35,7 +35,7 @@ impl Parser {
     }
 
     // First element
-    elements.push(self.parse_expression(vec![], ExprContext::Default)?);
+    elements.push(self.parse_expression(vec![], ParserContext::Default)?);
 
     // Case 2: Repeat array form `[value; count]`
     if matches!(self.current_token().kind, TokenKind::Semi) {
@@ -68,7 +68,7 @@ impl Parser {
         return Err(());
       }
 
-      let repeat_count = self.parse_expression(vec![], ExprContext::Default)?;
+      let repeat_count = self.parse_expression(vec![], ParserContext::Default)?;
       self.expect(TokenKind::RBracket)?;
       return Ok((elements, Some(repeat_count)));
     }
@@ -83,7 +83,7 @@ impl Parser {
         break;
       }
 
-      elements.push(self.parse_expression(vec![], ExprContext::Default)?);
+      elements.push(self.parse_expression(vec![], ParserContext::Default)?);
     }
 
     self.expect(TokenKind::RBracket)?;

@@ -6,7 +6,7 @@ mod logical_tests {
       expr::{BinaryOp, ExprKind},
       Lit,
     },
-    parser_utils::ExprContext,
+    parser_utils::ParserContext,
     tests::support::parse_expression,
   };
 
@@ -44,7 +44,7 @@ mod logical_tests {
   }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "logical_expr_test_temp", ExprContext::Default)
+    parse_expression(input, "logical_expr_test_temp", ParserContext::Default)
   }
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
