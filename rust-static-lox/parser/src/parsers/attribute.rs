@@ -10,28 +10,34 @@ use crate::{
 use lexer::token::TokenKind;
 
 impl Parser {
-  pub(crate) fn parse_outer_attributes(&mut self) -> Result<Vec<Attribute>, ()> {
+  pub(crate) fn parse_outer_attributes(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
     while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
-      attr.push(self.parse_outer_attribute()?);
+      attr.push(self.parse_outer_attribute(context)?);
     }
     Ok(attr)
   }
 
-  pub(crate) fn parse_inner_attributes(&mut self) -> Result<Vec<Attribute>, ()> {
+  pub(crate) fn parse_inner_attributes(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
     while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
-      attr.push(self.parse_inner_attribute()?);
+      attr.push(self.parse_inner_attribute(context)?);
     }
     Ok(attr)
   }
 
-  fn parse_outer_attribute(&mut self) -> Result<Attribute, ()> {
+  fn parse_outer_attribute(&mut self, context: ExprContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     self.expect(TokenKind::Pound)?;
     self.expect(TokenKind::LBracket)?;
-    let input = self.parse_attribute_input()?;
+    let input = self.parse_attribute_input(context)?;
     self.expect(TokenKind::RBracket)?;
 
     Ok(Attribute {
@@ -41,13 +47,13 @@ impl Parser {
     })
   }
 
-  fn parse_inner_attribute(&mut self) -> Result<Attribute, ()> {
+  fn parse_inner_attribute(&mut self, context: ExprContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     self.expect(TokenKind::Pound)?;
     self.expect(TokenKind::Bang)?;
     self.expect(TokenKind::LBracket)?;
-    let input = self.parse_attribute_input()?;
+    let input = self.parse_attribute_input(context)?;
     self.expect(TokenKind::RBracket)?;
 
     Ok(Attribute {
@@ -57,7 +63,7 @@ impl Parser {
     })
   }
 
-  fn parse_attribute(&mut self) -> Result<Attribute, ()> {
+  fn parse_attribute(&mut self, context: ExprContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     let attr_style = match self.current_token().kind {
@@ -79,7 +85,7 @@ impl Parser {
     };
 
     self.expect(TokenKind::LBracket)?;
-    let input = self.parse_attribute_input()?;
+    let input = self.parse_attribute_input(context)?;
     self.expect(TokenKind::RBracket)?;
 
     Ok(Attribute {
@@ -90,9 +96,9 @@ impl Parser {
   }
 
   // Parses attribute metadata like `derive(Debug)` or `path = value`.
-  fn parse_attribute_input(&mut self) -> Result<AttrInput, ()> {
+  fn parse_attribute_input(&mut self, context: ExprContext) -> Result<AttrInput, ()> {
     // Kept as-is: parse_path(true) means "allow generic args" in your parser.
-    let path = self.parse_path(true)?;
+    let path = self.parse_path(true, context)?;
     let args = self.parse_attribute_input_tail()?;
 
     Ok(AttrInput { path, args })

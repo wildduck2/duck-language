@@ -498,7 +498,7 @@ unary                      -> unaryOp* postfix ;                           [x]
 unaryOp                    -> "-" | "!" | "*" | "&" "mut"? | "&&" "mut"? ; [x]
 
 postfixBase                -> primary (callOp | methodCallOp | fieldAccessOp | tupleIndexOp | indexOp | awaitOp)* ;  [x]
-postfix                    -> postfixBase ("?")* ;  [x]
+postfix                    -> postfixBase ("?")* (awaitOp ("?")*)* ;  [x]
 
 callOp                     -> "(" callParams? ")" ;                     [x]
 methodCallOp               -> "." pathExprSegment "(" callParams? ")" ; [x]
@@ -641,7 +641,7 @@ factorWithoutBlock          -> castWithoutBlock (factorOp castWithoutBlock)* ;  
 castWithoutBlock            -> unaryWithoutBlock ("as" typeNoBounds)* ;                        [x]
 unaryWithoutBlock           -> unaryOp* postfixWithoutBlock ;                                  [x]
 postfixBaseWithoutBlock     -> primaryWithoutBlock (callOp | methodCallOp | fieldAccessOp | tupleIndexOp | indexOp | awaitOp)* ;  [x]
-postfixWithoutBlock         -> postfixBaseWithoutBlock ("?")* ;                                [x]
+postfixWithoutBlock         -> postfixBaseWithoutBlock ("?")* (awaitOp ("?")*)* ;              [x]
 
 primaryWithoutBlock         -> literalExpr       [x]
                            | pathExpr          [x]

@@ -155,6 +155,8 @@ impl Lexer {
   /// Uses a lookahead around `.` so that `1.foo` / `1._foo` lex as
   /// `1` `.` `foo` (not a float literal).
   fn lex_decimal(&mut self) -> LiteralKind {
+    let prev_is_dot = matches!(self.tokens.last().map(|t| t.kind), Some(TokenKind::Dot));
+    let allow_float = !prev_is_dot;
     let mut has_dot = false;
     let mut has_exponent = false;
     let mut suffix_start = 0;
@@ -166,7 +168,7 @@ impl Lexer {
         // underscore separator in integer / fractional / exponent digits
         self.advance();
         continue;
-      } else if c == '.' && !has_dot && !has_exponent {
+      } else if c == '.' && !has_dot && !has_exponent && allow_float {
         // Decide whether '.' starts a fractional part or belongs to the next token.
         // Rust rule: treat it as fractional if there is a digit somewhere right after
         // either directly, or after a single underscore:
@@ -191,7 +193,7 @@ impl Lexer {
         } else {
           break; // '.' belongs to the next token (field access, range, etc.)
         }
-      } else if (c == 'e' || c == 'E') && !has_exponent {
+      } else if (c == 'e' || c == 'E') && !has_exponent && allow_float {
         has_exponent = true;
         self.advance();
 

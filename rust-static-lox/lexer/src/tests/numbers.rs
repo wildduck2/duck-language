@@ -184,6 +184,40 @@ mod number_tests {
   }
 
   #[test]
+  fn tuple_index_chain_does_not_form_float() {
+    let kinds = lex_kinds("foo.0.1").unwrap();
+    let non_eof: Vec<_> = kinds
+      .into_iter()
+      .filter(|k| !matches!(k, TokenKind::Eof))
+      .collect();
+
+    match non_eof.as_slice() {
+      [
+        TokenKind::Ident,
+        TokenKind::Dot,
+        TokenKind::Literal {
+          kind:
+            LiteralKind::Integer {
+              base: Base::Decimal,
+              empty_int: false,
+              ..
+            },
+        },
+        TokenKind::Dot,
+        TokenKind::Literal {
+          kind:
+            LiteralKind::Integer {
+              base: Base::Decimal,
+              empty_int: false,
+              ..
+            },
+        },
+      ] => {},
+      other => panic!("unexpected tokens for tuple index chain: {:?}", other),
+    }
+  }
+
+  #[test]
   fn decimal_float_errors() {
     let cases = ["_1.0", "1._", "1.__0", "1e__10"];
 

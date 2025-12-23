@@ -41,17 +41,22 @@ impl Parser {
   }
 
   /// Dispatches to the correct item parser after consuming attributes & visibility.
-  fn parse_item(&mut self, attributes: Vec<Attribute>, visibility: Visibility) -> Result<Item, ()> {
+  fn parse_item(
+    &mut self,
+    attributes: Vec<Attribute>,
+    visibility: Visibility,
+    context: ExprContext,
+  ) -> Result<Item, ()> {
     match self.current_token().kind {
-      TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility),
+      TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility, context),
       TokenKind::KwFn
       | TokenKind::KwConst
       | TokenKind::KwAsync
       | TokenKind::KwUnsafe
-      | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility),
-      TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility),
-      TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility),
-      TokenKind::KwStatic => self.parse_static_decl(attributes, visibility),
+      | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, context),
+      TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, context),
+      TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, context),
+      TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, context),
       // TokenKind::KwConst => self.parse_const_decl(attributes, visibility, ),
       // TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ),
       // TokenKind::KwUse => self.parse_use_decl(attributes, visibility, ),
@@ -77,8 +82,8 @@ impl Parser {
   /// Currently supports empty statements and expression statements.
   pub(crate) fn parse_stmt(&mut self, context: ExprContext) -> Result<Stmt, ()> {
     let mut token = self.current_token();
-    let outer_attributes = self.parse_outer_attributes()?;
-    let visibility = self.parse_visibility()?;
+    let outer_attributes = self.parse_outer_attributes(context)?;
+    let visibility = self.parse_visibility(context)?;
 
     match self.current_token().kind {
       TokenKind::Semi => {
@@ -89,11 +94,11 @@ impl Parser {
         })
       },
       // let declaration
-      TokenKind::KwLet => self.parse_let_statement(context, outer_attributes),
+      TokenKind::KwLet => self.parse_let_statement(outer_attributes, context),
 
       // Hnaldle macro invocation
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Bang) => {
-        self.parse_macro_invocation_statement()
+        self.parse_macro_invocation_statement(context)
       },
       TokenKind::Dollar | TokenKind::KwCrate | TokenKind::Lt
         if !matches!(
@@ -107,7 +112,7 @@ impl Parser {
             | TokenKind::LParen
         ) =>
       {
-        self.parse_macro_invocation_statement()
+        self.parse_macro_invocation_statement(context)
       },
 
       // expression statement
@@ -117,7 +122,7 @@ impl Parser {
 
       // item statement
       _ => {
-        let item = self.parse_item(outer_attributes, visibility)?;
+        let item = self.parse_item(outer_attributes, visibility, context)?;
         Ok(Stmt::Item(Box::new(item)))
       },
     }
@@ -186,13 +191,8 @@ impl Parser {
 
       TokenKind::KwTrue | TokenKind::KwFalse => self.parser_bool(),
 
-      // macro invocation expression
-      TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Bang) => {
-        self.parse_macro_invocation_expression()
-      },
-
       // path expressions
-      TokenKind::Lt => self.parse_qualified_path(),
+      TokenKind::Lt => self.parse_qualified_path(context),
 
       TokenKind::Dollar if matches!(self.peek(1).kind, TokenKind::KwCrate) => {
         self.parse_path_expr(context, true)

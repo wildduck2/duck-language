@@ -14,17 +14,16 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
+    context: ExprContext,
   ) -> Result<Item, ()> {
-    println!("{:#?}", visibility);
-
     let mut token = self.current_token();
     self.advance(); // consume the "enum"
 
     let name = self.parse_name(false)?;
-    let generics = self.parse_generic_params(&mut token)?;
-    let where_clause = self.parse_where_clause()?;
+    let generics = self.parse_generic_params(&mut token, context)?;
+    let where_clause = self.parse_where_clause(context)?;
 
-    let variants = self.parse_enum_variants()?;
+    let variants = self.parse_enum_variants(context)?;
 
     Ok(Item::Vis(VisItem {
       attributes,
@@ -39,12 +38,12 @@ impl Parser {
     }))
   }
 
-  fn parse_enum_variants(&mut self) -> Result<Vec<EnumVariant>, ()> {
+  fn parse_enum_variants(&mut self, context: ExprContext) -> Result<Vec<EnumVariant>, ()> {
     let mut variants = vec![];
     self.expect(TokenKind::LBrace)?; // consume '{'
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
-      variants.push(self.parse_enum_variant()?);
+      variants.push(self.parse_enum_variant(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
@@ -52,19 +51,19 @@ impl Parser {
     Ok(variants)
   }
 
-  fn parse_enum_variant(&mut self) -> Result<EnumVariant, ()> {
+  fn parse_enum_variant(&mut self, context: ExprContext) -> Result<EnumVariant, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_outer_attributes()?;
-    let visibility = self.parse_visibility()?;
+    let attributes = self.parse_outer_attributes(context)?;
+    let visibility = self.parse_visibility(context)?;
     let name = self.parse_name(false)?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::LBrace) {
       EnumVariantKind::Struct {
-        fields: self.parse_record_fields()?,
+        fields: self.parse_record_fields(context)?,
       }
     } else if matches!(self.current_token().kind, TokenKind::LParen) {
       EnumVariantKind::Tuple {
-        fields: self.parse_tuple_fields()?,
+        fields: self.parse_tuple_fields(context)?,
       }
     } else {
       EnumVariantKind::Unit

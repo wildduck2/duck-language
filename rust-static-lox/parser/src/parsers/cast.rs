@@ -16,7 +16,7 @@ impl Parser {
         TokenKind::KwAs => {
           let mut token = self.current_token();
           self.advance(); // consume `as`
-          let ty = self.parse_type()?;
+          let ty = self.parse_type(context)?;
           token.span.merge(self.current_token().span);
           lhs = Expr {
             attributes: vec![], // TODO: implement attributes

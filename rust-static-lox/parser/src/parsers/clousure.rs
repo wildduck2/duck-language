@@ -31,7 +31,7 @@ impl Parser {
     }
 
     self.expect(TokenKind::ThinArrow)?;
-    let return_type = self.parse_type()?;
+    let return_type = self.parse_type(context)?;
     let temp = self.current_token();
     let body = match self.parse_expression(vec![], context)? {
       body @ Expr {
@@ -44,12 +44,12 @@ impl Parser {
             DiagnosticError::ExpectedBlockAfterFlavor,
             "expected block after closure flavors",
           )
-        .with_label(
-          temp.span,
-          Some("expected block after closure flavors".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("expected block after closure flavors".to_string());
+          .with_label(
+            temp.span,
+            Some("expected block after closure flavors".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("expected block after closure flavors".to_string());
         self.emit(diagnostic);
         return Err(());
       },
@@ -75,12 +75,12 @@ impl Parser {
     if matches!(self.current_token().kind, TokenKind::Comma) {
       let diagnostic = self
         .diagnostic(DiagnosticError::UnexpectedToken, "unexpected token")
-      .with_label(
-        self.current_token().span,
-        Some("unexpected token".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help("unexpected token".to_string());
+        .with_label(
+          self.current_token().span,
+          Some("unexpected token".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("unexpected token".to_string());
       self.emit(diagnostic);
       return Err(());
     }
@@ -97,12 +97,12 @@ impl Parser {
 
   fn parse_closure_param(&mut self, context: ExprContext) -> Result<ClosureParam, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_outer_attributes()?;
+    let attributes = self.parse_outer_attributes(context)?;
     let pattern = self.parse_pattern(context)?;
 
     let ty = if matches!(self.current_token().kind, TokenKind::Colon) {
       self.advance(); // consume ':'
-      Some(self.parse_type()?)
+      Some(self.parse_type(context)?)
     } else {
       Some(Type::Infer)
     };

@@ -12,6 +12,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
+    context: ExprContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
 
@@ -19,10 +20,10 @@ impl Parser {
     self.advance(); // consume the "fn"
 
     let name = self.parse_name(false)?;
-    let generics = self.parse_generic_params(&mut token)?;
+    let generics = self.parse_generic_params(&mut token, context)?;
     let params = self.parse_function_params(is_extern, ExprContext::Function)?;
-    let return_type = self.parse_return_type()?;
-    let where_clause = self.parse_where_clause()?;
+    let return_type = self.parse_return_type(context)?;
+    let where_clause = self.parse_where_clause(context)?;
     let body = Some(self.parse_block(None, ExprContext::Default, vec![])?);
 
     Ok(Item::Vis(VisItem {
@@ -157,7 +158,7 @@ impl Parser {
 
   fn parse_function_param(&mut self, is_extern: bool, context: ExprContext) -> Result<Param, ()> {
     let mut token = self.current_token();
-    let attributes = self.parse_outer_attributes()?;
+    let attributes = self.parse_outer_attributes(context)?;
 
     let kind = if matches!(self.current_token().kind, TokenKind::DotDot) {
       if !is_extern {
@@ -188,7 +189,7 @@ impl Parser {
 
       let type_annotation = if matches!(self.current_token().kind, TokenKind::Colon) {
         self.advance();
-        Some(self.parse_type()?)
+        Some(self.parse_type(context)?)
       } else {
         None
       };
@@ -302,13 +303,13 @@ impl Parser {
     Ok(None)
   }
 
-  fn parse_return_type(&mut self) -> Result<Option<Type>, ()> {
+  fn parse_return_type(&mut self, context: ExprContext) -> Result<Option<Type>, ()> {
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
       return Ok(None);
     }
 
     self.expect(TokenKind::ThinArrow)?; // consume the "->"
-    let return_type = self.parse_type()?;
+    let return_type = self.parse_type(context)?;
 
     Ok(Some(return_type))
   }

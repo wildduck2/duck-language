@@ -10,6 +10,7 @@ impl Parser {
   pub(crate) fn parse_generic_params(
     &mut self,
     token: &mut Token,
+    context: ExprContext,
   ) -> Result<Option<GenericParams>, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt) {
       return Ok(None);
@@ -20,7 +21,7 @@ impl Parser {
     self.expect(TokenKind::Lt)?; // consume the "<"
 
     while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::Gt) {
-      params.push(self.parse_generic_param()?);
+      params.push(self.parse_generic_param(context)?);
       match_and_consume!(self, TokenKind::Comma)?;
     }
 
@@ -34,8 +35,8 @@ impl Parser {
   }
 
   /// Parses a single generic parameter (type, lifetime, or const).
-  pub(crate) fn parse_generic_param(&mut self) -> Result<GenericParam, ()> {
-    let attributes = self.parse_outer_attributes()?;
+  pub(crate) fn parse_generic_param(&mut self, context: ExprContext) -> Result<GenericParam, ()> {
+    let attributes = self.parse_outer_attributes(context)?;
     let token = self.current_token();
 
     match token.kind {
@@ -45,7 +46,7 @@ impl Parser {
         let name = self.parse_name(false)?;
 
         self.expect(TokenKind::Colon)?; // must have ":"
-        let ty = self.parse_type()?;
+        let ty = self.parse_type(context)?;
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance();
@@ -93,11 +94,11 @@ impl Parser {
       // type generic: T, U: Bound, T = Default
       TokenKind::Ident => {
         let name = self.parse_name(false)?;
-        let bounds = self.parse_trait_bounds("generic parameter")?;
+        let bounds = self.parse_trait_bounds("generic parameter", context)?;
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance();
-          Some(self.parse_type()?)
+          Some(self.parse_type(context)?)
         } else {
           None
         };
@@ -123,7 +124,11 @@ impl Parser {
   }
 
   /// Parses either lifetime or trait bounds that follow a colon.
-  pub(crate) fn parse_trait_bounds(&mut self, context: &str) -> Result<Vec<TypeBound>, ()> {
+  pub(crate) fn parse_trait_bounds(
+    &mut self,
+    context_text: &str,
+    context: ExprContext,
+  ) -> Result<Vec<TypeBound>, ()> {
     let mut bounds = vec![];
     if !matches!(self.current_token().kind, TokenKind::Colon) {
       return Ok(bounds);
@@ -142,7 +147,7 @@ impl Parser {
           let modifier = self.parse_trait_bound_modifier()?;
 
           let for_lifetimes = self.parse_for_lifetimes()?;
-          let path = self.parse_path(false)?;
+          let path = self.parse_path(false, context)?;
 
           bounds.push(TypeBound::Trait {
             modifier,
@@ -152,7 +157,7 @@ impl Parser {
         },
       }
 
-      self.consume_plus_and_require_bound(context, Self::is_bound_start)?;
+      self.consume_plus_and_require_bound(context_text, Self::is_bound_start)?;
     }
 
     Ok(bounds)
@@ -201,7 +206,10 @@ impl Parser {
     }
   }
 
-  pub(crate) fn parse_generic_args(&mut self) -> Result<Option<GenericArgs>, ()> {
+  pub(crate) fn parse_generic_args(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Option<GenericArgs>, ()> {
     match self.current_token().kind {
       TokenKind::LParen => {
         let token = self.current_token();
@@ -209,7 +217,7 @@ impl Parser {
         self.advance();
 
         while !self.is_eof() && self.current_token().kind != TokenKind::RParen {
-          inputs.push(self.parse_type()?);
+          inputs.push(self.parse_type(context)?);
           let token = self.current_token();
           match_and_consume!(self, TokenKind::Comma)?;
 
@@ -240,7 +248,7 @@ impl Parser {
 
         self.expect(TokenKind::RParen)?;
         self.expect(TokenKind::ThinArrow)?;
-        let output = self.parse_type()?;
+        let output = self.parse_type(context)?;
 
         Ok(Some(GenericArgs::Parenthesized {
           inputs,
@@ -249,7 +257,7 @@ impl Parser {
       },
 
       TokenKind::Lt | TokenKind::ColonColon => {
-        let args = self.parse_angle_bracketed_generic_args_inner()?;
+        let args = self.parse_angle_bracketed_generic_args_inner(context)?;
         Ok(Some(GenericArgs::AngleBracketed { args }))
       },
 
@@ -258,8 +266,8 @@ impl Parser {
   }
 
   /// Parses a single generic argument (type, lifetime, const, binding, …).
-  pub(crate) fn parse_generic_arg(&mut self) -> Result<GenericArg, ()> {
-    let token = self.current_token();
+  pub(crate) fn parse_generic_arg(&mut self, context: ExprContext) -> Result<GenericArg, ()> {
+    let mut token = self.current_token();
     let name = self.get_token_lexeme(&token);
 
     match token.kind {
@@ -275,41 +283,92 @@ impl Parser {
 
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Colon) => {
         self.advance(); // consume the identifier
-        let args = self.parse_generic_args()?;
+        let args = self.parse_generic_args(context)?;
         if self.current_token().kind == TokenKind::Colon {
-          let bounds = self.parse_trait_bounds("generic argument")?;
+          let bounds = self.parse_trait_bounds("generic argument", context)?;
           return Ok(GenericArg::Constraint { name, args, bounds });
         }
         self.expect(TokenKind::Colon)?;
-        let ty = self.parse_type()?;
+        let ty = self.parse_type(context)?;
         Ok(GenericArg::Binding { name, args, ty })
       },
 
       TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Eq | TokenKind::Lt) => {
         self.advance(); // consume the identifier
-        let args = self.parse_generic_args()?;
+        let args = self.parse_generic_args(context)?;
         if self.current_token().kind == TokenKind::Colon {
           self.advance(); // consume the ':'
-          let bounds = self.parse_trait_bounds("generic argument")?;
+          let bounds = self.parse_trait_bounds("generic argument", context)?;
           return Ok(GenericArg::Constraint { args, name, bounds });
         }
         self.expect(TokenKind::Eq)?; // consume the '='
-        let ty = self.parse_type()?;
+        let ty = self.parse_type(context)?;
         Ok(GenericArg::Binding { name, args, ty })
       },
 
-      _ => Ok(GenericArg::Type(self.parse_type()?)),
+      _ => {
+        let r#type = self.parse_type(context)?;
+        match r#type {
+          Type::Unit | Type::Slice { .. } => {
+            let found = self.get_token_lexeme(&self.current_token());
+            self.emit(self.err_unexpected_token(
+              *token.span.merge(self.current_token().span),
+              "valid generic argument",
+              &found,
+            ));
+            return Err(());
+          },
+          _ => {},
+        }
+
+        Ok(GenericArg::Type(r#type))
+      },
     }
   }
 
-  fn parse_angle_bracketed_generic_args_inner(&mut self) -> Result<Vec<GenericArg>, ()> {
+  fn can_start_generic_arg(kind: &TokenKind) -> bool {
+    matches!(
+      kind,
+      // lifetimes
+      TokenKind::Lifetime { .. }
+
+        // type starts
+        | TokenKind::Ident
+        | TokenKind::KwSelf
+        | TokenKind::KwSelfType
+        | TokenKind::KwSuper
+        | TokenKind::KwCrate
+        | TokenKind::ColonColon
+        | TokenKind::Lt
+        | TokenKind::LParen
+        | TokenKind::Amp
+        | TokenKind::Star
+        | TokenKind::LBracket
+
+        // const generic starts
+        | TokenKind::Literal { .. }
+        | TokenKind::Minus
+    )
+  }
+
+  fn parse_angle_bracketed_generic_args_inner(
+    &mut self,
+    context: ExprContext,
+  ) -> Result<Vec<GenericArg>, ()> {
     let token = self.current_token();
     let mut args = Vec::<GenericArg>::new();
 
     self.expect(TokenKind::Lt)?;
 
-    while !self.is_eof() && self.current_token().kind != TokenKind::Gt {
-      args.push(self.parse_generic_arg()?);
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::Gt) {
+      if !Self::can_start_generic_arg(&self.current_token().kind) {
+        let bad = self.current_token();
+        let found = self.get_token_lexeme(&bad);
+        self.emit(self.err_unexpected_token(bad.span, "generic argument", &found));
+        return Err(());
+      }
+
+      args.push(self.parse_generic_arg(context)?);
       let token = self.current_token();
 
       if !matches!(self.current_token().kind, TokenKind::Comma | TokenKind::Gt) {
@@ -360,9 +419,9 @@ impl Parser {
     matches!(kind, TokenKind::Lifetime { .. }) || kind.can_start_path()
   }
 
-  pub(crate) fn is_lifetime_start(kind: &TokenKind) -> bool {
-    matches!(kind, TokenKind::Lifetime { .. })
-  }
+  // pub(crate) fn is_lifetime_start(kind: &TokenKind) -> bool {
+  //
+  // }
 
   pub(crate) fn is_bound_terminator(kind: &TokenKind) -> bool {
     matches!(

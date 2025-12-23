@@ -4,6 +4,7 @@ use crate::{
   parser_utils::ExprContext,
   Parser,
 };
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -15,6 +16,12 @@ impl Parser {
     let mut token = self.current_token();
     self.advance(); // consume the "if"
     let condition = self.parse_expression(vec![], context)?;
+
+    if !matches!(self.current_token().kind, TokenKind::LBrace) {
+      let found = self.get_token_lexeme(&self.current_token());
+      self.emit(self.err_unexpected_token(self.current_token().span, "block", &found));
+      return Err(());
+    }
 
     if !self.is_valid_condition(&condition) {
       token.span.merge(self.current_token().span);
@@ -89,7 +96,7 @@ impl Parser {
 
     if !matches!(
       self.current_token().kind,
-      TokenKind::Colon | TokenKind::RBrace
+      TokenKind::Semi | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
       self.emit(self.err_unexpected_token(
@@ -256,6 +263,36 @@ impl Parser {
     if start {
       self.expect(TokenKind::Colon)?;
     }
+
+    if !matches!(
+      self.current_token().kind,
+      TokenKind::KwLoop
+        | TokenKind::KwWhile
+        | TokenKind::KwFor
+        | TokenKind::LBrace
+        | TokenKind::Semi
+        | TokenKind::RBrace
+    ) {
+      let lexeme = self.get_token_lexeme(&self.current_token());
+
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          "label must be followed by a loop or block",
+        )
+        .with_label(
+          self.current_token().span,
+          Some(format!("expected loop while for or block found {}", lexeme)),
+          LabelStyle::Primary,
+        )
+        .with_note("labels may only be applied to loop while for or a block".to_string())
+        .with_help("remove the label or wrap the expression in a block".to_string());
+
+      self.emit(diagnostic);
+
+      return Err(());
+    }
+
     Ok(Some(self.get_token_lexeme(&token)))
   }
 }
