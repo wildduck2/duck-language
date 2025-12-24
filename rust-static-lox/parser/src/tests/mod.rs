@@ -8,6 +8,7 @@ mod control_flow;
 mod r#enum;
 mod factor;
 mod r#fn;
+mod generics;
 mod literal;
 mod logical;
 mod r#loop;
