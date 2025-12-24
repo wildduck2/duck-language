@@ -16,6 +16,7 @@ mod r#loop;
 mod r#match;
 mod mutability;
 mod path;
+mod pattern;
 mod postfix;
 mod range;
 mod shift;
