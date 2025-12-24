@@ -5,7 +5,7 @@ mod generics_tests {
       expr::ExprKind,
       generic::{GenericArg, GenericArgs, GenericParam, TraitBoundModifier, TypeBound},
       path::{Path, PathSegmentKind},
-      Item, Lit, Type, VisItemKind,
+      Item, Lit, Mutability, Type, VisItemKind,
     },
     parser_utils::ParserContext,
     tests::support::{parse_expression, parse_item, parse_primary_expr},
@@ -379,6 +379,32 @@ mod generics_tests {
             assert!(path.segments[0].args.is_some());
           },
           other => panic!("expected nested type arg, got {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn parses_mutable_reference_in_generic_type_arg() {
+    let args = parse_path_args("Foo::<&mut T>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 1);
+        match &args[0] {
+          GenericArg::Type(Type::Reference {
+            lifetime,
+            mutability,
+            inner,
+          }) => {
+            assert_eq!(lifetime, &None);
+            assert_eq!(mutability, &Mutability::Mutable);
+            match inner.as_ref() {
+              Type::Path(path) => assert_ident_path(path, "T"),
+              other => panic!("expected path inner type, got {:?}", other),
+            }
+          },
+          other => panic!("expected mutable reference type arg, got {:?}", other),
         }
       },
       other => panic!("expected angle bracketed args, got {:?}", other),
