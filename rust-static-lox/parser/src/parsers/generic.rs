@@ -221,18 +221,6 @@ impl Parser {
           let token = self.current_token();
           match_and_consume!(self, TokenKind::Comma)?;
 
-          if !matches!(
-            self.current_token().kind,
-            TokenKind::Comma | TokenKind::RParen
-          ) {
-            let bad = self.current_token();
-            let found = self.get_token_lexeme(&bad);
-            self.emit(
-              self.err_invalid_comma(bad.span, &format!("expected ',' or ')', found `{found}`")),
-            );
-            return Err(());
-          }
-
           if matches!(self.current_token().kind, TokenKind::RParen)
             && matches!(token.kind, TokenKind::Comma)
           {
@@ -260,10 +248,7 @@ impl Parser {
         let args = self.parse_angle_bracketed_generic_args_inner(context)?;
         Ok(Some(GenericArgs::AngleBracketed { args }))
       },
-      // TokenKind::Lt if matches!(context, ParserContext::Type) => {
-      //   let args = self.parse_angle_bracketed_generic_args_inner(context)?;
-      //   Ok(Some(GenericArgs::AngleBracketed { args }))
-      // },
+
       _ => Ok(None),
     }
   }

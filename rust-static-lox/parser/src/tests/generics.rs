@@ -8,7 +8,7 @@ mod generics_tests {
       Item, Lit, Type, VisItemKind,
     },
     parser_utils::ParserContext,
-    tests::support::{parse_expression, parse_item},
+    tests::support::{parse_expression, parse_item, parse_primary_expr},
   };
 
   fn parse_fn_generics(input: &str) -> crate::ast::GenericParams {
@@ -31,7 +31,8 @@ mod generics_tests {
   }
 
   fn parse_path_args(input: &str) -> GenericArgs {
-    let expr = parse_expression(input, "generics_expr_test_temp", ParserContext::Default).unwrap();
+    let expr =
+      parse_primary_expr(input, "generics_expr_test_temp", ParserContext::Default).unwrap();
     match expr {
       ExprKind::Path { path, .. } => match path.segments[0].args.clone() {
         Some(args) => args,
@@ -222,7 +223,7 @@ mod generics_tests {
   }
 
   #[test]
-  fn parses_generic_args_types_lifetimes_and_consts() {
+  fn parses_generic_args_types_and_lifetimes() {
     let args = parse_path_args("Foo::<T>");
     match args {
       GenericArgs::AngleBracketed { args } => {
@@ -243,33 +244,12 @@ mod generics_tests {
       },
       other => panic!("expected angle bracketed args, got: {:?}", other),
     }
-
-    let args = parse_path_args("Foo::<3>");
-    match args {
-      GenericArgs::AngleBracketed { args } => match &args[0] {
-        GenericArg::Const(expr) => match &expr.kind {
-          ExprKind::Literal(Lit::Integer { value, .. }) => assert_eq!(*value, 3),
-          other => panic!("expected integer const arg, got: {:?}", other),
-        },
-        other => panic!("expected const arg, got: {:?}", other),
-      },
-      other => panic!("expected angle bracketed args, got: {:?}", other),
-    }
   }
 
   #[test]
-  fn parses_const_block_generic_arg() {
-    let args = parse_path_args("Foo::<{ 1 }>");
-    match args {
-      GenericArgs::AngleBracketed { args } => match &args[0] {
-        GenericArg::Const(expr) => match &expr.kind {
-          ExprKind::Block { .. } => {},
-          other => panic!("expected block const arg, got: {:?}", other),
-        },
-        other => panic!("expected const arg, got: {:?}", other),
-      },
-      other => panic!("expected angle bracketed args, got: {:?}", other),
-    }
+  fn rejects_const_generic_args() {
+    assert_expr_err("Foo::<3>");
+    assert_expr_err("Foo::<{ 1 }>");
   }
 
   #[test]
@@ -305,41 +285,8 @@ mod generics_tests {
   }
 
   #[test]
-  fn parses_binding_and_constraint_with_args() {
-    let args = parse_path_args("Foo::<Item<T> = i32, Assoc<U>: Copy>");
-    match args {
-      GenericArgs::AngleBracketed { args } => {
-        assert_eq!(args.len(), 2);
-        match &args[0] {
-          GenericArg::Binding { name, args, .. } => {
-            assert_eq!(name, "Item");
-            match args {
-              Some(GenericArgs::AngleBracketed { args }) => match &args[0] {
-                GenericArg::Type(ty) => assert_type_path(ty, "T"),
-                other => panic!("expected type arg, got: {:?}", other),
-              },
-              other => panic!("expected angle bracketed args, got: {:?}", other),
-            }
-          },
-          other => panic!("expected binding arg, got: {:?}", other),
-        }
-
-        match &args[1] {
-          GenericArg::Constraint { name, args, .. } => {
-            assert_eq!(name, "Assoc");
-            match args {
-              Some(GenericArgs::AngleBracketed { args }) => match &args[0] {
-                GenericArg::Type(ty) => assert_type_path(ty, "U"),
-                other => panic!("expected type arg, got: {:?}", other),
-              },
-              other => panic!("expected angle bracketed args, got: {:?}", other),
-            }
-          },
-          other => panic!("expected constraint arg, got: {:?}", other),
-        }
-      },
-      other => panic!("expected angle bracketed args, got: {:?}", other),
-    }
+  fn rejects_binding_and_constraint_with_args() {
+    assert_expr_err("Foo::<Item<T> = i32, Assoc<U>: Copy>");
   }
 
   #[test]

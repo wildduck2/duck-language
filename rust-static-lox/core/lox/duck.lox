@@ -1,3 +1,1 @@
-fn foo< const N: usize = 3>() {}
-//(1 < 2) == (3 < 4)
-// 'a: 'b + 'c, T: Copy + 'a = i32,
+Foo::<Item = i32, Assoc: Copy>
