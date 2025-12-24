@@ -2,73 +2,15 @@
 mod range_tests {
 
   use crate::{
-    ast::{
-      expr::{BinaryOp, ExprKind, RangeExprKind, UnaryOp},
-      Lit,
-    },
+    ast::expr::{BinaryOp, ExprKind, RangeExprKind, UnaryOp},
     parser_utils::ParserContext,
-    tests::support::parse_expression,
+    tests::support::{bin, group, int, simplify_expr, unary, SimpleExpr, parse_expression},
   };
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Unary {
-      op: UnaryOp,
-      expr: Box<SimpleExpr>,
-    },
-    Binary {
-      op: BinaryOp,
-      left: Box<SimpleExpr>,
-      right: Box<SimpleExpr>,
-    },
-    Group(Box<SimpleExpr>),
-  }
-
   #[derive(Debug, PartialEq)]
   struct SimpleRange {
     start: Option<SimpleExpr>,
     end: Option<SimpleExpr>,
     kind: RangeExprKind,
-  }
-
-  fn int(value: i128) -> SimpleExpr {
-    SimpleExpr::Int(value)
-  }
-
-  fn unary(op: UnaryOp, expr: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Unary {
-      op,
-      expr: Box::new(expr),
-    }
-  }
-
-  fn bin(op: BinaryOp, left: SimpleExpr, right: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Binary {
-      op,
-      left: Box::new(left),
-      right: Box::new(right),
-    }
-  }
-
-  fn group(expr: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Group(Box::new(expr))
-  }
-
-  fn simplify_expr(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-
-      ExprKind::Unary { op, expr } => unary(op.clone(), simplify_expr(&expr.kind)),
-
-      ExprKind::Binary { left, op, right } => {
-        bin(*op, simplify_expr(&left.kind), simplify_expr(&right.kind))
-      },
-
-      ExprKind::Group { expr } => group(simplify_expr(&expr.kind)),
-
-      other => panic!("unexpected bound expression in range tests: {:?}", other),
-    }
   }
 
   fn simplify_range(expr: &ExprKind) -> SimpleRange {

@@ -2,124 +2,12 @@
 mod cast_tests {
 
   use crate::{
-    ast::{
-      expr::{BinaryOp, ExprKind, UnaryOp},
-      path::PathSegmentKind,
-      ty::Type,
-      Lit, Path,
-    },
+    ast::expr::{BinaryOp, ExprKind, UnaryOp},
     parser_utils::ParserContext,
-    tests::support::parse_expression,
+    tests::support::{
+      bin, cast, int, path, simplify_expr_ungrouped, unary, SimpleExpr, parse_expression,
+    },
   };
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Path(&'static str),
-    Unary {
-      op: UnaryOp,
-      expr: Box<SimpleExpr>,
-    },
-    Cast {
-      expr: Box<SimpleExpr>,
-      ty: &'static str,
-    },
-    Binary {
-      op: BinaryOp,
-      left: Box<SimpleExpr>,
-      right: Box<SimpleExpr>,
-    },
-  }
-
-  fn int(v: i128) -> SimpleExpr {
-    SimpleExpr::Int(v)
-  }
-
-  fn path(name: &'static str) -> SimpleExpr {
-    SimpleExpr::Path(name)
-  }
-
-  fn unary(op: UnaryOp, expr: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Unary {
-      op,
-      expr: Box::new(expr),
-    }
-  }
-
-  fn cast(expr: SimpleExpr, ty: &'static str) -> SimpleExpr {
-    SimpleExpr::Cast {
-      expr: Box::new(expr),
-      ty,
-    }
-  }
-
-  fn bin(op: BinaryOp, l: SimpleExpr, r: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Binary {
-      op,
-      left: Box::new(l),
-      right: Box::new(r),
-    }
-  }
-
-  fn simplify(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-
-      ExprKind::Path { path, .. } => {
-        let seg = &path.segments[0];
-        match &seg.kind {
-          PathSegmentKind::Ident(name) => {
-            SimpleExpr::Path(Box::leak(name.clone().into_boxed_str()))
-          },
-          _ => panic!("unexpected path segment"),
-        }
-      },
-
-      ExprKind::Unary { op, expr } => unary(op.clone(), simplify(&expr.kind)),
-
-      ExprKind::Cast { expr, ty } => {
-        let name: &'static str = match ty {
-          // Builtin primitive types
-          Type::I8 => "i8",
-          Type::I16 => "i16",
-          Type::I32 => "i32",
-          Type::I64 => "i64",
-          Type::I128 => "i128",
-          Type::Isize => "isize",
-          Type::U8 => "u8",
-          Type::U16 => "u16",
-          Type::U32 => "u32",
-          Type::U64 => "u64",
-          Type::U128 => "u128",
-          Type::Usize => "usize",
-          Type::F32 => "f32",
-          Type::F64 => "f64",
-          Type::Bool => "bool",
-          Type::Char => "char",
-          Type::Str => "str",
-
-          // Path types: Foo, std::vec::Vec, etc
-          Type::Path(Path { segments, .. }) => {
-            let seg = &segments[0];
-            match &seg.kind {
-              PathSegmentKind::Ident(name) => Box::leak(name.clone().into_boxed_str()),
-              _ => panic!("unexpected type segment"),
-            }
-          },
-
-          other => panic!("unexpected cast type in tests: {:?}", other),
-        };
-
-        cast(simplify(&expr.kind), name)
-      },
-
-      ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
-
-      ExprKind::Group { expr } => simplify(&expr.kind),
-
-      other => panic!("unexpected expr in cast tests: {:?}", other),
-    }
-  }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "cast_expr_test_temp", ParserContext::Default)
@@ -127,7 +15,7 @@ mod cast_tests {
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse(input).unwrap();
-    assert_eq!(simplify(&expr), expected);
+    assert_eq!(simplify_expr_ungrouped(&expr), expected);
   }
 
   fn assert_err(input: &str) {

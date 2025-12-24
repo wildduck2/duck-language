@@ -2,47 +2,10 @@
 mod factor_tests {
 
   use crate::{
-    ast::{
-      expr::{BinaryOp, ExprKind},
-      Lit,
-    },
+    ast::expr::{BinaryOp, ExprKind},
     parser_utils::ParserContext,
-    tests::support::parse_expression,
+    tests::support::{bin, int, simplify_expr_ungrouped, SimpleExpr, parse_expression},
   };
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Binary {
-      op: BinaryOp,
-      left: Box<SimpleExpr>,
-      right: Box<SimpleExpr>,
-    },
-  }
-
-  fn int(v: i128) -> SimpleExpr {
-    SimpleExpr::Int(v)
-  }
-
-  fn bin(op: BinaryOp, l: SimpleExpr, r: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Binary {
-      op,
-      left: Box::new(l),
-      right: Box::new(r),
-    }
-  }
-
-  fn simplify(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-
-      ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
-
-      ExprKind::Group { expr } => simplify(&expr.kind),
-
-      other => panic!("unexpected expr in factor tests: {:?}", other),
-    }
-  }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "factor_expr_test_temp", ParserContext::Default)
@@ -50,7 +13,7 @@ mod factor_tests {
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse(input).unwrap();
-    assert_eq!(simplify(&expr), expected);
+    assert_eq!(simplify_expr_ungrouped(&expr), expected);
   }
 
   fn assert_err(input: &str) {

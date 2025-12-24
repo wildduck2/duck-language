@@ -2,9 +2,9 @@
 mod array_tests {
 
   use crate::{
-    ast::{expr::ExprKind, Lit},
+    ast::expr::ExprKind,
     parser_utils::ParserContext,
-    tests::support::parse_primary_expr,
+    tests::support::{array, int, repeat_array, simplify_expr, SimpleExpr, parse_primary_expr},
   };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
@@ -19,47 +19,9 @@ mod array_tests {
     );
   }
 
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Array {
-      elements: Vec<SimpleExpr>,
-      repeat: Option<Box<SimpleExpr>>,
-    },
-  }
-
-  fn int(value: i128) -> SimpleExpr {
-    SimpleExpr::Int(value)
-  }
-
-  fn array(elements: Vec<SimpleExpr>) -> SimpleExpr {
-    SimpleExpr::Array {
-      elements,
-      repeat: None,
-    }
-  }
-
-  fn repeat_array(value: SimpleExpr, repeat: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Array {
-      elements: vec![value],
-      repeat: Some(Box::new(repeat)),
-    }
-  }
-
-  fn simplify(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-      ExprKind::Array { elements, repeat } => SimpleExpr::Array {
-        elements: elements.iter().map(|e| simplify(&e.kind)).collect(),
-        repeat: repeat.as_ref().map(|expr| Box::new(simplify(&expr.kind))),
-      },
-      _ => panic!("unsupported expression in array tests: {:?}", expr),
-    }
-  }
-
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse_single(input).unwrap();
-    assert_eq!(simplify(&expr), expected);
+    assert_eq!(simplify_expr(&expr), expected);
   }
 
   #[test]

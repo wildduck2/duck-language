@@ -6,10 +6,13 @@ mod struct_tests {
     ast::{
       expr::ExprKind,
       r#struct::{StructDecl, StructKind},
-      Item, Lit, VisItem, VisItemKind, Visibility,
+      Item, VisItem, VisItemKind, Visibility,
     },
     parser_utils::ParserContext,
-    tests::support::{parse_expression, run_parser},
+    tests::support::{
+      call, field, group, int, path_expr, simple_path, simple_path_leading_colon, simplify_expr,
+      struct_expr, SimpleExpr, SimpleFieldName, parse_expression, run_parser,
+    },
   };
 
   // Decl parsing
@@ -354,158 +357,6 @@ mod struct_tests {
   }
 
   // Expr model and helpers
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Path(SimplePath),
-    Group(Box<SimpleExpr>),
-    Struct {
-      path: SimplePath,
-      fields: Vec<SimpleField>,
-      base: Option<Box<SimpleExpr>>,
-    },
-    Call {
-      callee: Box<SimpleExpr>,
-      args: Vec<SimpleExpr>,
-    },
-  }
-
-  #[derive(Debug, PartialEq, Clone)]
-  struct SimplePath {
-    leading_colon: bool,
-    segments: Vec<String>,
-  }
-
-  #[derive(Debug, PartialEq)]
-  struct SimpleField {
-    name: SimpleFieldName,
-    value: SimpleExpr,
-  }
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleFieldName {
-    Ident(String),
-    TupleIndex(usize),
-  }
-
-  fn int(v: i128) -> SimpleExpr {
-    SimpleExpr::Int(v)
-  }
-
-  fn simple_path<I: Into<String>>(segments: impl IntoIterator<Item = I>) -> SimplePath {
-    SimplePath {
-      leading_colon: false,
-      segments: segments.into_iter().map(Into::into).collect(),
-    }
-  }
-
-  fn simple_path_leading_colon<I: Into<String>>(
-    segments: impl IntoIterator<Item = I>,
-  ) -> SimplePath {
-    SimplePath {
-      leading_colon: true,
-      segments: segments.into_iter().map(Into::into).collect(),
-    }
-  }
-
-  fn path_expr(path: SimplePath) -> SimpleExpr {
-    SimpleExpr::Path(path)
-  }
-
-  fn group(expr: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Group(Box::new(expr))
-  }
-
-  fn field(name: SimpleFieldName, value: SimpleExpr) -> SimpleField {
-    SimpleField { name, value }
-  }
-
-  fn struct_expr(
-    path: SimplePath,
-    fields: Vec<SimpleField>,
-    base: Option<SimpleExpr>,
-  ) -> SimpleExpr {
-    SimpleExpr::Struct {
-      path,
-      fields,
-      base: base.map(Box::new),
-    }
-  }
-
-  fn call(callee: SimpleExpr, args: Vec<SimpleExpr>) -> SimpleExpr {
-    SimpleExpr::Call {
-      callee: Box::new(callee),
-      args,
-    }
-  }
-
-  fn simplify_path(path: &crate::ast::path::Path) -> SimplePath {
-    use crate::ast::path::PathSegmentKind;
-
-    let segments = path
-      .segments
-      .iter()
-      .map(|segment| match &segment.kind {
-        PathSegmentKind::Ident(name) => name.clone(),
-        PathSegmentKind::Self_ => "self".to_string(),
-        PathSegmentKind::SelfType => "Self".to_string(),
-        PathSegmentKind::Super => "super".to_string(),
-        PathSegmentKind::Crate => "crate".to_string(),
-        PathSegmentKind::DollarCrate => "$crate".to_string(),
-      })
-      .collect();
-
-    SimplePath {
-      leading_colon: path.leading_colon,
-      segments,
-    }
-  }
-
-  fn simplify_expr(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-
-      ExprKind::Path { path, .. } => path_expr(simplify_path(path)),
-
-      ExprKind::Group { expr } => group(simplify_expr(&expr.kind)),
-
-      ExprKind::Struct { path, fields, base } => {
-        let fields = fields
-          .iter()
-          .map(|f| {
-            let name = match &f.name {
-              crate::ast::expr::FieldName::Ident(n) => SimpleFieldName::Ident(n.clone()),
-              crate::ast::expr::FieldName::TupleIndex(i) => SimpleFieldName::TupleIndex(*i),
-            };
-
-            let value = match f.value.as_ref() {
-              Some(v) => simplify_expr(&v.kind),
-              None => match &name {
-                SimpleFieldName::Ident(n) => path_expr(simple_path([n.clone()])),
-                SimpleFieldName::TupleIndex(_) => panic!("tuple index shorthand should not exist"),
-              },
-            };
-
-            field(name, value)
-          })
-          .collect();
-
-        struct_expr(
-          simplify_path(path),
-          fields,
-          base.as_ref().map(|e| simplify_expr(&e.kind)),
-        )
-      },
-
-      ExprKind::Call { callee, args } => call(
-        simplify_expr(&callee.kind),
-        args.iter().map(|a| simplify_expr(&a.kind)).collect(),
-      ),
-
-      other => panic!("unsupported expression in struct tests: {:?}", other),
-    }
-  }
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse_expr(input).unwrap();

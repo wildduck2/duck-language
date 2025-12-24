@@ -2,65 +2,10 @@
 mod shift_tests {
 
   use crate::{
-    ast::{
-      expr::{BinaryOp, ExprKind, RangeExprKind, UnaryOp},
-      Lit,
-    },
+    ast::expr::{BinaryOp, ExprKind, RangeExprKind, UnaryOp},
     parser_utils::ParserContext,
-    tests::support::parse_expression,
+    tests::support::{bin, group, int, simplify_expr, unary, SimpleExpr, parse_expression},
   };
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Unary {
-      op: UnaryOp,
-      expr: Box<SimpleExpr>,
-    },
-    Binary {
-      op: BinaryOp,
-      left: Box<SimpleExpr>,
-      right: Box<SimpleExpr>,
-    },
-    Group(Box<SimpleExpr>),
-  }
-
-  fn int(value: i128) -> SimpleExpr {
-    SimpleExpr::Int(value)
-  }
-
-  fn unary(op: UnaryOp, expr: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Unary {
-      op,
-      expr: Box::new(expr),
-    }
-  }
-
-  fn bin(op: BinaryOp, left: SimpleExpr, right: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Binary {
-      op,
-      left: Box::new(left),
-      right: Box::new(right),
-    }
-  }
-
-  fn group(expr: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Group(Box::new(expr))
-  }
-
-  fn simplify(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-
-      ExprKind::Unary { op, expr } => unary(op.clone(), simplify(&expr.kind)),
-
-      ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
-
-      ExprKind::Group { expr } => group(simplify(&expr.kind)),
-
-      other => panic!("unexpected expression in shift tests: {:?}", other),
-    }
-  }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "shift_expr_test_temp", ParserContext::Default)
@@ -68,7 +13,7 @@ mod shift_tests {
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse(input).unwrap();
-    assert_eq!(simplify(&expr), expected);
+    assert_eq!(simplify_expr(&expr), expected);
   }
 
   fn assert_err(input: &str) {
@@ -100,10 +45,10 @@ mod shift_tests {
       ExprKind::Range { start, end, kind } => {
         assert_eq!(kind, RangeExprKind::To);
         assert_eq!(
-          simplify(&start.unwrap().kind),
+          simplify_expr(&start.unwrap().kind),
           bin(BinaryOp::Shl, int(1), int(2))
         );
-        assert_eq!(simplify(&end.unwrap().kind), int(3));
+        assert_eq!(simplify_expr(&end.unwrap().kind), int(3));
       },
       other => panic!("expected range expression, got: {:?}", other),
     }
@@ -116,10 +61,10 @@ mod shift_tests {
       ExprKind::Range { start, end, kind } => {
         assert_eq!(kind, RangeExprKind::ToInclusive);
         assert_eq!(
-          simplify(&start.unwrap().kind),
+          simplify_expr(&start.unwrap().kind),
           bin(BinaryOp::Shr, int(1), int(2))
         );
-        assert_eq!(simplify(&end.unwrap().kind), int(3));
+        assert_eq!(simplify_expr(&end.unwrap().kind), int(3));
       },
       other => panic!("expected range expression, got: {:?}", other),
     }

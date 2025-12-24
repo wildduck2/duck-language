@@ -2,9 +2,9 @@
 mod tuple_tests {
 
   use crate::{
-    ast::{ExprKind, Lit},
+    ast::ExprKind,
     parser_utils::ParserContext,
-    tests::support::parse_primary_expr,
+    tests::support::{group, int, simplify_expr, tuple, SimpleExpr, parse_primary_expr},
   };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
@@ -19,40 +19,9 @@ mod tuple_tests {
     );
   }
 
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Int(i128),
-    Tuple(Vec<SimpleExpr>),
-    Group(Box<SimpleExpr>),
-  }
-
-  fn int(value: i128) -> SimpleExpr {
-    SimpleExpr::Int(value)
-  }
-
-  fn tuple(elements: Vec<SimpleExpr>) -> SimpleExpr {
-    SimpleExpr::Tuple(elements)
-  }
-
-  fn group(inner: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Group(Box::new(inner))
-  }
-
-  fn simplify(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Integer { value, .. }) => int(*value),
-
-      ExprKind::Tuple { elements } => tuple(elements.iter().map(|e| simplify(&e.kind)).collect()),
-
-      ExprKind::Group { expr } => group(simplify(&expr.kind)),
-
-      other => panic!("unsupported expression in tuple tests: {:?}", other),
-    }
-  }
-
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse_single(input).unwrap();
-    assert_eq!(simplify(&expr), expected);
+    assert_eq!(simplify_expr(&expr), expected);
   }
 
   #[test]

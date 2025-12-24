@@ -2,46 +2,10 @@
 mod logical_tests {
 
   use crate::{
-    ast::{
-      expr::{BinaryOp, ExprKind},
-      Lit,
-    },
+    ast::expr::{BinaryOp, ExprKind},
     parser_utils::ParserContext,
-    tests::support::parse_expression,
+    tests::support::{bin, int, simplify_expr_ungrouped, SimpleExpr, parse_expression},
   };
-
-  #[derive(Debug, PartialEq)]
-  enum SimpleExpr {
-    Bool(bool),
-    Int(i128),
-    Binary {
-      op: BinaryOp,
-      left: Box<SimpleExpr>,
-      right: Box<SimpleExpr>,
-    },
-  }
-
-  fn boolean(value: bool) -> SimpleExpr {
-    SimpleExpr::Bool(value)
-  }
-
-  fn bin(op: BinaryOp, left: SimpleExpr, right: SimpleExpr) -> SimpleExpr {
-    SimpleExpr::Binary {
-      op,
-      left: Box::new(left),
-      right: Box::new(right),
-    }
-  }
-
-  fn simplify(expr: &ExprKind) -> SimpleExpr {
-    match expr {
-      ExprKind::Literal(Lit::Bool(value)) => boolean(*value),
-      ExprKind::Literal(Lit::Integer { value, .. }) => SimpleExpr::Int(*value),
-      ExprKind::Group { expr } => simplify(&expr.kind),
-      ExprKind::Binary { left, op, right } => bin(*op, simplify(&left.kind), simplify(&right.kind)),
-      _ => panic!("unexpected expression in logical tests: {:?}", expr),
-    }
-  }
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "logical_expr_test_temp", ParserContext::Default)
@@ -49,7 +13,7 @@ mod logical_tests {
 
   fn assert_expr(input: &str, expected: SimpleExpr) {
     let expr = parse(input).unwrap();
-    assert_eq!(simplify(&expr), expected);
+    assert_eq!(simplify_expr_ungrouped(&expr), expected);
   }
 
   fn assert_err(input: &str) {
@@ -60,7 +24,7 @@ mod logical_tests {
   fn parses_logical_or() {
     assert_expr(
       "1 || 0",
-      bin(BinaryOp::Or, SimpleExpr::Int(1), SimpleExpr::Int(0)),
+      bin(BinaryOp::Or, int(1), int(0)),
     );
   }
 
@@ -68,7 +32,7 @@ mod logical_tests {
   fn parses_logical_and() {
     assert_expr(
       "1 && 0",
-      bin(BinaryOp::And, SimpleExpr::Int(1), SimpleExpr::Int(0)),
+      bin(BinaryOp::And, int(1), int(0)),
     );
   }
 
@@ -78,8 +42,8 @@ mod logical_tests {
       "1 || 0 && 2",
       bin(
         BinaryOp::Or,
-        SimpleExpr::Int(1),
-        bin(BinaryOp::And, SimpleExpr::Int(0), SimpleExpr::Int(2)),
+        int(1),
+        bin(BinaryOp::And, int(0), int(2)),
       ),
     );
   }
@@ -90,8 +54,8 @@ mod logical_tests {
       "1 && 2 && 3",
       bin(
         BinaryOp::And,
-        bin(BinaryOp::And, SimpleExpr::Int(1), SimpleExpr::Int(2)),
-        SimpleExpr::Int(3),
+        bin(BinaryOp::And, int(1), int(2)),
+        int(3),
       ),
     );
   }
@@ -112,8 +76,8 @@ mod logical_tests {
       "(1 || 0) && 2",
       bin(
         BinaryOp::And,
-        bin(BinaryOp::Or, SimpleExpr::Int(1), SimpleExpr::Int(0)),
-        SimpleExpr::Int(2),
+        bin(BinaryOp::Or, int(1), int(0)),
+        int(2),
       ),
     );
   }
