@@ -324,4 +324,64 @@ mod generics_tests {
       assert_expr_err(src);
     }
   }
+
+  #[test]
+  fn parses_multiple_lifetime_args() {
+    let args = parse_path_args("Foo::<'a, 'b>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 2);
+        match &args[0] {
+          GenericArg::Lifetime(name) => assert_eq!(name, "'a"),
+          _ => panic!(),
+        }
+        match &args[1] {
+          GenericArg::Lifetime(name) => assert_eq!(name, "'b"),
+          _ => panic!(),
+        }
+      },
+      _ => panic!(),
+    }
+  }
+
+  #[test]
+  fn parses_mixed_lifetime_and_type_generic_args() {
+    let args = parse_path_args("Foo::<'a, T>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 2);
+        match &args[0] {
+          GenericArg::Lifetime(name) => assert_eq!(name, "'a"),
+          other => panic!("expected lifetime arg, got {:?}", other),
+        }
+        match &args[1] {
+          GenericArg::Type(ty) => assert_type_path(ty, "T"),
+          other => panic!("expected type arg, got {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn parses_nested_generic_type_args() {
+    let args = parse_path_args("Foo::<Vec<T>>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 1);
+        match &args[0] {
+          GenericArg::Type(Type::Path(path)) => {
+            assert_eq!(path.segments.len(), 1);
+            match &path.segments[0].kind {
+              PathSegmentKind::Ident(name) => assert_eq!(name, "Vec"),
+              other => panic!("expected Vec path, got {:?}", other),
+            }
+            assert!(path.segments[0].args.is_some());
+          },
+          other => panic!("expected nested type arg, got {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got {:?}", other),
+    }
+  }
 }

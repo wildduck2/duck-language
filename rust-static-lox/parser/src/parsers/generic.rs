@@ -1,9 +1,10 @@
 use crate::{
-  ast::{generic::*, Type},
+  ast::{generic::*, Path, PathSegment, PathSegmentKind, Type},
   match_and_consume,
   parser_utils::ParserContext,
   Parser,
 };
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{Token, TokenKind};
 
 impl Parser {
@@ -258,59 +259,94 @@ impl Parser {
     let mut token = self.current_token();
     let name = self.get_token_lexeme(&token);
 
-    match token.kind {
-      TokenKind::Lifetime { .. } => {
-        self.advance(); // consume the lifetime
-        Ok(GenericArg::Lifetime(name))
-      },
+    // 1. lifetime argument
+    if let TokenKind::Lifetime { .. } = token.kind {
+      self.advance();
+      return Ok(GenericArg::Lifetime(name));
+    }
 
-      TokenKind::Literal { .. } | TokenKind::LBrace => {
-        let expr = self.parse_expression(vec![], ParserContext::Default)?;
-        Ok(GenericArg::Const(expr))
-      },
+    // 2. const generic argument
+    if matches!(token.kind, TokenKind::Literal { .. } | TokenKind::LBrace) {
+      let expr = self.parse_expression(vec![], ParserContext::Default)?;
+      return Ok(GenericArg::Const(expr));
+    }
 
-      TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Colon) => {
-        self.advance(); // consume the identifier
-        let args = self.parse_generic_args(context)?;
-        if self.current_token().kind == TokenKind::Colon {
-          let bounds = self.parse_trait_bounds("generic argument", context)?;
-          return Ok(GenericArg::Constraint { name, args, bounds });
+    // 3. parse a full type first
+    let r#type = self.parse_type(context)?;
+
+    // reject invalid types in generic args
+    match r#type {
+      Type::Unit | Type::Slice { .. } => {
+        let found = self.get_token_lexeme(&self.current_token());
+        self.emit(self.err_unexpected_token(
+          *token.span.merge(self.current_token().span),
+          "valid generic argument",
+          &found,
+        ));
+        return Err(());
+      },
+      _ => {},
+    }
+
+    match self.current_token().kind {
+      TokenKind::Eq => {
+        self.advance();
+        let (name, args) = self.extract_assoc_head(r#type)?;
+
+        if let Some(args) = &args {
+          match &args {
+            GenericArgs::AngleBracketed { args } if !args.is_empty() => {
+              let diagnostic = self.diagnostic(
+                DiagnosticError::InvalidGenericArg,
+                "generic arguments are not allowed on associated type bindings",
+              )
+              .with_label(
+                *token.span.merge(self.current_token().span),
+                Some(
+                  "associated type bindings must use a bare identifier like `Item = Type` or `Assoc: Trait`"
+                    .to_string(),
+                ),
+                LabelStyle::Primary,
+              )
+              .with_help(
+                "remove the generic arguments or move this constraint into a where clause"
+                  .to_string(),
+              );
+              self.emit(diagnostic);
+              return Err(());
+            },
+            _ => {
+              panic!("have not implemented this case yet");
+            },
+          }
         }
-        self.expect(TokenKind::Colon)?;
+
         let ty = self.parse_type(context)?;
         Ok(GenericArg::Binding { name, args, ty })
       },
 
-      TokenKind::Ident if matches!(self.peek(1).kind, TokenKind::Eq | TokenKind::Lt) => {
-        self.advance(); // consume the identifier
-        let args = self.parse_generic_args(context)?;
-        if self.current_token().kind == TokenKind::Colon {
-          self.advance(); // consume the ':'
-          let bounds = self.parse_trait_bounds("generic argument", context)?;
-          return Ok(GenericArg::Constraint { args, name, bounds });
-        }
-        self.expect(TokenKind::Eq)?; // consume the '='
-        let ty = self.parse_type(context)?;
-        Ok(GenericArg::Binding { name, args, ty })
+      TokenKind::Colon => {
+        let (name, args) = self.extract_assoc_head(r#type)?;
+        let bounds = self.parse_trait_bounds("generic argument", context)?;
+        Ok(GenericArg::Constraint { name, args, bounds })
       },
 
-      _ => {
-        let r#type = self.parse_type(context)?;
-        match r#type {
-          Type::Unit | Type::Slice { .. } => {
-            let found = self.get_token_lexeme(&self.current_token());
-            self.emit(self.err_unexpected_token(
-              *token.span.merge(self.current_token().span),
-              "valid generic argument",
-              &found,
-            ));
-            return Err(());
-          },
-          _ => {},
-        }
+      _ => Ok(GenericArg::Type(r#type)),
+    }
+  }
 
-        Ok(GenericArg::Type(r#type))
+  fn extract_assoc_head(&mut self, ty: Type) -> Result<(String, Option<GenericArgs>), ()> {
+    match ty {
+      Type::Path(Path { segments, .. }) => {
+        let PathSegment { args, kind } = segments[0].clone();
+        let name = match kind {
+          PathSegmentKind::Ident(name) => name,
+          _ => return Err(()),
+        };
+
+        Ok((name, args))
       },
+      _ => Err(()),
     }
   }
 

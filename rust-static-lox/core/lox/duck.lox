@@ -1,1 +1,1 @@
-Foo::<Item = i32, Assoc: Copy>
+Foo::<Item<T> = i32, Assoc<U>: Copy>
