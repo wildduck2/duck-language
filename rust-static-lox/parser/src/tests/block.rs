@@ -15,10 +15,7 @@ mod block_tests {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
   }
 
-  // ============================
   // Basic block expressions
-  // ============================
-
   #[test]
   fn empty_block() {
     assert_ok("{}");
@@ -44,10 +41,7 @@ mod block_tests {
     assert_ok("{ { 1 } { 2 } }");
   }
 
-  // ============================
   // Block attributes
-  // ============================
-
   #[test]
   fn block_outer_attribute_not_supported() {
     assert_err("#[attr] { 1 }");
@@ -63,9 +57,7 @@ mod block_tests {
     assert_err("{ #![inner] 1 }");
   }
 
-  // ============================
   // Unsafe block expressions
-  // ============================
 
   #[test]
   fn unsafe_block_basic() {
@@ -87,9 +79,7 @@ mod block_tests {
     assert_ok("unsafe { unsafe { 1 } }");
   }
 
-  // ============================
   // Async block expressions
-  // ============================
 
   #[test]
   fn async_block_basic() {
@@ -126,9 +116,7 @@ mod block_tests {
     assert_ok("async { async { 1 } }");
   }
 
-  // ============================
   // Try block expressions
-  // ============================
 
   #[test]
   fn try_block_basic() {
@@ -155,10 +143,7 @@ mod block_tests {
     assert_ok("try { try { 1 } }");
   }
 
-  // ============================
   // Mixed combinations
-  // ============================
-
   #[test]
   fn async_inside_unsafe_block() {
     assert_ok("unsafe { async { 1 } }");
@@ -179,9 +164,7 @@ mod block_tests {
     assert_ok("try { async { 1 } }");
   }
 
-  // ============================
   // Error cases
-  // ============================
 
   #[test]
   fn block_missing_closing_brace_errors() {

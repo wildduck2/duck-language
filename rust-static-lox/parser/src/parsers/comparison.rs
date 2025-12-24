@@ -19,7 +19,7 @@ impl Parser {
       TokenKind::EqEq => BinaryOp::Eq,
       TokenKind::Ne => BinaryOp::NotEq,
       TokenKind::Lt => BinaryOp::Less,
-      TokenKind::Le => BinaryOp::LessEq,
+      TokenKind::Le => BinaryOp::LessEqual,
       TokenKind::Gt => BinaryOp::Greater,
       TokenKind::Ge => BinaryOp::GreaterEq,
       _ => return Ok(lhs), // no comparison operator

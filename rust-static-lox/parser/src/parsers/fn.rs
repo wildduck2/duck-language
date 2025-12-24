@@ -119,7 +119,7 @@ impl Parser {
         }
       ) {
         let name = self.get_token_lexeme(&self.current_token());
-        if name != "\"C\"" {
+        if name != "C" {
           let diagnostic = self
             .diagnostic(DiagnosticError::InvalidAbi, "invalid ABI")
             .with_label(
@@ -222,9 +222,7 @@ impl Parser {
     use crate::ast::{Mutability, Pattern};
 
     match pattern {
-      // --------------------------------------------
       // `self`
-      // --------------------------------------------
       Pattern::Ident {
         binding,
         name,
@@ -255,9 +253,7 @@ impl Parser {
         }));
       },
 
-      // --------------------------------------------
       // `&self` or `&mut self` or `&'a self`
-      // --------------------------------------------
       Pattern::Reference {
         depth: 1,
         pattern: inner,
@@ -294,9 +290,7 @@ impl Parser {
         _ => {},
       },
 
-      // --------------------------------------------
       // not a self parameter
-      // --------------------------------------------
       _ => {},
     }
 

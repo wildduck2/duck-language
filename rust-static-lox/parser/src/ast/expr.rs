@@ -285,7 +285,7 @@ pub enum BinaryOp {
   Eq,
   NotEq,
   Less,
-  LessEq,
+  LessEqual,
   Greater,
   GreaterEq,
   And,

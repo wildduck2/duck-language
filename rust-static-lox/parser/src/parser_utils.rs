@@ -44,7 +44,7 @@ impl Parser {
   }
 
   /// Dispatches to the correct item parser after consuming attributes & visibility.
-  fn parse_item(
+  pub fn parse_item(
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,

@@ -1,9 +1,13 @@
 mod array;
 mod bitwise;
 mod block;
+mod cast;
 mod clousure;
 mod comparison;
 mod control_flow;
+mod r#enum;
+mod factor;
+mod r#fn;
 mod literal;
 mod logical;
 mod r#loop;

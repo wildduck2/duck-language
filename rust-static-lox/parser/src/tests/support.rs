@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::{
-  ast::{expr::ExprKind, Attribute},
+  ast::{expr::ExprKind, Attribute, Item},
   parser_utils::ParserContext,
   Parser,
 };
@@ -70,5 +70,13 @@ pub(crate) fn parse_expression(
     parser
       .parse_expression(Vec::<Attribute>::new(), context)
       .map(|expr| expr.kind)
+  })
+}
+
+pub(crate) fn parse_item(input: &str, file_stem: &str, context: ParserContext) -> Result<Item, ()> {
+  run_parser(input, file_stem, |parser| {
+    let attributes = parser.parse_outer_attributes(context)?;
+    let visibility = parser.parse_visibility(context)?;
+    parser.parse_item(attributes, visibility, context)
   })
 }
