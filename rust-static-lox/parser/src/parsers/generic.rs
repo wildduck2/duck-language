@@ -50,7 +50,7 @@ impl Parser {
 
         let default = if matches!(self.current_token().kind, TokenKind::Eq) {
           self.advance();
-          Some(self.parse_expression(vec![], ParserContext::Default)?)
+          Some(self.parse_expression(vec![], context)?)
         } else {
           None
         };

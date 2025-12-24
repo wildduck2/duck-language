@@ -11,6 +11,7 @@ use crate::{
 impl Parser {
   pub(crate) fn parse_postfix(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let expr = self.parse_primary(context)?;
+
     let mut seen_await = false;
     let expr = self.parse_postfix_chain(expr, context, &mut seen_await)?;
     self.parse_postfix_suffix(expr, &mut seen_await)

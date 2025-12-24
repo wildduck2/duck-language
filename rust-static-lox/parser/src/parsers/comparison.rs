@@ -7,10 +7,13 @@ use crate::Parser;
 
 impl Parser {
   pub(crate) fn parse_comparison(&mut self, context: ParserContext) -> Result<Expr, ()> {
-    // first parse the next higher precedence level
     let lhs = self.parse_bitwise_or(context)?;
+    println!("params: {:?}", context);
 
-    if matches!(self.peek(1).kind, TokenKind::Colon) {
+    // This solves the problem like this, where we have '>' and it's not
+    // the place we should have a comparison in the AST
+    // fn foo< const N: usize = 3>() {}
+    if matches!(self.peek(1).kind, TokenKind::Colon) || matches!(context, ParserContext::Function) {
       return Ok(lhs);
     }
 

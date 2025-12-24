@@ -72,7 +72,8 @@ impl Parser {
     let value = match parsed {
       Ok(v) => v,
       Err(_) => {
-        self.emit(self.err_invalid_literal(token.span, "integer literal is too large or malformed"));
+        self
+          .emit(self.err_invalid_literal(token.span, "integer literal is too large or malformed"));
         return Err(());
       },
     };
