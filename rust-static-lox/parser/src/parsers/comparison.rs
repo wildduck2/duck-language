@@ -77,7 +77,8 @@ impl Parser {
         | TokenKind::Le
         | TokenKind::Gt
         | TokenKind::Ge
-    ) {
+    ) && !matches!(context, ParserContext::Type)
+    {
       let bad = self.current_token();
       let lexeme = self.get_token_lexeme(&bad);
 

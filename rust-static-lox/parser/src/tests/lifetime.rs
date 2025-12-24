@@ -3,19 +3,27 @@ mod lifetime_tests {
   use crate::{parser_utils::ParserContext, tests::support::run_parser};
 
   fn parse_lifetime(input: &str) -> Result<String, ()> {
-    run_parser(input, "lifetime_parse_test_temp", |parser| parser.parse_lifetime())
+    run_parser(input, "lifetime_parse_test_temp", |parser| {
+      parser.parse_lifetime()
+    })
   }
 
   fn parse_lifetimes(input: &str) -> Result<Vec<String>, ()> {
-    run_parser(input, "lifetimes_parse_test_temp", |parser| parser.parse_lifetimes())
+    run_parser(input, "lifetimes_parse_test_temp", |parser| {
+      parser.parse_lifetimes()
+    })
   }
 
   fn parse_for_lifetimes(input: &str) -> Result<Option<Vec<String>>, ()> {
-    run_parser(input, "for_lifetimes_test_temp", |parser| parser.parse_for_lifetimes())
+    run_parser(input, "for_lifetimes_test_temp", |parser| {
+      parser.parse_for_lifetimes()
+    })
   }
 
   fn parse_lifetime_bounds(input: &str) -> Result<Vec<String>, ()> {
-    run_parser(input, "lifetime_bounds_test_temp", |parser| parser.parse_lifetime_bounds())
+    run_parser(input, "lifetime_bounds_test_temp", |parser| {
+      parser.parse_lifetime_bounds()
+    })
   }
 
   #[test]
@@ -30,7 +38,10 @@ mod lifetime_tests {
 
   #[test]
   fn errors_on_missing_lifetime_token() {
-    assert!(parse_lifetime("a").is_err(), "expected error for missing lifetime");
+    assert!(
+      parse_lifetime("a").is_err(),
+      "expected error for missing lifetime"
+    );
   }
 
   #[test]
@@ -51,7 +62,10 @@ mod lifetime_tests {
 
   #[test]
   fn missing_comma_between_lifetimes_errors() {
-    assert!(parse_lifetimes("'a 'b").is_err(), "expected error for missing comma");
+    assert!(
+      parse_lifetimes("'a 'b").is_err(),
+      "expected error for missing comma"
+    );
   }
 
   #[test]
@@ -77,12 +91,18 @@ mod lifetime_tests {
 
   #[test]
   fn for_lifetimes_empty_errors() {
-    assert!(parse_for_lifetimes("for<>").is_err(), "expected error for empty for<>");
+    assert!(
+      parse_for_lifetimes("for<>").is_err(),
+      "expected error for empty for<>"
+    );
   }
 
   #[test]
   fn for_lifetimes_unclosed_errors() {
-    assert!(parse_for_lifetimes("for<'a").is_err(), "expected error for unclosed for<...>");
+    assert!(
+      parse_for_lifetimes("for<'a").is_err(),
+      "expected error for unclosed for<...>"
+    );
   }
 
   #[test]
@@ -100,12 +120,18 @@ mod lifetime_tests {
 
   #[test]
   fn lifetime_bounds_trailing_plus_errors() {
-    assert!(parse_lifetime_bounds("'a +").is_err(), "expected error for trailing plus");
+    assert!(
+      parse_lifetime_bounds("'a +").is_err(),
+      "expected error for trailing plus"
+    );
   }
 
   #[test]
   fn lifetime_bounds_invalid_token_after_plus_errors() {
-    assert!(parse_lifetime_bounds("'a + T").is_err(), "expected error for invalid bound");
+    assert!(
+      parse_lifetime_bounds("'a + T").is_err(),
+      "expected error for invalid bound"
+    );
   }
 
   #[test]
@@ -113,6 +139,54 @@ mod lifetime_tests {
     let result = run_parser("&'a i32", "lifetime_ref_type_temp", |parser| {
       parser.parse_type(ParserContext::Type)
     });
-    assert!(result.is_ok(), "expected reference type with lifetime to parse");
+    assert!(
+      result.is_ok(),
+      "expected reference type with lifetime to parse"
+    );
+  }
+
+  #[test]
+  fn parses_anonymous_lifetime() {
+    assert_eq!(parse_lifetime("'_").unwrap(), "'_");
+  }
+
+  #[test]
+  fn parses_anonymous_lifetime_in_list() {
+    assert_eq!(
+      parse_lifetimes("'_, 'a").unwrap(),
+      vec!["'_".to_string(), "'a".to_string()]
+    );
+  }
+
+  #[test]
+  fn anonymous_lifetime_in_reference_type() {
+    let result = run_parser("&'_ i32", "anon_lifetime_ref_temp", |parser| {
+      parser.parse_type(ParserContext::Type)
+    });
+    assert!(result.is_ok());
+  }
+
+  #[test]
+  fn parses_for_anonymous_lifetime() {
+    assert_eq!(
+      parse_for_lifetimes("for<'_>").unwrap(),
+      Some(vec!["'_".to_string()])
+    );
+  }
+
+  #[test]
+  fn allows_duplicate_lifetimes_syntactically() {
+    assert_eq!(
+      parse_lifetimes("'a, 'a").unwrap(),
+      vec!["'a".to_string(), "'a".to_string()]
+    );
+  }
+
+  #[test]
+  fn for_lifetimes_without_context_is_ok_syntactically() {
+    assert_eq!(
+      parse_for_lifetimes("for<'a>").unwrap(),
+      Some(vec!["'a".to_string()])
+    );
   }
 }

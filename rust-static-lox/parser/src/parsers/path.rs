@@ -177,7 +177,7 @@ impl Parser {
     }
 
     let args = match (with_args, self.peek(0).kind, self.peek(1).kind) {
-      (true, TokenKind::Lt, TokenKind::Lt) => None,
+      (true, TokenKind::Lt, TokenKind::Gt) => None,
       (true, TokenKind::Lt, _) => self.parse_generic_args(context)?,
       (_, TokenKind::ColonColon, TokenKind::Lt) => {
         self.advance();

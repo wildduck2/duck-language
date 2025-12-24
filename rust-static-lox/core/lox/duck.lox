@@ -1,1 +1,1 @@
-Foo::<Item<T> = i32, Assoc<U>: Copy>
+Foo::< <T as Trait>::Item >

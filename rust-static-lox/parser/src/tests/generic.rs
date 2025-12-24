@@ -384,4 +384,48 @@ mod generics_tests {
       other => panic!("expected angle bracketed args, got {:?}", other),
     }
   }
+
+  #[test]
+  fn parses_qualified_path_in_generic_type_arg() {
+    let args = parse_path_args("Foo::< <T as Trait>::Item >");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 1);
+        match &args[0] {
+          GenericArg::Type(Type::QualifiedPath { qself, path }) => {
+            match qself.self_ty.as_ref() {
+              Type::Path(self_path) => assert_ident_path(self_path, "T"),
+              other => panic!("expected self type path, got {:?}", other),
+            }
+            match &qself.as_trait {
+              Some(trait_path) => assert_ident_path(trait_path, "Trait"),
+              None => panic!("expected as-trait path"),
+            }
+            assert_ident_path(path, "Item");
+          }
+          other => panic!("expected qualified type arg, got {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn parses_multiple_type_generic_args() {
+    let args = parse_path_args("Foo::<T, U>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 2);
+        match &args[0] {
+          GenericArg::Type(ty) => assert_type_path(ty, "T"),
+          other => panic!("expected type arg, got {:?}", other),
+        }
+        match &args[1] {
+          GenericArg::Type(ty) => assert_type_path(ty, "U"),
+          other => panic!("expected type arg, got {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got {:?}", other),
+    }
+  }
 }

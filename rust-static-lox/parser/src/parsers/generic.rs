@@ -272,6 +272,7 @@ impl Parser {
     }
 
     // 3. parse a full type first
+    // println!("type: {:?}", self.current_token().kind);
     let r#type = self.parse_type(context)?;
 
     // reject invalid types in generic args
