@@ -21,6 +21,7 @@ mod postfix;
 mod range;
 mod shift;
 mod r#struct;
+mod term;
 pub(crate) mod support;
 mod tuple;
 mod unary;
