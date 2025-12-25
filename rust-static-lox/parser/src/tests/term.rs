@@ -88,12 +88,41 @@ mod term_tests {
     );
   }
 
+  #[test]
+  fn addition_with_grouped_rhs() {
+    assert_expr(
+      "1 + (2 - 3)",
+      bin(BinaryOp::Add, int(1), bin(BinaryOp::Sub, int(2), int(3))),
+    );
+  }
+
+  #[test]
+  fn subtraction_with_unary_rhs() {
+    assert_expr(
+      "1 - -2",
+      bin(BinaryOp::Sub, int(1), unary(UnaryOp::Neg, int(2))),
+    );
+  }
+
+  #[test]
+  fn addition_with_unary_lhs() {
+    assert_expr(
+      "-1 + 2",
+      bin(BinaryOp::Add, unary(UnaryOp::Neg, int(1)), int(2)),
+    );
+  }
+
   // Error cases
 
   #[test]
   fn missing_rhs_errors() {
     assert_err("1 +");
     assert_err("1 -");
+  }
+
+  #[test]
+  fn leading_plus_is_not_unary() {
+    assert_err("+1");
   }
 
   #[test]

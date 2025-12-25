@@ -254,6 +254,27 @@ mod postfix_tests {
   }
 
   #[test]
+  fn parses_await_then_try() {
+    let expr = parse("foo.await?").unwrap();
+    match expr {
+      ExprKind::Try { expr } => match expr.kind {
+        ExprKind::Await { expr } => assert_ident_expr(&expr.kind, "foo"),
+        other => panic!("expected await before try, got: {:?}", other),
+      },
+      other => panic!("expected try expression, got: {:?}", other),
+    }
+  }
+
+  #[test]
+  fn parses_try_without_grouping() {
+    let expr = parse("foo?").unwrap();
+    match expr {
+      ExprKind::Try { expr } => assert_ident_expr(&expr.kind, "foo"),
+      other => panic!("expected try expression, got: {:?}", other),
+    }
+  }
+
+  #[test]
   fn parses_method_call_with_turbofish() {
     let expr = parse("foo.bar::<i32>(1)").unwrap();
     match expr {
@@ -462,6 +483,7 @@ mod postfix_tests {
     assert!(parse("foo.!()").is_err());
     assert!(parse("foo.await()").is_err());
     assert!(parse("foo?.bar").is_err());
+    assert!(parse("foo.-1").is_err());
   }
 
   #[test]
@@ -715,6 +737,7 @@ mod postfix_tests {
   #[test]
   fn errors_on_turbofish_without_method() {
     assert!(parse("foo::<i32>()").is_err());
+    assert!(parse("foo.bar::<i32>").is_err());
   }
 
   #[test]
