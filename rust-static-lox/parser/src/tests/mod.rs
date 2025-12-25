@@ -24,5 +24,6 @@ mod r#struct;
 mod term;
 pub(crate) mod support;
 mod tuple;
+mod r#type;
 mod unary;
 mod r#where;
