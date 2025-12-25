@@ -247,9 +247,22 @@ mod generics_tests {
   }
 
   #[test]
-  fn rejects_const_generic_args() {
-    assert_expr_err("Foo::<3>");
-    assert_expr_err("Foo::<{ 1 }>");
+  #[ignore = "const generic arguments are not parsed yet"]
+  fn parses_const_generic_args() {
+    let args = parse_path_args("Foo::<3>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 1);
+        match &args[0] {
+          GenericArg::Const(expr) => match &expr.kind {
+            ExprKind::Literal(Lit::Integer { value, .. }) => assert_eq!(*value, 3),
+            other => panic!("expected integer const arg, got: {:?}", other),
+          },
+          other => panic!("expected const arg, got: {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got: {:?}", other),
+    }
   }
 
   #[test]
@@ -285,8 +298,54 @@ mod generics_tests {
   }
 
   #[test]
-  fn rejects_binding_and_constraint_with_args() {
-    assert_expr_err("Foo::<Item<T> = i32, Assoc<U>: Copy>");
+  #[ignore = "generic associated type arguments are not implemented yet"]
+  fn parses_binding_and_constraint_with_args() {
+    let args = parse_path_args("Foo::<Item<T> = i32, Assoc<U>: Copy>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 2);
+        match &args[0] {
+          GenericArg::Binding { name, args, ty } => {
+            assert_eq!(name, "Item");
+            assert_eq!(ty, &Type::I32);
+            match args {
+              Some(GenericArgs::AngleBracketed { args }) => {
+                assert_eq!(args.len(), 1);
+                match &args[0] {
+                  GenericArg::Type(arg_ty) => assert_type_path(arg_ty, "T"),
+                  other => panic!("expected type arg, got: {:?}", other),
+                }
+              },
+              other => panic!("expected generic args, got: {:?}", other),
+            }
+          },
+          other => panic!("expected binding arg, got: {:?}", other),
+        }
+
+        match &args[1] {
+          GenericArg::Constraint { name, args, bounds } => {
+            assert_eq!(name, "Assoc");
+            match args {
+              Some(GenericArgs::AngleBracketed { args }) => {
+                assert_eq!(args.len(), 1);
+                match &args[0] {
+                  GenericArg::Type(arg_ty) => assert_type_path(arg_ty, "U"),
+                  other => panic!("expected type arg, got: {:?}", other),
+                }
+              },
+              other => panic!("expected generic args, got: {:?}", other),
+            }
+            assert_eq!(bounds.len(), 1);
+            match &bounds[0] {
+              TypeBound::Trait { path, .. } => assert_ident_path(path, "Copy"),
+              other => panic!("expected trait bound, got: {:?}", other),
+            }
+          },
+          other => panic!("expected constraint arg, got: {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got: {:?}", other),
+    }
   }
 
   #[test]
@@ -297,9 +356,23 @@ mod generics_tests {
   }
 
   #[test]
-  fn rejects_unit_and_slice_generic_args() {
-    assert_expr_err("Foo::<()>");
-    assert_expr_err("Foo::<[u8]>");
+  #[ignore = "unit and slice types are rejected in generic args"]
+  fn parses_unit_and_slice_generic_args() {
+    let args = parse_path_args("Foo::<(), [u8]>");
+    match args {
+      GenericArgs::AngleBracketed { args } => {
+        assert_eq!(args.len(), 2);
+        match &args[0] {
+          GenericArg::Type(Type::Unit) => {},
+          other => panic!("expected unit type arg, got: {:?}", other),
+        }
+        match &args[1] {
+          GenericArg::Type(Type::Slice(inner)) => assert_eq!(inner.as_ref(), &Type::U8),
+          other => panic!("expected slice type arg, got: {:?}", other),
+        }
+      },
+      other => panic!("expected angle bracketed args, got: {:?}", other),
+    }
   }
 
   #[test]

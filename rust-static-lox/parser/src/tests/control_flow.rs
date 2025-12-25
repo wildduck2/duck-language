@@ -121,6 +121,11 @@ mod if_tests {
   }
 
   #[test]
+  fn if_missing_then_before_else_errors() {
+    assert_err("if true else { }");
+  }
+
+  #[test]
   fn if_else_if_missing_block_errors() {
     assert_err("if true { } else if false");
   }
@@ -143,6 +148,16 @@ mod if_tests {
   #[test]
   fn if_let_missing_block_errors() {
     assert_err("if let x = y");
+  }
+
+  #[test]
+  fn if_let_missing_then_before_else_errors() {
+    assert_err("if let x = y else { }");
+  }
+
+  #[test]
+  fn if_let_else_if_missing_block_errors() {
+    assert_err("if true { } else if let x = y");
   }
 
   #[test]
@@ -279,6 +294,66 @@ mod if_tests {
   }
 
   #[test]
+  fn if_assignment_condition_errors() {
+    assert_err("if x = y { }");
+  }
+
+  #[test]
+  fn if_compound_assignment_condition_errors() {
+    assert_err("if x += y { }");
+  }
+
+  #[test]
+  fn if_range_condition_errors() {
+    assert_err("if x..y { }");
+  }
+
+  #[test]
+  fn if_if_condition_errors() {
+    assert_err("if if true { } { }");
+  }
+
+  #[test]
+  fn if_match_condition_errors() {
+    assert_err("if match x { _ => true } { }");
+  }
+
+  #[test]
+  fn if_loop_condition_errors() {
+    assert_err("if loop { } { }");
+  }
+
+  #[test]
+  fn if_while_condition_errors() {
+    assert_err("if while true { } { }");
+  }
+
+  #[test]
+  fn if_closure_condition_errors() {
+    assert_err("if |x| x { }");
+  }
+
+  #[test]
+  fn if_macro_condition_errors() {
+    assert_err("if foo!() { }");
+  }
+
+  #[test]
+  fn if_await_condition_errors() {
+    assert_err("if foo.await { }");
+  }
+
+  #[test]
+  fn if_try_condition_errors() {
+    assert_err("if foo? { }");
+  }
+
+  #[test]
+  fn if_let_or_pattern_errors() {
+    assert_err("if let x | y = z { }");
+  }
+
+  #[test]
   fn dangling_else_binds_to_outer_if() {
     assert_ok("if true { if false { } } else { }");
   }
@@ -314,7 +389,7 @@ mod if_tests {
   }
 
   #[test]
-  #[ignore = "Not yet implemented"]
+  #[ignore = "break values from labeled blocks are not supported yet"]
   fn break_from_labeled_block_with_value() {
     assert_ok("let x = 'a: { break 'a 1 };");
   }
@@ -326,8 +401,7 @@ mod if_tests {
   }
 
   #[test]
-  #[ignore = "Not yet implemented"]
-  fn if_let_invalid_pattern_grouping_errors() {
-    assert_err("if let (x) = y { }");
+  fn if_let_grouped_pattern() {
+    assert_ok("if let (x) = y { }");
   }
 }

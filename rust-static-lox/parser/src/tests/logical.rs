@@ -91,4 +91,10 @@ mod logical_tests {
   fn single_or_is_not_logical_or() {
     assert_err("true | false");
   }
+
+  #[test]
+  fn errors_on_double_operators() {
+    assert_err("true && )");
+    assert_err("true || )");
+  }
 }

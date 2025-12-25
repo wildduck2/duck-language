@@ -81,6 +81,11 @@ mod function_tests {
     assert_ok(r#"const async unsafe extern "C" fn foo() {}"#);
   }
 
+  #[test]
+  fn function_extern_variadic_param() {
+    assert_ok(r#"extern "C" fn foo(x: i32, ...) {}"#);
+  }
+
   // Generic params and where clause
 
   #[test]
@@ -128,6 +133,16 @@ mod function_tests {
   #[test]
   fn function_typed_self() {
     assert_ok("fn foo(self: Box<Self>) {}");
+  }
+
+  #[test]
+  fn function_ref_self_param_errors() {
+    assert_err("fn foo(ref self) {}");
+  }
+
+  #[test]
+  fn function_typed_ref_self_param_errors() {
+    assert_err("fn foo(&self: i32) {}");
   }
 
   // Variadic and patterns
@@ -179,6 +194,11 @@ mod function_tests {
   #[test]
   fn function_return_type_without_type_errors() {
     assert_err("fn foo() -> {}");
+  }
+
+  #[test]
+  fn function_invalid_abi_errors() {
+    assert_err(r#"extern "Rust" fn foo() {}"#);
   }
 
   #[test]

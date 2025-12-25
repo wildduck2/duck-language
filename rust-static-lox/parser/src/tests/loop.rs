@@ -1,7 +1,11 @@
 #[cfg(test)]
 mod loop_tests {
 
-  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
+  use crate::{
+    ast::{expr::ExprKind, Stmt},
+    parser_utils::ParserContext,
+    tests::support::{parse_expression, run_parser},
+  };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "loop_expr_test_temp", ParserContext::LoopCondition)
@@ -13,6 +17,15 @@ mod loop_tests {
 
   fn assert_err(input: &str) {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
+  }
+
+  fn parse_stmt_expr(input: &str) -> Result<ExprKind, ()> {
+    run_parser(input, "loop_stmt_test_temp", |parser| {
+      match parser.parse_stmt(ParserContext::Default)? {
+        Stmt::Expr { expr, .. } => Ok(expr.kind),
+        other => panic!("expected expr stmt, got: {:?}", other),
+      }
+    })
   }
 
   // Loop expressions
@@ -84,24 +97,45 @@ mod loop_tests {
   // Unsupported constructs (documented for future work)
 
   #[test]
-  fn loop_outer_attributes_not_supported() {
-    assert_err("#[attr] loop { }");
-    assert_err("#[first] #[second] loop { }");
+  fn loop_outer_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] loop { }").unwrap() {
+      ExprKind::Loop { .. } => {},
+      other => panic!("expected loop expr, got: {:?}", other),
+    }
+    match parse_stmt_expr("#[first] #[second] loop { }").unwrap() {
+      ExprKind::Loop { .. } => {},
+      other => panic!("expected loop expr, got: {:?}", other),
+    }
   }
 
   #[test]
-  fn while_outer_attributes_not_supported() {
-    assert_err("#[attr] while true { }");
+  fn while_outer_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] while true { }").unwrap() {
+      ExprKind::While { .. } => {},
+      other => panic!("expected while expr, got: {:?}", other),
+    }
   }
 
   #[test]
-  fn for_loops_not_supported_yet() {
-    assert_err("for x in y { }");
-    assert_err("'label: for x in y { }");
+  fn for_outer_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] for x in y { }").unwrap() {
+      ExprKind::For { .. } => {},
+      other => panic!("expected for expr, got: {:?}", other),
+    }
+    match parse_stmt_expr("#[first] #[second] for x in y { }").unwrap() {
+      ExprKind::For { .. } => {},
+      other => panic!("expected for expr, got: {:?}", other),
+    }
   }
 
   #[test]
-  fn while_comparison_condition_not_supported_yet() {
+  fn parses_for_loops() {
+    assert_ok("for x in y { }");
+    assert_ok("'label: for x in y { }");
+  }
+
+  #[test]
+  fn while_comparison_condition() {
     assert_ok("while x < 10 { x = x + 1; }");
   }
 
@@ -116,9 +150,25 @@ mod loop_tests {
   }
 
   #[test]
-  fn while_let_not_supported_yet() {
-    assert_err("while let Some(x) = y { }");
-    assert_err("'label: while let Some(x) = y { }");
+  fn parses_while_let() {
+    assert_ok("while let x = y { }");
+    assert_ok("'label: while let x = y { }");
+  }
+
+  #[test]
+  fn while_let_error_cases() {
+    assert_err("while let < = y { }");
+    assert_err("while let x y { }");
+    assert_err("while let x = ; { }");
+    assert_err("while let x = y");
+  }
+
+  #[test]
+  fn for_error_cases() {
+    assert_err("for < = y { }");
+    assert_err("for x y { }");
+    assert_err("for x in ; { }");
+    assert_err("for x in y");
   }
 
   // Error cases for supported constructs
@@ -131,6 +181,7 @@ mod loop_tests {
   #[test]
   fn while_missing_condition_errors() {
     assert_err("while { }");
+    assert_err("while , { }");
   }
 
   #[test]
@@ -171,6 +222,18 @@ mod loop_tests {
   #[test]
   fn infinite_loop_with_continue() {
     assert_ok("loop { continue; }");
+  }
+
+  #[test]
+  fn while_with_break_and_continue() {
+    assert_ok("while true { break; }");
+    assert_ok("while true { continue; }");
+  }
+
+  #[test]
+  fn for_with_break_and_continue() {
+    assert_ok("for x in y { break; }");
+    assert_ok("for x in y { continue; }");
   }
 
   #[test]

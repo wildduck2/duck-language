@@ -1,10 +1,22 @@
 #[cfg(test)]
 mod comparison_tests {
-
-  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
+  use crate::{
+    ast::expr::ExprKind,
+    parser_utils::ParserContext,
+    tests::support::{parse_expression, run_parser},
+  };
+  use lexer::token::TokenKind;
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "comparison_expr_test_temp", ParserContext::Default)
+  }
+
+  fn parse_direct(input: &str, context: ParserContext) -> Result<ExprKind, ()> {
+    run_parser(input, "comparison_direct_test_temp", |parser| {
+      let expr = parser.parse_comparison(context)?;
+      parser.advance_till_match(TokenKind::Eof);
+      Ok(expr.kind)
+    })
   }
 
   fn assert_ok(input: &str) {
@@ -13,6 +25,13 @@ mod comparison_tests {
 
   fn assert_err(input: &str) {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
+  }
+
+  fn assert_direct_ok(input: &str, context: ParserContext) {
+    assert!(
+      parse_direct(input, context).is_ok(),
+      "expected ok for {input:?}"
+    );
   }
 
   #[test]
@@ -72,9 +91,35 @@ mod comparison_tests {
   }
 
   #[test]
+  fn errors_on_invalid_rhs_tokens() {
+    assert_err("1 < )");
+    assert_err("1 > ]");
+  }
+
+  #[test]
+  fn errors_on_invalid_tokens_after_rhs_expression() {
+    assert_err("1 < 2 let");
+  }
+
+  #[test]
   fn errors_on_invalid_comparison_operators() {
     assert_err("1 <> 2");
     assert_err("1 === 2");
+  }
+
+  #[test]
+  fn comparison_is_ignored_in_function_context() {
+    assert_direct_ok("1 < 2", ParserContext::Function);
+  }
+
+  #[test]
+  fn comparison_is_ignored_when_followed_by_colon() {
+    assert_direct_ok("1 < :", ParserContext::Default);
+  }
+
+  #[test]
+  fn chained_comparisons_allowed_in_type_context() {
+    assert_direct_ok("1 < 2 < 3", ParserContext::Type);
   }
 
   #[test]

@@ -51,6 +51,21 @@ mod enum_tests {
     assert_ok("enum E { A, B, }");
   }
 
+  #[test]
+  fn enum_with_visibility() {
+    assert_ok("pub enum E { A }");
+  }
+
+  #[test]
+  fn enum_with_outer_attribute() {
+    assert_ok("#[attr] enum E { A }");
+  }
+
+  #[test]
+  fn enum_with_attribute_and_visibility() {
+    assert_ok("#[attr] pub enum E { A }");
+  }
+
   // ------------------------------------------------------------
   // Tuple variants
   // ------------------------------------------------------------
