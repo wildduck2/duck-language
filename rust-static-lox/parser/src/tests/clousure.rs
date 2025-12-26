@@ -1,10 +1,21 @@
 #[cfg(test)]
 mod closure_tests {
-
-  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
+  use crate::{
+    ast::expr::ExprKind,
+    parser_utils::ParserContext,
+    tests::support::{parse_expression, run_parser},
+  };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "closure_expr_test_temp", ParserContext::Closure)
+  }
+
+  fn parse_closure_direct(input: &str) -> Result<ExprKind, ()> {
+    run_parser(input, "closure_direct_test_temp", |parser| {
+      parser
+        .parse_closure(ParserContext::Closure)
+        .map(|expr| expr.kind)
+    })
   }
 
   fn assert_ok(input: &str) {
@@ -13,6 +24,13 @@ mod closure_tests {
 
   fn assert_err(input: &str) {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
+  }
+
+  fn assert_direct_err(input: &str) {
+    assert!(
+      parse_closure_direct(input).is_err(),
+      "expected error for {input:?}"
+    );
   }
 
   // Basic closures
@@ -163,8 +181,33 @@ mod closure_tests {
   }
 
   #[test]
+  fn closure_missing_closing_pipe_at_eof_errors() {
+    assert_err("|x");
+  }
+
+  #[test]
+  fn closure_direct_missing_opening_pipe_errors() {
+    assert_direct_err("x");
+  }
+
+  #[test]
+  fn closure_param_attribute_parse_errors() {
+    assert_err("|#[| x");
+  }
+
+  #[test]
+  fn closure_param_pattern_parse_errors() {
+    assert_err("|< = x| x");
+  }
+
+  #[test]
   fn closure_return_type_without_block_errors() {
     assert_err("|x| -> i32 x");
+  }
+
+  #[test]
+  fn closure_return_type_unclosed_block_errors() {
+    assert_err("|x| -> i32 {");
   }
 
   #[test]
@@ -185,6 +228,16 @@ mod closure_tests {
   #[test]
   fn closure_invalid_param_syntax_errors() {
     assert_err("|x:| x");
+  }
+
+  #[test]
+  fn closure_duplicate_async_flavor_errors() {
+    assert_err("async async |x| x");
+  }
+
+  #[test]
+  fn closure_duplicate_move_flavor_errors() {
+    assert_err("move move |x| x");
   }
 
   #[test]

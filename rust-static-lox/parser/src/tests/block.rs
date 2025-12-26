@@ -1,7 +1,12 @@
 #[cfg(test)]
 mod block_tests {
 
-  use crate::{ast::expr::ExprKind, parser_utils::ParserContext, tests::support::parse_expression};
+  use crate::{
+    ast::{expr::ExprKind, Stmt},
+    parser_utils::ParserContext,
+    tests::support::{parse_expression, run_parser},
+  };
+  use lexer::token::TokenKind;
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "block_expr_test_temp", ParserContext::Block)
@@ -13,6 +18,31 @@ mod block_tests {
 
   fn assert_err(input: &str) {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
+  }
+
+  fn parse_stmt_expr(input: &str) -> Result<ExprKind, ()> {
+    run_parser(input, "block_stmt_test_temp", |parser| {
+      match parser.parse_stmt(ParserContext::Default)? {
+        Stmt::Expr { expr, .. } => Ok(expr.kind),
+        other => panic!("expected expr stmt, got: {:?}", other),
+      }
+    })
+  }
+
+  fn parse_flavor(input: &str, context: ParserContext) -> Result<(), ()> {
+    run_parser(input, "block_flavor_test_temp", |parser| {
+      parser.parse_block_expression_flavors(context)?;
+      parser.advance_till_match(TokenKind::Eof);
+      Ok(())
+    })
+  }
+
+  fn can_start_block_expr(input: &str) -> Result<bool, ()> {
+    run_parser(input, "block_start_test_temp", |parser| {
+      let can_start = parser.can_start_block_expression();
+      parser.advance_till_match(TokenKind::Eof);
+      Ok(can_start)
+    })
   }
 
   // Basic block expressions
@@ -41,15 +71,36 @@ mod block_tests {
     assert_ok("{ { 1 } { 2 } }");
   }
 
+  #[test]
+  #[ignore = "block tail expressions are not stored yet"]
+  fn block_tail_expression_is_recorded() {
+    match parse_single("{ 1 }").unwrap() {
+      ExprKind::Block { tail, .. } => {
+        assert!(tail.is_some(), "expected tail expression in block");
+      },
+      other => panic!("expected block expr, got: {:?}", other),
+    }
+  }
+
   // Block attributes
   #[test]
-  fn block_outer_attribute_not_supported() {
-    assert_err("#[attr] { 1 }");
+  fn block_outer_attribute_on_stmt() {
+    match parse_stmt_expr("#[attr] { 1 }").unwrap() {
+      ExprKind::Block { outer_attributes, .. } => {
+        assert_eq!(outer_attributes.len(), 1);
+      },
+      other => panic!("expected block expr, got: {:?}", other),
+    }
   }
 
   #[test]
-  fn block_multiple_outer_attributes_not_supported() {
-    assert_err("#[a] #[b] { 1 }");
+  fn block_multiple_outer_attributes_on_stmt() {
+    match parse_stmt_expr("#[a] #[b] { 1 }").unwrap() {
+      ExprKind::Block { outer_attributes, .. } => {
+        assert_eq!(outer_attributes.len(), 2);
+      },
+      other => panic!("expected block expr, got: {:?}", other),
+    }
   }
 
   #[test]
@@ -70,8 +121,13 @@ mod block_tests {
   }
 
   #[test]
-  fn unsafe_block_with_attributes_unsupported() {
-    assert_err("#[attr] unsafe { 1 }");
+  fn unsafe_block_with_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] unsafe { 1 }").unwrap() {
+      ExprKind::Block { outer_attributes, .. } => {
+        assert_eq!(outer_attributes.len(), 1);
+      },
+      other => panic!("expected unsafe block expr, got: {:?}", other),
+    }
   }
 
   #[test]
@@ -92,13 +148,23 @@ mod block_tests {
   }
 
   #[test]
-  fn async_block_with_attributes_unsupported() {
-    assert_err("#[attr] async { 1 }");
+  fn async_block_with_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] async { 1 }").unwrap() {
+      ExprKind::Block { outer_attributes, .. } => {
+        assert_eq!(outer_attributes.len(), 1);
+      },
+      other => panic!("expected async block expr, got: {:?}", other),
+    }
   }
 
   #[test]
-  fn async_move_block_with_attributes_unsupported() {
-    assert_err("#[attr] async move { 1 }");
+  fn async_move_block_with_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] async move { 1 }").unwrap() {
+      ExprKind::Block { outer_attributes, .. } => {
+        assert_eq!(outer_attributes.len(), 1);
+      },
+      other => panic!("expected async move block expr, got: {:?}", other),
+    }
   }
 
   #[test]
@@ -109,6 +175,34 @@ mod block_tests {
   #[test]
   fn double_move_async_errors() {
     assert_err("async move move { 1 }");
+  }
+
+  #[test]
+  fn async_followed_by_other_flavors_errors() {
+    assert_err("async async { 1 }");
+    assert_err("async unsafe { 1 }");
+    assert_err("async try { 1 }");
+  }
+
+  #[test]
+  fn async_move_followed_by_other_flavors_errors() {
+    assert_err("async move async { 1 }");
+    assert_err("async move unsafe { 1 }");
+    assert_err("async move try { 1 }");
+  }
+
+  #[test]
+  fn unsafe_followed_by_other_flavors_errors() {
+    assert_err("unsafe async { 1 }");
+    assert_err("unsafe try { 1 }");
+    assert_err("unsafe move { 1 }");
+  }
+
+  #[test]
+  fn try_followed_by_other_flavors_errors() {
+    assert_err("try async { 1 }");
+    assert_err("try unsafe { 1 }");
+    assert_err("try move { 1 }");
   }
 
   #[test]
@@ -129,8 +223,13 @@ mod block_tests {
   }
 
   #[test]
-  fn try_block_with_attributes_unsupported() {
-    assert_err("#[attr] try { 1 }");
+  fn try_block_with_attributes_on_stmt() {
+    match parse_stmt_expr("#[attr] try { 1 }").unwrap() {
+      ExprKind::Block { outer_attributes, .. } => {
+        assert_eq!(outer_attributes.len(), 1);
+      },
+      other => panic!("expected try block expr, got: {:?}", other),
+    }
   }
 
   #[test]
@@ -219,5 +318,45 @@ mod block_tests {
   #[test]
   fn try_stray_tokens_after_block_errors() {
     assert_err("try { 1 } 2");
+  }
+
+  #[test]
+  fn block_flavor_requires_default_context() {
+    assert!(parse_flavor("{ }", ParserContext::Block).is_err());
+  }
+
+  #[test]
+  fn block_flavor_requires_block_after_flavor() {
+    assert!(parse_flavor("async 1", ParserContext::Default).is_err());
+  }
+
+  #[test]
+  fn block_flavor_rejects_async_followed_by_other_flavor() {
+    assert!(parse_flavor("async unsafe { 1 }", ParserContext::Default).is_err());
+  }
+
+  #[test]
+  fn block_flavor_rejects_unsafe_followed_by_other_flavor() {
+    assert!(parse_flavor("unsafe async { 1 }", ParserContext::Default).is_err());
+  }
+
+  #[test]
+  fn block_flavor_rejects_try_followed_by_other_flavor() {
+    assert!(parse_flavor("try move { 1 }", ParserContext::Default).is_err());
+  }
+
+  #[test]
+  fn block_flavor_rejects_move_only() {
+    assert!(parse_flavor("move { 1 }", ParserContext::Default).is_err());
+  }
+
+  #[test]
+  fn can_start_block_expression_reports_plain_block() {
+    assert_eq!(can_start_block_expr("{ }").unwrap(), true);
+  }
+
+  #[test]
+  fn can_start_block_expression_rejects_async_without_brace() {
+    assert_eq!(can_start_block_expr("async 1").unwrap(), false);
   }
 }
