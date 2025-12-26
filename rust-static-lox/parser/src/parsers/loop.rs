@@ -3,7 +3,7 @@ use crate::{
   parser_utils::ParserContext,
   Parser,
 };
-use lexer::token::TokenKind;
+use lexer::token::{Token, TokenKind};
 
 impl Parser {
   pub(crate) fn parse_loop_expression(
@@ -18,7 +18,7 @@ impl Parser {
     }
 
     self.advance(); // consume the "loop"
-    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
+    let body = self.parse_block(None, context, outer_attributes)?;
 
     token.span.merge(self.current_token().span);
     Ok(Expr {
@@ -44,8 +44,12 @@ impl Parser {
 
     self.advance(); // consume the "while"
 
-    let condition = self.parse_expression(vec![], ParserContext::WhileCondition)?;
-    let body = self.parse_block(None, ParserContext::Default, outer_attributes)?;
+    if matches!(self.current_token().kind, TokenKind::KwLet) {
+      return self.parse_while_let_expression(label, outer_attributes, &mut token, context);
+    }
+
+    let condition = self.parse_expression(vec![], context)?;
+    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -53,6 +57,31 @@ impl Parser {
         condition: Box::new(condition),
         body: Box::new(body),
         label,
+      },
+      span: *token.span.merge(self.current_token().span),
+    })
+  }
+
+  fn parse_while_let_expression(
+    &mut self,
+    label: Option<String>,
+    outer_attributes: Vec<Attribute>,
+    token: &mut Token,
+    context: ParserContext,
+  ) -> Result<Expr, ()> {
+    self.advance(); // consume "let"
+    let pattern = self.parse_pattern(context)?;
+    self.expect(TokenKind::Eq)?;
+    let scrutinee = self.parse_expression(vec![], context)?;
+    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
+
+    Ok(Expr {
+      attributes: vec![],
+      kind: ExprKind::WhileLet {
+        label,
+        pattern,
+        scrutinee: Box::new(scrutinee),
+        body: Box::new(body),
       },
       span: *token.span.merge(self.current_token().span),
     })
@@ -73,8 +102,8 @@ impl Parser {
 
     let pattern = self.parse_pattern(ParserContext::Default)?;
     self.expect(TokenKind::KwIn)?;
-    let iterator = self.parse_expression(vec![], ParserContext::Default)?;
-    let body = self.parse_block(None, ParserContext::Default, outer_attributes)?;
+    let iterator = self.parse_expression(vec![], context)?;
+    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -84,7 +113,7 @@ impl Parser {
         body: Box::new(body),
         label,
       },
-      span: token.span,
+      span: *token.span.merge(self.current_token().span),
     })
   }
 }

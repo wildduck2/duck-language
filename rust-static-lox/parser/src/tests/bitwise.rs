@@ -88,8 +88,37 @@ mod bitwise_tests {
   }
 
   #[test]
+  fn errors_on_double_operators() {
+    assert_err("1 | )");
+    assert_err("1 ^ )");
+    assert_err("1 & )");
+  }
+
+  #[test]
+  fn if_condition_rejects_bitwise_or() {
+    let result =
+      parse_expression("1 | 2", "bitwise_if_condition", ParserContext::IfCondition);
+    assert!(result.is_err(), "expected error in if condition context");
+  }
+
+  #[test]
   fn match_context_short_circuits_bitwise_or() {
     let expr = parse_expression("1", "bitwise_match_context", ParserContext::Match).unwrap();
     assert_eq!(simplify_expr_ungrouped(&expr), int(1));
+  }
+
+  #[test]
+  fn errors_when_or_rhs_parse_fails() {
+    assert_err("1 | 2 ^");
+  }
+
+  #[test]
+  fn errors_when_xor_rhs_parse_fails() {
+    assert_err("1 ^ 2 &");
+  }
+
+  #[test]
+  fn errors_when_and_rhs_parse_fails() {
+    assert_err("1 & 2 <<");
   }
 }

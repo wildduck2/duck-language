@@ -32,7 +32,10 @@ impl Parser {
     if matches!(self.current_token().kind, TokenKind::LBrace)
       && !matches!(
         context,
-        ParserContext::Match | ParserContext::IfCondition | ParserContext::WhileCondition
+        ParserContext::Match
+          | ParserContext::IfCondition
+          | ParserContext::WhileCondition
+          | ParserContext::ForCondition
       )
     {
       // macro struct expression
@@ -100,20 +103,6 @@ impl Parser {
     {
       self.expect(TokenKind::ColonColon)?; // require '::' separator
 
-      if !matches!(
-        self.current_token().kind,
-        TokenKind::Ident
-          | TokenKind::KwSelf
-          | TokenKind::KwSuper
-          | TokenKind::KwCrate
-          | TokenKind::KwSelfType
-          | TokenKind::Dollar
-      ) {
-        let found = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_invalid_path_segment(self.current_token().span, &found));
-        return Err(());
-      }
-
       let (segment, is_dollar_crate) = self.parse_path_segment(with_args, context)?;
       if is_dollar_crate && !segments.is_empty() {
         let offending = self.peek_prev(0);
@@ -143,11 +132,10 @@ impl Parser {
       TokenKind::KwSelf | TokenKind::KwSuper | TokenKind::KwCrate | TokenKind::Dollar
     ) && matches!(self.peek(1).kind, TokenKind::Lt)
     {
-      let span = *token.span.merge(self.current_token().span);
       let diagnostic = self
         .diagnostic(DiagnosticError::UnexpectedToken, "invalid path segment")
         .with_label(
-          span,
+          *token.span.merge(self.current_token().span),
           Some("generic arguments are not allowed on this path segment".to_string()),
           LabelStyle::Primary,
         )

@@ -20,13 +20,13 @@ visItem                 -> visibility? itemKind
 itemKind                -> functionItem            [x]
                          | structItem              [x]
                          | typeAliasItem           [x]
-                         | enumItem                [-]
+                         | enumItem                [x]
                          | traitItem
                          | implItem
                          | constItem
-                         | staticItem
+                         | staticItem              [x]
                          | moduleItem
-                         | useItem
+                         | useItem                 [-]
                          | externCrateItem
                          | foreignModItem
                          | unionItem

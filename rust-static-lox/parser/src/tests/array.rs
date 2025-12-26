@@ -50,6 +50,22 @@ mod array_tests {
   }
 
   #[test]
+  fn leading_comma_errors() {
+    assert_err("[,1]");
+    assert_err("[,]");
+  }
+
+  #[test]
+  fn only_commas_errors() {
+    assert_err("[,,]");
+  }
+
+  #[test]
+  fn missing_first_element_errors() {
+    assert_err("[; 1]");
+  }
+
+  #[test]
   fn nested_arrays() {
     assert_expr(
       "[[1], [2, 3]]",
@@ -70,6 +86,21 @@ mod array_tests {
   #[test]
   fn repeat_form_missing_count() {
     assert_err("[1;]");
+  }
+
+  #[test]
+  fn repeat_form_trailing_comma_errors() {
+    assert_err("[1; 2,]");
+  }
+
+  #[test]
+  fn repeat_form_missing_rhs_errors() {
+    assert_err("[1; 1 + ]");
+  }
+
+  #[test]
+  fn repeat_form_missing_closing_bracket_errors() {
+    assert_err("[1; 2");
   }
 
   #[test]
