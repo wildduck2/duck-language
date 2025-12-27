@@ -26,7 +26,7 @@ itemKind                -> functionItem            [x]
                          | constItem
                          | staticItem              [x]
                          | moduleItem
-                         | useItem                 [-]
+                         | useItem                 [x]
                          | externCrateItem
                          | foreignModItem
                          | unionItem
@@ -190,10 +190,10 @@ externCrateItem          -> "extern" "crate" crateRef asClause? ";" ;
 crateRef                 -> IDENTIFIER | "self" ;
 asClause                 -> "as" (IDENTIFIER | "_") ;
 
-useItem                  -> "use" useTree ";" ;
-useTree                  -> (simplePath? "::")? ("*" | useTreeList)
-                          | simplePath ("as" (IDENTIFIER | "_"))? ;
-useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;
+useItem                  -> "use" useTree ";" ;                             [x]
+useTree                  -> (simplePath? "::")? ("*" | useTreeList)         [x]
+                          | simplePath ("as" (IDENTIFIER | "_"))? ;         [x]
+useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;        [x]
 
 /* FIX 2: module blocks are item containers, not expression blocks */
 moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;

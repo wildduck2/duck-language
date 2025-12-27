@@ -158,7 +158,7 @@ impl DiagnosticError {
       Self::InvalidTraitBoundModifier => "E0226",
       Self::InvalidComma => "E0231",
       Self::EmptyGenericArgs => "E0228",
-      InvalidGenericArgg => "E0229",
+      Self::InvalidGenericArg => "E0229",
 
       // Path errors
       Self::InvalidPathSegment => "E0230",

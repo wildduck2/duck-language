@@ -6,17 +6,28 @@ mod tests {
     source_map::{SourceMap, Span},
     types::error::DiagnosticError,
   };
-  use std::fs;
-  use std::path::Path;
+  use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+  };
+
+  fn test_root() -> PathBuf {
+    let unique = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .unwrap()
+      .as_nanos();
+    env::temp_dir().join(format!("diagnostic_test_sources_{}", unique))
+  }
 
   // Setup function to create test files
-  fn setup_test_files() {
+  fn setup_test_files(root: &Path) {
     // Create test directory if it doesn't exist
-    let _ = fs::create_dir_all("test_sources");
+    let _ = fs::create_dir_all(root);
 
     // Create main.rs
     fs::write(
-      "test_sources/main.rs",
+      root.join("main.rs"),
       r#"fn main() {
     let count = 5;
     let result = calculate(count);
@@ -34,7 +45,7 @@ fn calculate(n: i32) -> i32 {
 
     // Create lib.rs
     fs::write(
-      "test_sources/lib.rs",
+      root.join("lib.rs"),
       r#"pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
@@ -65,7 +76,7 @@ pub fn divide(a: i32, b: i32) -> Option<i32> {
 
     // Create calculator.rs
     fs::write(
-      "test_sources/calculator.rs",
+      root.join("calculator.rs"),
       r#"fn calculate_sum(a: &str, b: i32) -> i32 {
     println!("Calculating...");
     a + b
@@ -84,7 +95,7 @@ pub fn multiply_numbers(x: i32, y: i32) -> i32 {
 
     // Create collections.rs
     fs::write(
-      "test_sources/collections.rs",
+      root.join("collections.rs"),
       r#"use std::collections::HashMap;
 
 pub fn create_map() -> HashMap<String, i32> {
@@ -120,7 +131,7 @@ pub fn sort_vector(data: &mut Vec<i32>) {
 
     // Create example.rs
     fs::write(
-      "test_sources/example.rs",
+      root.join("example.rs"),
       r#"pub fn example_function() {
     let x = 10;
     let y = 20;
@@ -144,8 +155,8 @@ pub fn another_function() {
   }
 
   // Cleanup function to remove test files
-  fn cleanup_test_files() {
-    let _ = fs::remove_dir_all("test_sources");
+  fn cleanup_test_files(root: &Path) {
+    let _ = fs::remove_dir_all(root);
   }
 
   #[test]
@@ -153,31 +164,44 @@ pub fn another_function() {
     println!("\n\n\n DIAGNOSTIC SYSTEM TEST SUITE \n\n\n");
 
     // Setup once at the beginning
-    setup_test_files();
+    let root = test_root();
+    setup_test_files(&root);
+
+    let main_path = root.join("main.rs");
+    let lib_path = root.join("lib.rs");
+    let calculator_path = root.join("calculator.rs");
+    let collections_path = root.join("collections.rs");
+    let example_path = root.join("example.rs");
+
+    let main_path_str = main_path.to_str().unwrap().to_string();
+    let lib_path_str = lib_path.to_str().unwrap().to_string();
+    let calculator_path_str = calculator_path.to_str().unwrap().to_string();
+    let collections_path_str = collections_path.to_str().unwrap().to_string();
+    let example_path_str = example_path.to_str().unwrap().to_string();
 
     // Run all tests without cleanup
     println!("\n=== SIMPLE: Undefined Variable ===\n");
     let mut source_map = SourceMap::new();
     // Load sources into source map
-    let main_rs = fs::read_to_string("test_sources/main.rs").unwrap();
-    let lib_rs = fs::read_to_string("test_sources/lib.rs").unwrap();
-    let calculator_rs = fs::read_to_string("test_sources/calculator.rs").unwrap();
-    let collections_rs = fs::read_to_string("test_sources/collections.rs").unwrap();
-    let example_rs = fs::read_to_string("test_sources/example.rs").unwrap();
-    source_map.add_file("test_sources/main.rs", &main_rs);
-    source_map.add_file("test_sources/lib.rs", &lib_rs);
-    source_map.add_file("test_sources/calculator.rs", &calculator_rs);
-    source_map.add_file("test_sources/collections.rs", &collections_rs);
-    source_map.add_file("test_sources/example.rs", &example_rs);
+    let main_rs = fs::read_to_string(&main_path).unwrap();
+    let lib_rs = fs::read_to_string(&lib_path).unwrap();
+    let calculator_rs = fs::read_to_string(&calculator_path).unwrap();
+    let collections_rs = fs::read_to_string(&collections_path).unwrap();
+    let example_rs = fs::read_to_string(&example_path).unwrap();
+    source_map.add_file(&main_path_str, &main_rs);
+    source_map.add_file(&lib_path_str, &lib_rs);
+    source_map.add_file(&calculator_path_str, &calculator_rs);
+    source_map.add_file(&collections_path_str, &collections_rs);
+    source_map.add_file(&example_path_str, &example_rs);
     println!("{:#?}", source_map);
 
     let diagnostic1 = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::UndefinedVariable),
       "cannot find value `counter` in this scope".to_string(),
-      "test_sources/main.rs".to_string(),
+      main_path_str.clone(),
     )
     .with_label(
-      Span::from_line_col(5, 28, 7, source_map.get("test_sources/main.rs").unwrap()),
+      Span::from_line_col(5, 28, 7, source_map.get(&main_path_str).unwrap()),
       Some("not found in this scope".to_string()),
       LabelStyle::Primary,
     )
@@ -188,15 +212,15 @@ pub fn another_function() {
     let diagnostic2 = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::MismatchedTypes),
       "mismatched types".to_string(),
-      "test_sources/lib.rs".to_string(),
+      lib_path_str.clone(),
     )
     .with_label(
-      Span::from_line_col(15, 5, 6, source_map.get("test_sources/lib.rs").unwrap()),
+      Span::from_line_col(15, 5, 6, source_map.get(&lib_path_str).unwrap()),
       Some("expected `String`, found `i32`".to_string()),
       LabelStyle::Primary,
     )
     .with_label(
-      Span::from_line_col(13, 32, 6, source_map.get("test_sources/lib.rs").unwrap()),
+      Span::from_line_col(13, 32, 6, source_map.get(&lib_path_str).unwrap()),
       Some("expected `String` because of return type".to_string()),
       LabelStyle::Secondary,
     )
@@ -208,20 +232,20 @@ pub fn another_function() {
     let diagnostic3 = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::TraitNotSatisfied),
       "the trait bound `&str: std::ops::Add<i32>` is not satisfied".to_string(),
-      "test_sources/calculator.rs".to_string(),
+      calculator_path_str.clone(),
     )
     .with_label(
-      Span::from_line_col(1, 21, 4, source_map.get("test_sources/calculator.rs").unwrap()),
+      Span::from_line_col(1, 21, 4, source_map.get(&calculator_path_str).unwrap()),
       Some("this parameter has type `&str`".to_string()),
       LabelStyle::Secondary,
     )
     .with_label(
-      Span::from_line_col(3, 5, 1, source_map.get("test_sources/calculator.rs").unwrap()),
+      Span::from_line_col(3, 5, 1, source_map.get(&calculator_path_str).unwrap()),
       Some("no implementation for `&str + i32`".to_string()),
       LabelStyle::Primary,
     )
     .with_label(
-      Span::from_line_col(3, 9, 1, source_map.get("test_sources/calculator.rs").unwrap()),
+      Span::from_line_col(3, 9, 1, source_map.get(&calculator_path_str).unwrap()),
       Some("cannot add `i32` to `&str`".to_string()),
       LabelStyle::Secondary,
     )
@@ -233,7 +257,7 @@ pub fn another_function() {
     let diagnostic4 = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::BorrowCheckerViolation),
       "cannot borrow `data` as mutable because it is also borrowed as immutable".to_string(),
-      "test_sources/collections.rs".to_string(),
+      collections_path_str.clone(),
     )
     .with_context_padding(1)
     .with_label(
@@ -241,7 +265,7 @@ pub fn another_function() {
         19,
         17,
         8,
-        source_map.get("test_sources/collections.rs").unwrap(),
+        source_map.get(&collections_path_str).unwrap(),
       ),
       Some("immutable borrow occurs here".to_string()),
       LabelStyle::Secondary,
@@ -251,7 +275,7 @@ pub fn another_function() {
         20,
         18,
         8,
-        source_map.get("test_sources/collections.rs").unwrap(),
+        source_map.get(&collections_path_str).unwrap(),
       ),
       Some("another immutable borrow occurs here".to_string()),
       LabelStyle::Secondary,
@@ -261,7 +285,7 @@ pub fn another_function() {
         22,
         5,
         4,
-        source_map.get("test_sources/collections.rs").unwrap(),
+        source_map.get(&collections_path_str).unwrap(),
       ),
       Some("mutable borrow occurs here".to_string()),
       LabelStyle::Primary,
@@ -271,7 +295,7 @@ pub fn another_function() {
         24,
         39,
         5,
-        source_map.get("test_sources/collections.rs").unwrap(),
+        source_map.get(&collections_path_str).unwrap(),
       ),
       Some("immutable borrow later used here".to_string()),
       LabelStyle::Secondary,
@@ -281,7 +305,7 @@ pub fn another_function() {
         24,
         46,
         6,
-        source_map.get("test_sources/collections.rs").unwrap(),
+        source_map.get(&collections_path_str).unwrap(),
       ),
       Some("immutable borrow also used here".to_string()),
       LabelStyle::Secondary,
@@ -294,7 +318,7 @@ pub fn another_function() {
     let diagnostic5 = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::UndefinedVariable),
       "variable not found".to_string(),
-      "test_sources/example.rs".to_string(),
+      example_path_str.clone(),
     )
     .with_context_padding(3)
     .with_label(
@@ -302,7 +326,7 @@ pub fn another_function() {
         10,
         19,
         11,
-        source_map.get("test_sources/example.rs").unwrap(),
+        source_map.get(&example_path_str).unwrap(),
       ),
       Some("undefined variable".to_string()),
       LabelStyle::Primary,
@@ -313,17 +337,17 @@ pub fn another_function() {
     let diagnostic6 = Diagnostic::new(
       DiagnosticCode::Error(DiagnosticError::MismatchedTypes),
       "type error".to_string(),
-      "test_sources/main.rs".to_string(),
+      main_path_str.clone(),
     )
     .with_label(
-      Span::from_line_col(3, 18, 27, source_map.get("test_sources/main.rs").unwrap()),
+      Span::from_line_col(3, 18, 27, source_map.get(&main_path_str).unwrap()),
       Some("type mismatch here".to_string()),
       LabelStyle::Primary,
     );
     let _ = diagnostic6.print(&source_map);
 
     // Cleanup once at the end
-    cleanup_test_files();
+    cleanup_test_files(&root);
 
     println!("\n\n\n ALL TESTS COMPLETED \n\n\n");
   }

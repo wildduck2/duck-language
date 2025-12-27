@@ -45,7 +45,7 @@ impl DiagnosticEngine {
 
   pub fn print_diagnostics(&self) {
     for diagnostic in &self.diagnostics {
-      let _ = diagnostic.print(&self.source_map);
+      diagnostic.print(&self.source_map);
     }
   }
 

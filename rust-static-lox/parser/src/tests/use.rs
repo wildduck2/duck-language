@@ -36,6 +36,11 @@ mod use_tests {
   }
 
   #[test]
+  fn parses_use_underscore_name() {
+    assert_use_tree("use _;", UseTree::Name("_".to_string()));
+  }
+
+  #[test]
   fn parses_use_path() {
     assert_use_tree(
       "use foo::bar;",
@@ -123,6 +128,11 @@ mod use_tests {
   #[test]
   fn rejects_missing_semicolon() {
     assert_use_err("use foo");
+  }
+
+  #[test]
+  fn rejects_missing_tree() {
+    assert_use_err("use");
   }
 
   #[test]
