@@ -5,6 +5,7 @@ mod block;
 mod cast;
 mod clousure;
 mod comparison;
+mod r#const;
 mod control_flow;
 mod r#enum;
 mod factor;
