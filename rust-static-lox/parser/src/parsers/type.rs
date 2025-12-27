@@ -36,7 +36,7 @@ impl Parser {
         where_clause,
         ty,
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     }))
   }
 

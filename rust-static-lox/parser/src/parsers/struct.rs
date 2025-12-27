@@ -35,7 +35,7 @@ impl Parser {
           kind: StructKind::Named { fields },
           where_clause,
         }),
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       }));
     } else if matches!(self.current_token().kind, TokenKind::LParen) {
       // tuple: fields first, then where, then ';'
@@ -52,14 +52,14 @@ impl Parser {
           kind: StructKind::Tuple { fields },
           where_clause,
         }),
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       }));
     }
 
     // unit: optional where, then ';'
     // struct Name<T> where ... ;
     self.expect(TokenKind::Semi)?; // required
-    token.span.merge(self.current_token().span);
+    token.span.merge(self.last_token_span());
     Ok(Item::Vis(VisItem {
       attributes,
       visibility,
@@ -123,7 +123,7 @@ impl Parser {
       name,
       ty,
       visibility,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -211,7 +211,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Struct { path, fields, base },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -343,7 +343,7 @@ impl Parser {
       attributes,
       name,
       value,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 }

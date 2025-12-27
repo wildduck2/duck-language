@@ -43,7 +43,7 @@ impl Parser {
     Ok(Attribute {
       style: AttrStyle::Outer,
       input,
-      span: *start.span.merge(self.current_token().span),
+      span: *start.span.merge(self.last_token_span()),
     })
   }
 
@@ -59,7 +59,7 @@ impl Parser {
     Ok(Attribute {
       style: AttrStyle::Inner,
       input,
-      span: *start.span.merge(self.current_token().span),
+      span: *start.span.merge(self.last_token_span()),
     })
   }
 
@@ -91,7 +91,7 @@ impl Parser {
     Ok(Attribute {
       style: attr_style,
       input,
-      span: *start.span.merge(self.current_token().span),
+      span: *start.span.merge(self.last_token_span()),
     })
   }
 

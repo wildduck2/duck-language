@@ -21,6 +21,7 @@ pub enum ParserContext {
   Static,
   Type,
   Enum,
+  Module,
 }
 
 impl Parser {
@@ -64,7 +65,7 @@ impl Parser {
       | TokenKind::KwAsync
       | TokenKind::KwUnsafe
       | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, ParserContext::Function),
-      // TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ),
+      TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ParserContext::Module),
       // TokenKind::KwExternCrate => self.parse_extern_crate_decl(attributes, visibility, ),
       // TokenKind::KwMacro => self.parse_macro_decl(attributes, visibility, ),
       // TokenKind::KwMacro2 => self.parse_macro2_decl(attributes, visibility, ),
@@ -95,7 +96,7 @@ impl Parser {
         // Empty statement: just a semicolon
         self.advance();
         Ok(Stmt::Empty {
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         })
       },
       // let declaration
@@ -149,7 +150,7 @@ impl Parser {
     Ok(Stmt::Expr {
       expr,
       has_semi,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 

@@ -20,7 +20,7 @@ impl Parser {
     self.advance(); // consume the "loop"
     let body = self.parse_block(None, context, outer_attributes)?;
 
-    token.span.merge(self.current_token().span);
+    token.span.merge(self.last_token_span());
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Loop {
@@ -58,7 +58,7 @@ impl Parser {
         body: Box::new(body),
         label,
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -83,7 +83,7 @@ impl Parser {
         scrutinee: Box::new(scrutinee),
         body: Box::new(body),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -113,7 +113,7 @@ impl Parser {
         body: Box::new(body),
         label,
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 }

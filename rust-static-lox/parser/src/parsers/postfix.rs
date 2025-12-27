@@ -108,7 +108,7 @@ impl Parser {
       kind: ExprKind::Await {
         expr: Box::new(expr),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -121,7 +121,7 @@ impl Parser {
       kind: ExprKind::Try {
         expr: Box::new(expr),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -137,7 +137,7 @@ impl Parser {
         object: Box::new(object),
         index: Box::new(index),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -179,7 +179,7 @@ impl Parser {
           return Ok(Expr {
             attributes: vec![],
             kind: ExprKind::Macro { mac },
-            span: *token.span.merge(self.current_token().span),
+            span: *token.span.merge(self.last_token_span()),
           });
         }
 
@@ -197,7 +197,7 @@ impl Parser {
               turbofish,
               args,
             },
-            span: *token.span.merge(self.current_token().span),
+            span: *token.span.merge(self.last_token_span()),
           });
         }
 
@@ -208,7 +208,7 @@ impl Parser {
             object: Box::new(object),
             field: FieldAccess::Named(name),
           },
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         })
       },
 
@@ -226,7 +226,7 @@ impl Parser {
             object: Box::new(object),
             field: FieldAccess::Unnamed(index),
           },
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         })
       },
 
@@ -268,7 +268,7 @@ impl Parser {
     }
 
     if has_terminal_turbofish(&callee) {
-      let span = *callee.span.merge(self.current_token().span);
+      let span = *callee.span.merge(self.last_token_span());
 
       let diagnostic = self
         .diagnostic(
@@ -296,7 +296,7 @@ impl Parser {
         callee: Box::new(callee),
         args,
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 

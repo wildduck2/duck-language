@@ -63,7 +63,7 @@ impl Parser {
               op: BinaryOp::BitOr,
               right: Box::new(rhs),
             },
-            span: *token.span.merge(self.current_token().span),
+            span: *token.span.merge(self.last_token_span()),
           };
         },
 
@@ -124,7 +124,7 @@ impl Parser {
               op: BinaryOp::BitXor,
               right: Box::new(rhs),
             },
-            span: *token.span.merge(self.current_token().span),
+            span: *token.span.merge(self.last_token_span()),
           };
         },
 
@@ -185,7 +185,7 @@ impl Parser {
               op: BinaryOp::BitAnd,
               right: Box::new(rhs),
             },
-            span: *token.span.merge(self.current_token().span),
+            span: *token.span.merge(self.last_token_span()),
           };
         },
 

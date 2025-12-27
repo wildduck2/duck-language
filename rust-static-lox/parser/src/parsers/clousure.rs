@@ -26,7 +26,7 @@ impl Parser {
           return_type: None,
           body: Box::new(body),
         },
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       });
     }
 
@@ -64,7 +64,7 @@ impl Parser {
         return_type: Some(return_type),
         body: Box::new(body),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -111,7 +111,7 @@ impl Parser {
       attributes,
       pattern,
       ty,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 

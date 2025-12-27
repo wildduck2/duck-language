@@ -89,7 +89,7 @@ impl Parser {
           op,
           right: Box::new(rhs),
         },
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       };
     }
 

@@ -28,7 +28,7 @@ impl Parser {
 
     self.expect(TokenKind::Gt)?; // consume the ">"
 
-    token.span.merge(self.current_token().span);
+    token.span.merge(self.last_token_span());
     Ok(Some(GenericParams {
       params,
       span: token.span,
@@ -280,7 +280,7 @@ impl Parser {
       Type::Unit | Type::Slice { .. } => {
         let found = self.get_token_lexeme(&self.current_token());
         self.emit(self.err_unexpected_token(
-          *token.span.merge(self.current_token().span),
+          *token.span.merge(self.last_token_span()),
           "valid generic argument",
           &found,
         ));
@@ -302,7 +302,7 @@ impl Parser {
                 "generic arguments are not allowed on associated type bindings",
               )
               .with_label(
-                *token.span.merge(self.current_token().span),
+                *token.span.merge(self.last_token_span()),
                 Some(
                   "associated type bindings must use a bare identifier like `Item = Type` or `Assoc: Trait`"
                     .to_string(),

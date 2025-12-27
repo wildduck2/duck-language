@@ -80,6 +80,11 @@ impl Parser {
     self.tokens[index].clone()
   }
 
+  /// Returns the span of the most recently consumed token.
+  fn last_token_span(&self) -> Span {
+    self.peek_prev(0).span
+  }
+
   /// Advances to the next token, emitting an unterminated-string diagnostic if we passed EOF.
   fn advance(&mut self) {
     if self.is_eof() {

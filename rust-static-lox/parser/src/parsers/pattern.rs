@@ -23,7 +23,7 @@ impl Parser {
 
     Ok(Pattern::Or {
       patterns,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -62,7 +62,7 @@ impl Parser {
       _ => {
         self.advance();
         Ok(Pattern::Wildcard {
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         })
       },
     }
@@ -102,7 +102,7 @@ impl Parser {
     if match_and_consume!(self, TokenKind::Bang)? {
       return Ok(Pattern::Macro {
         path,
-        span: *start.span.merge(self.current_token().span),
+        span: *start.span.merge(self.last_token_span()),
       });
     }
 
@@ -117,7 +117,7 @@ impl Parser {
     Ok(Pattern::Path {
       qself,
       path,
-      span: *start.span.merge(self.current_token().span),
+      span: *start.span.merge(self.last_token_span()),
     })
   }
 
@@ -157,7 +157,7 @@ impl Parser {
       qself,
       path,
       patterns,
-      span: *start.span.merge(self.current_token().span),
+      span: *start.span.merge(self.last_token_span()),
     })
   }
 
@@ -190,7 +190,7 @@ impl Parser {
       path,
       fields,
       has_rest,
-      span: *start.span.merge(self.current_token().span),
+      span: *start.span.merge(self.last_token_span()),
     })
   }
 
@@ -223,7 +223,7 @@ impl Parser {
       },
       name,
       subpattern,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -243,7 +243,7 @@ impl Parser {
       depth,
       mutability,
       pattern: Box::new(pattern),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -273,7 +273,7 @@ impl Parser {
       start,
       end,
       kind,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -283,7 +283,7 @@ impl Parser {
 
     Ok(Pattern::Literal {
       expr: Box::new(expr),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -302,12 +302,12 @@ impl Parser {
     if patterns.len() == 1 {
       Ok(Pattern::Group {
         pattern: Box::new(patterns.pop().unwrap()),
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       })
     } else {
       Ok(Pattern::Tuple {
         patterns,
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       })
     }
   }
@@ -343,7 +343,7 @@ impl Parser {
       before,
       has_rest,
       after,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -374,7 +374,7 @@ impl Parser {
       name,
       pattern,
       is_shorthand,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 }

@@ -23,7 +23,7 @@ itemKind                -> functionItem            [x]
                          | enumItem                [x]
                          | traitItem
                          | implItem
-                         | constItem
+                         | constItem               [x]
                          | staticItem              [x]
                          | moduleItem
                          | useItem                 [x]
@@ -134,7 +134,7 @@ unionItem                -> "union" IDENTIFIER genericParams?
 /* ------------------------------------------------------------------------- */
 
 /* Free-standing const must have initializer */
-constItem                -> "const" (IDENTIFIER | "_") ":" type "=" expression ";" ;
+constItem                -> "const" (IDENTIFIER | "_") ":" type "=" expression ";" ; [x]
 
 /* Free-standing static may omit initializer */
 /* FIX 1: allow '_' identifier like rustc */

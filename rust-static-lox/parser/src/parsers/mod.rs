@@ -17,6 +17,7 @@ mod logical;
 mod r#loop;
 mod r#macro;
 mod r#match;
+mod module;
 mod mutability;
 mod path;
 mod pattern;

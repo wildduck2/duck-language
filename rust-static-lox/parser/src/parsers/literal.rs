@@ -81,7 +81,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::Integer { value, suffix }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -118,7 +118,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::Float { value, suffix }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -185,7 +185,7 @@ impl Parser {
         value,
         raw_hashes: None,
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -204,7 +204,7 @@ impl Parser {
         value,
         raw_hashes: None,
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -223,7 +223,7 @@ impl Parser {
         value,
         raw_hashes: None,
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -235,7 +235,7 @@ impl Parser {
         value,
         raw_hashes: Some(n_hashes),
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -248,7 +248,7 @@ impl Parser {
         value: value.bytes().collect(),
         raw_hashes: Some(n_hashes),
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -261,7 +261,7 @@ impl Parser {
         value,
         raw_hashes: Some(n_hashes),
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -277,7 +277,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::Char(char)),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -293,7 +293,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::Byte(byte)),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -304,7 +304,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Literal(Lit::Bool(value)),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 }

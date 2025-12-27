@@ -36,7 +36,7 @@ impl Parser {
           params,
           return_type,
           where_clause,
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         },
         body,
         is_async,
@@ -45,7 +45,7 @@ impl Parser {
         is_extern,
         abi,
       }),
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     }))
   }
 
@@ -209,7 +209,7 @@ impl Parser {
     Ok(Param {
       attributes,
       kind,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 

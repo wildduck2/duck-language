@@ -25,7 +25,7 @@ impl Parser {
             expr: Box::new(rhs),
             op,
           },
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         })
       },
       TokenKind::Amp => {
@@ -43,7 +43,7 @@ impl Parser {
             expr: Box::new(rhs),
             op: UnaryOp::Ref { mutability, depth },
           },
-          span: *token.span.merge(self.current_token().span),
+          span: *token.span.merge(self.last_token_span()),
         })
       },
       _ => self.parse_postfix(context),

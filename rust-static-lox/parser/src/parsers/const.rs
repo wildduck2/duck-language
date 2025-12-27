@@ -23,8 +23,8 @@ impl Parser {
     let ty = self.parse_type(context)?;
     self.expect(TokenKind::Eq)?;
     let value = self.parse_expression(vec![], context)?;
-    self.expect(TokenKind::Semi)?;
-    token.span.merge(self.current_token().span);
+    let semi = self.expect(TokenKind::Semi)?;
+    token.span.merge(semi.span);
 
     Ok(Item::Vis(VisItem {
       attributes,

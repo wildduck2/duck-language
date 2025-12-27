@@ -24,7 +24,7 @@ impl Parser {
     }
 
     if !self.is_valid_condition(&condition) {
-      token.span.merge(self.current_token().span);
+      token.span.merge(self.last_token_span());
       let found = self.get_token_lexeme(&token);
       self.emit(self.err_invalid_condition(token.span, &found));
       return Err(());
@@ -44,7 +44,7 @@ impl Parser {
         then_branch: Box::new(then_branch),
         else_branch: else_branch.map(Box::new),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -73,7 +73,7 @@ impl Parser {
         then_branch: Box::new(then_branch),
         else_branch: else_branch.map(Box::new),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -110,7 +110,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Continue { label },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -159,7 +159,7 @@ impl Parser {
         value: value.map(Box::new),
         label,
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -209,7 +209,7 @@ impl Parser {
       kind: ExprKind::Return {
         value: value.map(Box::new),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 

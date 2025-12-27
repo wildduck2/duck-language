@@ -23,7 +23,7 @@ impl Parser {
         scrutinee: Box::new(scrutinee),
         arms,
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -48,7 +48,7 @@ impl Parser {
       pattern,
       guard,
       body,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 }

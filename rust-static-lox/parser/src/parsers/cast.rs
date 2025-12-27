@@ -17,14 +17,14 @@ impl Parser {
           let mut token = self.current_token();
           self.advance(); // consume `as`
           let ty = self.parse_type(context)?;
-          token.span.merge(self.current_token().span);
+          token.span.merge(self.last_token_span());
           lhs = Expr {
             attributes: vec![], // TODO: implement attributes
             kind: ExprKind::Cast {
               expr: Box::new(lhs),
               ty,
             },
-            span: *token.span.merge(self.current_token().span),
+            span: *token.span.merge(self.last_token_span()),
           };
         },
         _ => break 'l,

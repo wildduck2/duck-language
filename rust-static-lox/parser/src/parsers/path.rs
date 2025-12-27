@@ -25,7 +25,7 @@ impl Parser {
       return Ok(Expr {
         attributes: vec![],
         kind: ExprKind::Macro { mac },
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       });
     }
 
@@ -45,7 +45,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Path { qself: None, path },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -60,7 +60,7 @@ impl Parser {
         qself: Some(qself),
         path,
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -135,7 +135,7 @@ impl Parser {
       let diagnostic = self
         .diagnostic(DiagnosticError::UnexpectedToken, "invalid path segment")
         .with_label(
-          *token.span.merge(self.current_token().span),
+          *token.span.merge(self.last_token_span()),
           Some("generic arguments are not allowed on this path segment".to_string()),
           LabelStyle::Primary,
         )

@@ -18,7 +18,7 @@ impl Parser {
       return Ok(Expr {
         attributes: vec![], // TODO: implement attributes
         kind: ExprKind::Tuple { elements: vec![] },
-        span: *token.span.merge(self.current_token().span),
+        span: *token.span.merge(self.last_token_span()),
       });
     }
 
@@ -38,7 +38,7 @@ impl Parser {
 
     // consume ")"
     self.expect(TokenKind::RParen)?;
-    token.span.merge(self.current_token().span);
+    token.span.merge(self.last_token_span());
 
     // Distinguish grouped vs tuple vs unit
     match elements.len() {

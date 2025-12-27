@@ -27,7 +27,7 @@ impl Parser {
 
     Ok(Stmt::Macro {
       mac,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -45,7 +45,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Macro { mac },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
@@ -82,7 +82,7 @@ impl Parser {
       path,
       delimiter,
       tokens,
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 

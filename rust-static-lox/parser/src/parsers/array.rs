@@ -13,7 +13,7 @@ impl Parser {
     self.advance(); // consume '['
 
     let (elements, repeat) = self.parse_array_elements()?;
-    token.span.merge(self.current_token().span);
+    token.span.merge(self.last_token_span());
 
     Ok(Expr {
       attributes: vec![],
@@ -21,7 +21,7 @@ impl Parser {
         elements,
         repeat: repeat.map(Box::new),
       },
-      span: *token.span.merge(self.current_token().span),
+      span: *token.span.merge(self.last_token_span()),
     })
   }
 
