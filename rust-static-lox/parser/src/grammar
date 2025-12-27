@@ -25,9 +25,9 @@ itemKind                -> functionItem            [x]
                          | implItem
                          | constItem               [x]
                          | staticItem              [x]
-                         | moduleItem
+                         | moduleItem              [x]
                          | useItem                 [x]
-                         | externCrateItem
+                         | externCrateItem         [-]
                          | foreignModItem
                          | unionItem
                          | externTypeItem ;
@@ -195,11 +195,8 @@ useTree                  -> (simplePath? "::")? ("*" | useTreeList)         [x]
                           | simplePath ("as" (IDENTIFIER | "_"))? ;         [x]
 useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;        [x]
 
-/* FIX 2: module blocks are item containers, not expression blocks */
-moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;
-
-/* Item container block: allows inner attributes */
-itemBlock                -> "{" innerAttr* item* "}" ;
+moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [x]
+itemBlock                -> "{" innerAttr* item* "}" ;                      [x]
 
 /* Foreign module: only foreignFunctionItem and foreign statics inside */
 foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;

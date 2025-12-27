@@ -56,6 +56,9 @@ impl Parser {
       TokenKind::KwConst if self.can_start_const_item() => {
         self.parse_const_decl(attributes, visibility, ParserContext::Default)
       },
+      TokenKind::KwExtern if self.can_start_extern_crate() => {
+        self.parse_extern_crate_decl(attributes, visibility, ParserContext::Default)
+      },
       TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, ParserContext::Enum),
       TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, ParserContext::Type),
       TokenKind::KwStatic => self.parse_static_decl(attributes, visibility, ParserContext::Static),
@@ -64,9 +67,12 @@ impl Parser {
       | TokenKind::KwConst
       | TokenKind::KwAsync
       | TokenKind::KwUnsafe
-      | TokenKind::KwExtern => self.parse_fn_decl(attributes, visibility, ParserContext::Function),
+      | TokenKind::KwExtern
+        if self.can_start_fun() =>
+      {
+        self.parse_fn_decl(attributes, visibility, ParserContext::Function)
+      },
       TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ParserContext::Module),
-      // TokenKind::KwExternCrate => self.parse_extern_crate_decl(attributes, visibility, ),
       // TokenKind::KwMacro => self.parse_macro_decl(attributes, visibility, ),
       // TokenKind::KwMacro2 => self.parse_macro2_decl(attributes, visibility, ),
       // TokenKind::KwExternType => self.parse_extern_type_decl(attributes, visibility, ),
@@ -124,7 +130,8 @@ impl Parser {
       // expression statement
       _ if self.current_token().kind.can_start_expression()
         && !self.can_start_fun()
-        && !self.can_start_const_item() =>
+        && !self.can_start_const_item()
+        && !self.can_start_extern_crate() =>
       {
         self.parse_expr_stmt(outer_attributes, context)
       },
@@ -157,6 +164,11 @@ impl Parser {
   fn can_start_const_item(&self) -> bool {
     matches!(self.current_token().kind, TokenKind::KwConst)
       && matches!(self.peek(1).kind, TokenKind::Ident)
+  }
+
+  fn can_start_extern_crate(&self) -> bool {
+    matches!(self.current_token().kind, TokenKind::KwExtern)
+      && matches!(self.peek(1).kind, TokenKind::KwCrate)
   }
 
   pub(crate) fn parse_expression(

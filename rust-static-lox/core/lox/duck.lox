@@ -1,4 +1,2 @@
-mod foo {
-    const A: i32 = 1;
-    fn bar() {}
-}
+extern crate foo;
+

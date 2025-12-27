@@ -8,6 +8,7 @@ mod comparison;
 mod r#const;
 mod control_flow;
 mod r#enum;
+mod r#extern;
 mod factor;
 mod r#fn;
 mod generic;

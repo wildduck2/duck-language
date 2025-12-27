@@ -1,10 +1,10 @@
 use crate::{
-  ast::{Attribute, Ident, Item, ModuleBody, ModuleDecl, VisItem, VisItemKind, Visibility},
+  ast::{Attribute, Item, ModuleBody, ModuleDecl, VisItem, VisItemKind, Visibility},
   parser_utils::ParserContext,
   Parser,
 };
 
-use lexer::token::{Token, TokenKind};
+use lexer::token::TokenKind;
 
 impl Parser {
   pub(crate) fn parse_module_decl(
