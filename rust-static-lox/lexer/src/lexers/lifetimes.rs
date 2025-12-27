@@ -9,30 +9,29 @@ impl Lexer {
   /// punctuation like commas, and emits diagnostics for lone `'` tokens or
   /// lifetimes that begin with a digit.
   pub(crate) fn lex_lifetime(&mut self) -> Result<TokenKind, ()> {
-    let chars: Vec<char> = self.get_current_lexeme().chars().collect();
+    let raw_lexeme = self.get_current_lexeme();
 
-    // Walk the collected characters to trim trailing punctuation so `'a,`
-    // lexes the lifetime first and leaves the comma for the next token.
-    let len = chars.len() - 1;
-    for (i, c) in chars.into_iter().enumerate() {
-      if c.is_ascii_alphabetic()
-        || c.is_ascii_whitespace()
-        || (c.is_ascii_punctuation() && matches!(c, '\'' | ','))
-      {
-        self.current -= len - i;
-        self.column -= len - i;
+    // Trim trailing punctuation so `'a,` lexes the lifetime first and leaves
+    // the comma for the next token.
+    let mut trim_chars = 0usize;
+    for c in raw_lexeme.chars().rev() {
+      if c.is_ascii_alphanumeric() || c == '_' || c == '\'' {
         break;
       }
+      trim_chars += 1;
+    }
+    if trim_chars > 0 {
+      self.current = self.current.saturating_sub(trim_chars);
+      self.column = self.column.saturating_sub(trim_chars);
     }
 
     // Consume any remaining identifier characters after the apostrophe.
     while let Some(c) = self.peek() {
-      if c.is_ascii_alphabetic() || c == '_' {
+      if c.is_ascii_alphanumeric() || c == '_' {
         self.advance();
         continue;
-      } else {
-        break;
       }
+      break;
     }
 
     let lexeme = self.get_current_lexeme();

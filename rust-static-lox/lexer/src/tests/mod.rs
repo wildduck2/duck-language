@@ -8,3 +8,4 @@ mod numbers;
 mod punctuation_and_delimiters;
 mod shebang;
 mod string;
+mod coverage;
