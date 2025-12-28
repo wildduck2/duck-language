@@ -1,2 +1,9 @@
 extern crate foo;
+extern crate foo as bar;
+extern crate foo as _;
+extern crate self;
+extern crate self as my_crate;
+extern crate self as _;
+extern crate foo as _;
+
 

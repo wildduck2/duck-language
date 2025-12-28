@@ -5,6 +5,7 @@
 pub enum Ident {
   Name(String),
   Underscore,
+  Self_,
 }
 
 impl Ident {
@@ -12,6 +13,7 @@ impl Ident {
     match self {
       Ident::Name(s) => s,
       Ident::Underscore => "_",
+      Ident::Self_ => "self",
     }
   }
 }

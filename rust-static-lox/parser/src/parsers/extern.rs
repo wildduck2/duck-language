@@ -21,7 +21,15 @@ impl Parser {
     self.expect(TokenKind::KwExtern)?;
     self.expect(TokenKind::KwCrate)?;
 
-    let name = Ident::Name(self.parse_name(true)?);
+    let name = if self.current_token().kind == TokenKind::KwSelf {
+      self.advance();
+      Ident::Self_
+    } else if self.get_token_lexeme(&self.current_token()) == "_" {
+      self.advance();
+      Ident::Underscore
+    } else {
+      Ident::Name(self.parse_name(true)?)
+    };
     let alias = if self.current_token().kind == TokenKind::KwAs {
       self.advance();
       if self.get_token_lexeme(&self.current_token()) == "_" {
