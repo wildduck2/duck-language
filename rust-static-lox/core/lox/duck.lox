@@ -1,9 +1,43 @@
-extern crate foo;
-extern crate foo as bar;
-extern crate foo as _;
-extern crate self;
-extern crate self as my_crate;
-extern crate self as _;
-extern crate foo as _;
+unsafe extern "C" {
+    #![allow(non_snake_case)]
+    #![allow(dead_code)]
 
+    // #[link_name]
+    fn foo();
+    fn bar(x: i32) -> i32;
+
+    #[link_name = "puts"]
+    fn my_puts(s: *const i8);
+
+    pub fn exported_fn();
+
+    static GLOBAL: i32;
+    static mut MUT_GLOBAL: i32;
+
+    pub static PUB_GLOBAL: i32;
+    pub static mut PUB_MUT_GLOBAL: i32;
+
+    static _: i32;
+    type T;
+
+    dummy!();
+
+    #[cfg(unix)]
+    fn unix_only();
+
+    #[cfg(windows)]
+    static WINDOWS_FLAG: i32;
+}
+
+extern {
+    fn no_abi_fn();
+}
+
+extern "stdcall" {
+    fn winapi(x: i32);
+}
+
+unsafe extern {
+    static mut RAW: i32;
+}
 

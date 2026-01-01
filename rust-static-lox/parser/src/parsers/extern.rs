@@ -50,4 +50,9 @@ impl Parser {
       span: *token.span.merge(semi.span),
     }))
   }
+
+  pub(crate) fn can_start_extern_crate(&self) -> bool {
+    matches!(self.current_token().kind, TokenKind::KwExtern)
+      && matches!(self.peek(1).kind, TokenKind::KwCrate)
+  }
 }

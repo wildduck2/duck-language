@@ -56,6 +56,9 @@ impl Parser {
       TokenKind::KwConst if self.can_start_const_item() => {
         self.parse_const_decl(attributes, visibility, ParserContext::Default)
       },
+      TokenKind::KwExtern | TokenKind::KwUnsafe if self.can_start_foreign_extern_crate() => {
+        self.parse_foreign_mod_decl(attributes, visibility, ParserContext::Default)
+      },
       TokenKind::KwExtern if self.can_start_extern_crate() => {
         self.parse_extern_crate_decl(attributes, visibility, ParserContext::Default)
       },
@@ -131,7 +134,8 @@ impl Parser {
       _ if self.current_token().kind.can_start_expression()
         && !self.can_start_fun()
         && !self.can_start_const_item()
-        && !self.can_start_extern_crate() =>
+        && !self.can_start_extern_crate()
+        && !self.can_start_foreign_extern_crate() =>
       {
         self.parse_expr_stmt(outer_attributes, context)
       },
@@ -159,16 +163,6 @@ impl Parser {
       has_semi,
       span: *token.span.merge(self.last_token_span()),
     })
-  }
-
-  fn can_start_const_item(&self) -> bool {
-    matches!(self.current_token().kind, TokenKind::KwConst)
-      && matches!(self.peek(1).kind, TokenKind::Ident)
-  }
-
-  fn can_start_extern_crate(&self) -> bool {
-    matches!(self.current_token().kind, TokenKind::KwExtern)
-      && matches!(self.peek(1).kind, TokenKind::KwCrate)
   }
 
   pub(crate) fn parse_expression(

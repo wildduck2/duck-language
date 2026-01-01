@@ -33,4 +33,9 @@ impl Parser {
       span: token.span,
     }))
   }
+
+  pub(crate) fn can_start_const_item(&self) -> bool {
+    matches!(self.current_token().kind, TokenKind::KwConst)
+      && matches!(self.peek(1).kind, TokenKind::Ident)
+  }
 }

@@ -29,6 +29,10 @@ mod extern_tests {
     }
   }
 
+  fn assert_err(input: &str) {
+    assert!(parse_extern_item(input).is_err(), "expected error for {input:?}");
+  }
+
   #[test]
   fn extern_crate_basic() {
     let vis = parse_extern_item("extern crate foo;").unwrap();
@@ -56,6 +60,14 @@ mod extern_tests {
   }
 
   #[test]
+  fn extern_crate_with_attribute_and_visibility() {
+    let vis = parse_extern_item("#[attr] pub extern crate foo;").unwrap();
+    assert_eq!(vis.visibility, Visibility::Public);
+    assert_eq!(vis.attributes.len(), 1);
+    assert_extern_decl(&vis, "foo", None);
+  }
+
+  #[test]
   fn extern_crate_as_statement() {
     let stmt = parse_stmt("extern crate foo;").unwrap();
     match stmt {
@@ -65,5 +77,25 @@ mod extern_tests {
       },
       other => panic!("expected item statement, got: {:?}", other),
     }
+  }
+
+  #[test]
+  fn extern_crate_missing_crate_keyword_errors() {
+    assert_err("extern foo;");
+  }
+
+  #[test]
+  fn extern_crate_missing_name_errors() {
+    assert_err("extern crate;");
+  }
+
+  #[test]
+  fn extern_crate_missing_semicolon_errors() {
+    assert_err("extern crate foo");
+  }
+
+  #[test]
+  fn extern_crate_missing_alias_errors() {
+    assert_err("extern crate foo as;");
   }
 }

@@ -192,7 +192,6 @@ pub struct FnSig {
   pub params: Vec<Param>,
   pub return_type: Option<Type>,
   pub where_clause: Option<WhereClause>,
-  pub span: Span,
 }
 
 // ----------------------------------------------------------------------------

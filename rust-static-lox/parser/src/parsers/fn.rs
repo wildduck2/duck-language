@@ -36,7 +36,6 @@ impl Parser {
           params,
           return_type,
           where_clause,
-          span: *token.span.merge(self.last_token_span()),
         },
         body,
         is_async,
@@ -139,7 +138,7 @@ impl Parser {
     Ok(flavor)
   }
 
-  fn parse_function_params(
+  pub(crate) fn parse_function_params(
     &mut self,
     is_extern: bool,
     context: ParserContext,
@@ -297,7 +296,7 @@ impl Parser {
     Ok(None)
   }
 
-  fn parse_return_type(&mut self, context: ParserContext) -> Result<Option<Type>, ()> {
+  pub(crate) fn parse_return_type(&mut self, context: ParserContext) -> Result<Option<Type>, ()> {
     if !matches!(self.current_token().kind, TokenKind::ThinArrow) {
       return Ok(None);
     }

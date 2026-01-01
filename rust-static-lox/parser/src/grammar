@@ -27,8 +27,8 @@ itemKind                -> functionItem            [x]
                          | staticItem              [x]
                          | moduleItem              [x]
                          | useItem                 [x]
-                         | externCrateItem         [-]
-                         | foreignModItem
+                         | externCrateItem         [x]
+                         | foreignModItem          [-]
                          | unionItem
                          | externTypeItem ;
 
@@ -186,9 +186,9 @@ inherentImplItem         -> outerAttr* (visibility? (functionItem | constItem) |
 /* Externs, Modules, Use                                                     */
 /* ------------------------------------------------------------------------- */
 
-externCrateItem          -> "extern" "crate" crateRef asClause? ";" ;
-crateRef                 -> IDENTIFIER | "self" ;
-asClause                 -> "as" (IDENTIFIER | "_") ;
+externCrateItem          -> "extern" "crate" crateRef asClause? ";" ;  [x]
+crateRef                 -> IDENTIFIER | "self" ;      [x]
+asClause                 -> "as" (IDENTIFIER | "_") ;  [x]
 
 useItem                  -> "use" useTree ";" ;                             [x]
 useTree                  -> (simplePath? "::")? ("*" | useTreeList)         [x]
@@ -198,13 +198,12 @@ useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;        [x]
 moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [x]
 itemBlock                -> "{" innerAttr* item* "}" ;                      [x]
 
-/* Foreign module: only foreignFunctionItem and foreign statics inside */
-foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;
-foreignModBody           -> "{" innerAttr* externalItem* "}" ;
+foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;         [x]
+foreignModBody           -> "{" innerAttr* externalItem* "}" ;               [x]
 
-externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;
-externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"
-                          | foreignFunctionItem ;
+externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;  [x]
+externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"   [x]
+                          | foreignFunctionItem ;                              [x]
 
 /* extern type is a separate free item (no generics) */
 externTypeItem           -> "extern" "type" IDENTIFIER ";" ;
