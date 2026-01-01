@@ -204,6 +204,93 @@ fn add_wd_missing_path_exits() {
   assert_eq!(status.code(), Some(64));
 }
 
+#[cfg(coverage)]
+#[test]
+fn add_wd_forced_entry_error_exits() {
+  if env::var("DIAGNOSTIC_FORCE_ENTRY_ERROR_CHILD").is_ok() {
+    let root = env::var("DIAGNOSTIC_FORCE_ENTRY_ERROR_ROOT").unwrap();
+    let mut map = SourceMap::new();
+    let _ = diagnostic::source_map::with_forced_readdir_entry_error(|| map.add_wd(&root));
+    return;
+  }
+
+  let unique = SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_nanos();
+  let root = env::temp_dir().join(format!("diagnostic_force_entry_error_{unique}"));
+  fs::create_dir_all(&root).unwrap();
+  fs::write(root.join("file.txt"), "data").unwrap();
+
+  let exe = env::current_exe().unwrap();
+  let status = Command::new(exe)
+    .env("DIAGNOSTIC_FORCE_ENTRY_ERROR_CHILD", "1")
+    .env("DIAGNOSTIC_FORCE_ENTRY_ERROR_ROOT", root.to_str().unwrap())
+    .arg("--exact")
+    .arg("add_wd_forced_entry_error_exits")
+    .status()
+    .unwrap();
+
+  assert_eq!(status.code(), Some(64));
+  fs::remove_dir_all(&root).unwrap();
+}
+
+#[cfg(all(coverage, unix))]
+#[test]
+fn add_wd_nested_read_dir_error_exits() {
+  if env::var("DIAGNOSTIC_NESTED_READDIR_CHILD").is_ok() {
+    let root = env::var("DIAGNOSTIC_NESTED_READDIR_ROOT").unwrap();
+    let mut map = SourceMap::new();
+    let _ = map.add_wd(&root);
+    return;
+  }
+
+  use std::os::unix::fs::PermissionsExt;
+
+  let unique = SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_nanos();
+  let root = env::temp_dir().join(format!("diagnostic_nested_read_dir_error_{unique}"));
+  let blocked = root.join("blocked");
+  fs::create_dir_all(&blocked).unwrap();
+  fs::set_permissions(&blocked, fs::Permissions::from_mode(0o000)).unwrap();
+
+  let exe = env::current_exe().unwrap();
+  let status = Command::new(exe)
+    .env("DIAGNOSTIC_NESTED_READDIR_CHILD", "1")
+    .env("DIAGNOSTIC_NESTED_READDIR_ROOT", root.to_str().unwrap())
+    .arg("--exact")
+    .arg("add_wd_nested_read_dir_error_exits")
+    .status()
+    .unwrap();
+
+  assert_eq!(status.code(), Some(64));
+
+  fs::set_permissions(&blocked, fs::Permissions::from_mode(0o700)).unwrap();
+  fs::remove_dir_all(&root).unwrap();
+}
+
+#[cfg(all(coverage, unix))]
+#[test]
+fn add_wd_handles_non_file_or_dir_entries() {
+  use std::os::unix::fs::symlink;
+
+  let unique = SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_nanos();
+  let root = env::temp_dir().join(format!("diagnostic_non_file_entry_{unique}"));
+  fs::create_dir_all(&root).unwrap();
+  let link = root.join("dangling");
+  symlink(root.join("missing"), &link).unwrap();
+
+  let mut map = SourceMap::new();
+  map.add_wd(root.to_str().unwrap()).unwrap();
+
+  fs::remove_dir_all(&root).unwrap();
+}
+
 #[test]
 fn diagnostic_engine_counts_and_prints() {
   let mut engine = DiagnosticEngine::new();

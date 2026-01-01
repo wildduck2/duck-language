@@ -30,13 +30,13 @@ itemKind                -> functionItem            [x]
                          | externCrateItem         [x]
                          | foreignModItem          [-]
                          | unionItem
-                         | externTypeItem ;
+                         | externTypeItem ;        [-]
 
 /* ------------------------------------------------------------------------- */
 /* Macros                                                                    */
 /* ------------------------------------------------------------------------- */
 
-macroItem               -> macroInvocationSemi
+macroItem               -> macroInvocationSemi ;                              [-]
                          | macroRulesItem
                          | macro2Item ;
 
@@ -195,18 +195,18 @@ useTree                  -> (simplePath? "::")? ("*" | useTreeList)         [x]
                           | simplePath ("as" (IDENTIFIER | "_"))? ;         [x]
 useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;        [x]
 
-moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [x]
-itemBlock                -> "{" innerAttr* item* "}" ;                      [x]
+moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [-]
+itemBlock                -> "{" innerAttr* item* "}" ;                      [-]
 
-foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;         [x]
-foreignModBody           -> "{" innerAttr* externalItem* "}" ;               [x]
+foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;         [-]
+foreignModBody           -> "{" innerAttr* externalItem* "}" ;               [-]
 
-externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;  [x]
-externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"   [x]
-                          | foreignFunctionItem ;                              [x]
+externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;  [-]
+externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"   [-]
+                          | foreignFunctionItem ;                              [-]
 
 /* extern type is a separate free item (no generics) */
-externTypeItem           -> "extern" "type" IDENTIFIER ";" ;
+externTypeItem           -> "extern" "type" IDENTIFIER ";" ;                 [-]
 
 /* ------------------------------------------------------------------------- */
 /* Macros (defs)                                                             */

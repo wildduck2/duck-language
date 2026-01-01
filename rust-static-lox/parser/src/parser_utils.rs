@@ -56,6 +56,9 @@ impl Parser {
       TokenKind::KwConst if self.can_start_const_item() => {
         self.parse_const_decl(attributes, visibility, ParserContext::Default)
       },
+      TokenKind::KwExtern if matches!(self.peek(1).kind, TokenKind::KwType) => {
+        self.parse_extern_type_decl(attributes, visibility)
+      },
       TokenKind::KwExtern | TokenKind::KwUnsafe if self.can_start_foreign_extern_crate() => {
         self.parse_foreign_mod_decl(attributes, visibility, ParserContext::Default)
       },
@@ -78,7 +81,6 @@ impl Parser {
       TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ParserContext::Module),
       // TokenKind::KwMacro => self.parse_macro_decl(attributes, visibility, ),
       // TokenKind::KwMacro2 => self.parse_macro2_decl(attributes, visibility, ),
-      // TokenKind::KwExternType => self.parse_extern_type_decl(attributes, visibility, ),
       // TokenKind::KwUnion => self.parse_union_decl(attributes, visibility, ),
       // TokenKind::KwExtern => self.parse_extern_decl(attributes, visibility, ),
       _ => {
