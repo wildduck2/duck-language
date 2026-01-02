@@ -8,7 +8,6 @@ use crate::Parser;
 impl Parser {
   pub(crate) fn parse_comparison(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let lhs = self.parse_bitwise_or(context)?;
-    println!("params: {:?}", context);
 
     // This solves the problem like this, where we have '>' and it's not
     // the place we should have a comparison in the AST
