@@ -744,13 +744,7 @@ impl Lexer {
             },
           }
         },
-        '\n' => {
-          let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_invalid_character(span, '\n'));
-          self.advance();
-          return Err(());
-        },
-        ':' | ',' | ' ' => {
+        '\n' | ':' | ',' | ' ' => {
           // Likely a lifetime or unterminated literal.
           break;
         },
