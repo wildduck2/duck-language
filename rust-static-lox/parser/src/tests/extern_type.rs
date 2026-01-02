@@ -28,7 +28,7 @@ mod extern_type_tests {
   fn assert_extern_type_decl(vis: &VisItem, name: &str) {
     match &vis.kind {
       VisItemKind::ExternType(ExternTypeDecl { name: decl_name }) => {
-        assert_eq!(decl_name, name);
+        assert_eq!(decl_name.as_str(), name);
       },
       other => panic!("expected extern type item, got: {:?}", other),
     }
