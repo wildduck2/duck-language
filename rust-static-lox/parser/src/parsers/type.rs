@@ -54,6 +54,12 @@ impl Parser {
       TokenKind::Bang => Ok(Type::Never),
 
       // Primitive names and user defined paths
+      TokenKind::KwSelfType if matches!(self.peek(0).kind, TokenKind::ColonColon) => {
+        // Reset position so parse_path can consume the ident or crate token
+        self.current -= 1;
+        Ok(Type::Path(self.parse_path(true, context)?))
+      },
+
       TokenKind::Ident
       | TokenKind::KwSuper
       | TokenKind::ColonColon
