@@ -2,11 +2,11 @@
 
 use diagnostic::Span;
 
-use crate::ast::{Attribute, GenericParams, Type, Visibility, WhereClause};
+use crate::ast::{Attribute, GenericParams, Ident, Type, Visibility, WhereClause};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructDecl {
-  pub name: String,
+  pub name: Ident,
   pub generics: Option<GenericParams>,
   pub kind: StructKind,
   pub where_clause: Option<WhereClause>,
@@ -24,7 +24,7 @@ pub enum StructKind {
 pub struct FieldDecl {
   pub attributes: Vec<Attribute>,
   pub visibility: Visibility,
-  pub name: String,
+  pub name: Ident,
   pub ty: Type,
   pub span: Span,
 }

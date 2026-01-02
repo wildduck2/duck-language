@@ -1,7 +1,7 @@
 use crate::ast::expr::FieldInit;
 use crate::ast::path::Path;
 use crate::ast::{
-  r#struct::*, Attribute, Expr, ExprKind, FieldName, Item, VisItem, VisItemKind, Visibility,
+  r#struct::*, Attribute, Expr, ExprKind, FieldName, Ident, Item, VisItem, VisItemKind, Visibility,
 };
 use crate::parser_utils::ParserContext;
 use crate::Parser;
@@ -171,34 +171,67 @@ impl Parser {
     })
   }
 
-  pub(crate) fn parse_name(&mut self, accept_digit: bool) -> Result<String, ()> {
-    if matches!(self.current_token().kind, TokenKind::Ident)
-      || (accept_digit && matches!(self.current_token().kind, TokenKind::Literal { .. }))
-    {
-      let name = self.get_token_lexeme(&self.current_token());
-      self.advance(); // consume the identifier
-      return Ok(name);
-    }
+  pub(crate) fn parse_name(&mut self, accept_digit: bool) -> Result<Ident, ()> {
+    let kind = &self.current_token().kind;
 
-    let lexeme = self.get_token_lexeme(&self.current_token());
-    let diagnostic = self
-      .diagnostic(
-        DiagnosticError::UnexpectedToken,
-        "unexpected name identifier",
-      )
-      .with_label(
-        self.current_token().span,
-        Some(format!(
-          "Expected a primary expression, found \"{}\"",
-          lexeme
-        )),
-        LabelStyle::Primary,
-      )
-      .with_help("Expected a valid name identifier".to_string());
+    let ident = match kind {
+      TokenKind::Ident => {
+        let mut s = self.get_token_lexeme(&self.current_token());
+        self.advance();
 
-    self.emit(diagnostic);
+        if let Some(rest) = s.strip_prefix("r#") {
+          s = rest.to_string();
+        }
 
-    Err(())
+        match s.as_str() {
+          "_" => Ident::Underscore,
+          "self" => Ident::Self_,
+          "Self" => Ident::SelfType,
+          "crate" => Ident::Crate,
+          "super" => Ident::Super,
+          _ => Ident::Name(s),
+        }
+      },
+
+      TokenKind::Literal { .. } if accept_digit => {
+        let s = self.get_token_lexeme(&self.current_token());
+        self.advance();
+        Ident::Name(s)
+      },
+
+      TokenKind::KwSelf => {
+        self.advance();
+        Ident::Self_
+      },
+      TokenKind::KwSelfType => {
+        self.advance();
+        Ident::SelfType
+      },
+      TokenKind::KwCrate => {
+        self.advance();
+        Ident::Crate
+      },
+      TokenKind::KwSuper => {
+        self.advance();
+        Ident::Super
+      },
+
+      _ => {
+        let lexeme = self.get_token_lexeme(&self.current_token());
+        let diagnostic = self
+          .diagnostic(DiagnosticError::UnexpectedToken, "expected identifier")
+          .with_label(
+            self.current_token().span,
+            Some(format!("expected identifier, found \"{}\"", lexeme)),
+            LabelStyle::Primary,
+          );
+
+        self.emit(diagnostic);
+        return Err(());
+      },
+    };
+
+    Ok(ident)
   }
 
   pub(crate) fn parse_struct_expr(

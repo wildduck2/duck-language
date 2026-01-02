@@ -6,7 +6,7 @@
 use diagnostic::Span;
 
 use crate::ast::{
-  Attribute, GenericArgs, MacroInvocation, Mutability, Path, Pattern, QSelf, Stmt, Type,
+  Attribute, GenericArgs, Ident, MacroInvocation, Mutability, Path, Pattern, QSelf, Stmt, Type,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -51,7 +51,7 @@ pub enum ExprKind {
 
   MethodCall {
     receiver: Box<Expr>,
-    method: String,
+    method: Ident,
     turbofish: Option<GenericArgs>,
     args: Vec<Expr>,
   },
@@ -236,7 +236,7 @@ pub enum FieldName {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldAccess {
-  Named(String),
+  Named(Ident),
   Unnamed(usize),
 }
 

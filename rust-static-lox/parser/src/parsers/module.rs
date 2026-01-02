@@ -1,13 +1,12 @@
 use crate::{
   ast::{
-    Attribute, FnSig, ForeignItem, ForeignModDecl, Ident, Item, ModuleBody, ModuleDecl, VisItem,
+    Attribute, FnSig, ForeignItem, ForeignModDecl, Item, ModuleBody, ModuleDecl, VisItem,
     VisItemKind, Visibility,
   },
   parser_utils::ParserContext,
   Parser,
 };
 
-use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, TokenKind};
 
 impl Parser {
@@ -139,7 +138,7 @@ impl Parser {
         Ok(ForeignItem::Static {
           attributes: outer_attributes,
           visibility,
-          name: Ident::Name(name),
+          name,
           ty,
           mutability,
           span: *token.span.merge(self.last_token_span()),
@@ -153,7 +152,7 @@ impl Parser {
         Ok(ForeignItem::Type {
           attributes: outer_attributes,
           visibility,
-          name: Ident::Name(name),
+          name,
           span: *token.span.merge(self.last_token_span()),
         })
       },

@@ -1,6 +1,6 @@
 use crate::Parser;
 use crate::{
-  ast::{Attribute, ConstDecl, Ident, Item, VisItem, VisItemKind, Visibility},
+  ast::{Attribute, ConstDecl, Item, VisItem, VisItemKind, Visibility},
   parser_utils::ParserContext,
 };
 use lexer::token::TokenKind;
@@ -18,7 +18,7 @@ impl Parser {
     }
 
     self.expect(TokenKind::KwConst)?;
-    let name = Ident::Name(self.parse_name(true)?);
+    let name = self.parse_name(true)?;
     self.expect(TokenKind::Colon)?;
     let ty = self.parse_type(context)?;
     self.expect(TokenKind::Eq)?;

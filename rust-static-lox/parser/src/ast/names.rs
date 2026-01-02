@@ -6,6 +6,9 @@ pub enum Ident {
   Name(String),
   Underscore,
   Self_,
+  SelfType,
+  Crate,
+  Super,
 }
 
 impl Ident {
@@ -14,6 +17,9 @@ impl Ident {
       Ident::Name(s) => s,
       Ident::Underscore => "_",
       Ident::Self_ => "self",
+      Ident::SelfType => "Self",
+      Ident::Crate => "crate",
+      Ident::Super => "super",
     }
   }
 }

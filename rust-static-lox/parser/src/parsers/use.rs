@@ -42,13 +42,7 @@ impl Parser {
         TokenKind::Semi | TokenKind::Comma | TokenKind::RBrace | TokenKind::KwAs
       )
     {
-      let name = self.parse_name(true)?;
-      let ident = if name == "_" {
-        Ident::Underscore
-      } else {
-        Ident::Name(name)
-      };
-      path.push(ident);
+      path.push(self.parse_name(true)?);
       match_and_consume!(self, TokenKind::ColonColon)?;
       if (matches!(self.current_token().kind, TokenKind::Ident)
         && !matches!(self.peek(1).kind, TokenKind::ColonColon))
@@ -84,7 +78,7 @@ impl Parser {
       TokenKind::Semi | TokenKind::Comma | TokenKind::RBrace => UseTree::Name(prefix),
       TokenKind::KwAs => {
         self.advance(); // consume the "as"
-        let alias = Ident::Name(self.parse_name(true)?);
+        let alias = self.parse_name(true)?;
         UseTree::Rename {
           name: prefix,
           alias,

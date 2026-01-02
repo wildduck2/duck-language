@@ -3,7 +3,7 @@
 
 use diagnostic::Span;
 
-use crate::ast::{Attribute, Expr, Path, Type};
+use crate::ast::{Attribute, Expr, Ident, Path, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericParams {
@@ -16,7 +16,7 @@ pub struct GenericParams {
 pub enum GenericParam {
   Type {
     attributes: Vec<Attribute>,
-    name: String,
+    name: Ident,
     bounds: Vec<TypeBound>,
     default: Option<Type>,
   },
@@ -27,7 +27,7 @@ pub enum GenericParam {
   },
   Const {
     attributes: Vec<Attribute>,
-    name: String,
+    name: Ident,
     ty: Type,
     default: Option<Expr>,
   },

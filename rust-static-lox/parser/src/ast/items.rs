@@ -1,8 +1,9 @@
 use diagnostic::Span;
 
 use crate::ast::{
-  Attribute, EnumDecl, ForeignModDecl, GenericParams, ImplBlock, Macro2Decl, MacroInvocation,
-  MacroRulesDecl, Mutability, StructDecl, TraitDecl, Type, Visibility, WhereClause,
+  Attribute, EnumDecl, ForeignModDecl, GenericParams, Ident, ImplBlock, Macro2Decl,
+  MacroInvocation, MacroRulesDecl, Mutability, StructDecl, TraitDecl, Type, Visibility,
+  WhereClause,
 };
 
 // ----------------------------------------------------------------------------
@@ -87,7 +88,7 @@ pub struct StaticDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeAliasDecl {
-  pub name: String,
+  pub name: Ident,
   pub generics: Option<crate::ast::GenericParams>,
   pub bounds: Vec<crate::ast::TypeBound>,
   pub where_clause: Option<WhereClause>,
@@ -100,7 +101,7 @@ pub struct TypeAliasDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModuleDecl {
-  pub name: String,
+  pub name: Ident,
   pub body: Option<ModuleBody>,
 }
 
@@ -148,7 +149,7 @@ pub struct ExternCrateDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternTypeDecl {
-  pub name: String,
+  pub name: Ident,
 }
 
 // ----------------------------------------------------------------------------
@@ -157,7 +158,7 @@ pub struct ExternTypeDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionDecl {
-  pub name: String,
+  pub name: Ident,
   pub generics: Option<crate::ast::GenericParams>,
   pub where_clause: Option<WhereClause>,
   pub fields: Vec<crate::ast::FieldDecl>,
@@ -187,7 +188,7 @@ pub struct FnDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FnSig {
-  pub name: String,
+  pub name: Ident,
   pub generics: Option<GenericParams>,
   pub params: Vec<Param>,
   pub return_type: Option<Type>,

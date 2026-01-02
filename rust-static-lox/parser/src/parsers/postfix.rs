@@ -175,7 +175,7 @@ impl Parser {
 
         // `.foo!`
         if match_and_consume!(self, TokenKind::Bang)? {
-          let mac = self.parse_macro_invocation(Path::from_ident(name))?;
+          let mac = self.parse_macro_invocation(Path::from_ident(name.as_str().to_string()))?;
           return Ok(Expr {
             attributes: vec![],
             kind: ExprKind::Macro { mac },

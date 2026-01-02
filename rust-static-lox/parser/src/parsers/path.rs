@@ -99,6 +99,8 @@ impl Parser {
           | TokenKind::FatArrow
           | TokenKind::Bang
           | TokenKind::Dot
+          | TokenKind::KwWhere
+          | TokenKind::KwFor
       )
     {
       self.expect(TokenKind::ColonColon)?; // require '::' separator

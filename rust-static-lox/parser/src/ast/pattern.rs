@@ -4,7 +4,7 @@
 
 use diagnostic::Span;
 
-use crate::ast::{Attribute, Expr, Path, Type};
+use crate::ast::{Attribute, Expr, Ident, Path, Type};
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
@@ -101,7 +101,7 @@ pub enum Pattern {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldPattern {
   pub attributes: Vec<Attribute>,
-  pub name: String,
+  pub name: Ident,
   pub pattern: Option<Pattern>,
   pub is_shorthand: bool,
   pub span: Span,
