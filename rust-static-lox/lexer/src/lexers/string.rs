@@ -166,7 +166,9 @@ impl Lexer {
     // Expect opening quote after `cr###`.
     if self.peek() != Some('"') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_invalid_string_start(span, "expected '\"' after raw C string prefix"));
+      self.emit_diagnostic(
+        self.err_invalid_string_start(span, "expected '\"' after raw C string prefix"),
+      );
       return Err(());
     }
 
@@ -247,7 +249,9 @@ impl Lexer {
     // Expect opening quote `"` after `r###`.
     if self.peek() != Some('"') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_invalid_string_start(span, "expected '\"' after raw string prefix"));
+      self.emit_diagnostic(
+        self.err_invalid_string_start(span, "expected '\"' after raw string prefix"),
+      );
       return Err(());
     }
 
@@ -380,7 +384,9 @@ impl Lexer {
 
       if self.peek() != Some('"') {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_invalid_string_start(span, "expected '\"' after raw byte string prefix"));
+        self.emit_diagnostic(
+          self.err_invalid_string_start(span, "expected '\"' after raw byte string prefix"),
+        );
         return Ok(TokenKind::Literal {
           kind: LiteralKind::RawByteStr { n_hashes },
         });
@@ -392,14 +398,22 @@ impl Lexer {
       'outer: while let Some(c) = self.peek() {
         if c == '\r' {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_invalid_escape(span, "\\r", Some("raw byte string literals")));
+          self.emit_diagnostic(self.err_invalid_escape(
+            span,
+            "\\r",
+            Some("raw byte string literals"),
+          ));
           self.advance();
           return Err(());
         }
 
         if !c.is_ascii() {
           let span = Span::new(self.current, self.current + c.len_utf8());
-          self.emit_diagnostic(self.err_invalid_escape(span, &c.to_string(), Some("raw byte strings must contain only ASCII")));
+          self.emit_diagnostic(self.err_invalid_escape(
+            span,
+            &c.to_string(),
+            Some("raw byte strings must contain only ASCII"),
+          ));
           self.advance();
           return Err(());
         }
@@ -436,7 +450,9 @@ impl Lexer {
     // --- NORMAL BYTE STRING: b"..." ---
     if self.peek() != Some('"') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_invalid_string_start(span, "expected '\"' after 'b' in byte string literal"));
+      self.emit_diagnostic(
+        self.err_invalid_string_start(span, "expected '\"' after 'b' in byte string literal"),
+      );
       return Err(());
     }
 
@@ -474,19 +490,34 @@ impl Lexer {
               }
               if count < 2 {
                 let span = Span::new(self.current.saturating_sub(2), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\x", Some("hex escape must have exactly two hex digits")));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\x",
+                  Some("hex escape must have exactly two hex digits"),
+                ));
                 return Err(());
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
               let span = Span::new(self.current.saturating_sub(1), self.current + 1);
-              self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("unicode escapes are not allowed in byte strings")));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                "\\u",
+                Some("unicode escapes are not allowed in byte strings"),
+              ));
               return Err(());
             },
             _ => {
-              let escape_char = self.peek().map(|c| c.to_string()).unwrap_or_else(|| "unknown".to_string());
+              let escape_char = self
+                .peek()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(span, &escape_char, Some("byte string")));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                &escape_char,
+                Some("byte string"),
+              ));
               if self.peek().is_some() {
                 self.advance();
               }
@@ -506,7 +537,11 @@ impl Lexer {
         _ => {
           if !c.is_ascii() {
             let span = Span::new(self.current.saturating_sub(1), self.current);
-            self.emit_diagnostic(self.err_invalid_escape(span, &c.to_string(), Some("byte strings must contain only ASCII characters")));
+            self.emit_diagnostic(self.err_invalid_escape(
+              span,
+              &c.to_string(),
+              Some("byte strings must contain only ASCII characters"),
+            ));
             return Err(());
           }
         },
@@ -533,7 +568,9 @@ impl Lexer {
     // We are just after 'b'; expect opening `'`.
     if self.peek() != Some('\'') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_invalid_string_start(span, "expected '\'' after 'b' in byte char literal"));
+      self.emit_diagnostic(
+        self.err_invalid_string_start(span, "expected '\'' after 'b' in byte char literal"),
+      );
       return Err(());
     }
 
@@ -570,14 +607,22 @@ impl Lexer {
               }
               if count < 2 {
                 let span = Span::new(self.current.saturating_sub(2), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\x", Some("hex escape must have exactly two hex digits")));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\x",
+                  Some("hex escape must have exactly two hex digits"),
+                ));
               } else {
                 produced_bytes = produced_bytes.saturating_add(1);
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
               let span = Span::new(self.current.saturating_sub(1), self.current + 1);
-              self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("unicode escapes are not allowed in byte char literals")));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                "\\u",
+                Some("unicode escapes are not allowed in byte char literals"),
+              ));
 
               // Recovery: consume until '}' or newline.
               self.advance(); // 'u'
@@ -591,13 +636,24 @@ impl Lexer {
             },
             Some('\n') => {
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(span, "\\", Some("line continuation escapes are not supported in byte char literals")));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                "\\",
+                Some("line continuation escapes are not supported in byte char literals"),
+              ));
               self.advance();
             },
             _ => {
-              let escape_char = self.peek().map(|c| c.to_string()).unwrap_or_else(|| "unknown".to_string());
+              let escape_char = self
+                .peek()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(span, &escape_char, Some("byte char literal")));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                &escape_char,
+                Some("byte char literal"),
+              ));
               if self.peek().is_some() {
                 self.advance();
               }
@@ -611,7 +667,11 @@ impl Lexer {
         _ => {
           if !c.is_ascii() {
             let span = Span::new(self.current, self.current + c.len_utf8());
-            self.emit_diagnostic(self.err_invalid_escape(span, &c.to_string(), Some("byte char literals must be ASCII")));
+            self.emit_diagnostic(self.err_invalid_escape(
+              span,
+              &c.to_string(),
+              Some("byte char literals must be ASCII"),
+            ));
           }
           self.advance();
           produced_bytes = produced_bytes.saturating_add(1);
@@ -633,7 +693,9 @@ impl Lexer {
 
     if produced_bytes > 1 {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_invalid_literal(span, "byte char literal must encode exactly one byte"));
+      self.emit_diagnostic(
+        self.err_invalid_literal(span, "byte char literal must encode exactly one byte"),
+      );
       return Err(());
     }
 
@@ -682,11 +744,19 @@ impl Lexer {
               }
               if count < 2 {
                 let span = Span::new(self.current.saturating_sub(2), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\x", Some("hex escape must have exactly two hex digits")));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\x",
+                  Some("hex escape must have exactly two hex digits"),
+                ));
                 return Err(());
               } else if value > 0x7F {
                 let span = Span::new(self.start, self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\x", Some("characters must be in ASCII range (<= 0x7F)")));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\x",
+                  Some("characters must be in ASCII range (<= 0x7F)"),
+                ));
                 return Err(());
               }
             },
@@ -710,7 +780,11 @@ impl Lexer {
                   },
                   None => {
                     let span = Span::new(self.current.saturating_sub(3), self.current);
-                    self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("unicode escape must contain only hex digits")));
+                    self.emit_diagnostic(self.err_invalid_escape(
+                      span,
+                      "\\u",
+                      Some("unicode escape must contain only hex digits"),
+                    ));
                     self.advance();
                     return Err(());
                   },
@@ -724,19 +798,34 @@ impl Lexer {
                   || (0xD800..=0xDFFF).contains(&value)
                 {
                   let span = Span::new(self.current.saturating_sub(10), self.current);
-                  self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("invalid unicode escape code point")));
+                  self.emit_diagnostic(self.err_invalid_escape(
+                    span,
+                    "\\u",
+                    Some("invalid unicode escape code point"),
+                  ));
                   return Err(());
                 }
               } else {
                 let span = Span::new(self.current.saturating_sub(10), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("unterminated unicode escape, missing '}'")));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\u",
+                  Some("unterminated unicode escape, missing '}'"),
+                ));
                 return Err(());
               }
             },
             _ => {
-              let escape_char = self.peek().map(|c| c.to_string()).unwrap_or_else(|| "unknown".to_string());
+              let escape_char = self
+                .peek()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(span, &escape_char, Some("char literal")));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                &escape_char,
+                Some("char literal"),
+              ));
               if self.peek().is_some() {
                 self.advance();
               }
@@ -744,7 +833,7 @@ impl Lexer {
             },
           }
         },
-        '\n' | ':' | ',' | ' ' => {
+        '\n' | ':' | ',' | ' ' | ';' | '=' => {
           // Likely a lifetime or unterminated literal.
           break;
         },
@@ -774,7 +863,10 @@ impl Lexer {
       // If it doesn't start with an escape, it must be exactly one scalar.
       if !inner.starts_with('\\') && inner.chars().count() != 1 {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_invalid_literal(span, "character literal must contain exactly one Unicode scalar value"));
+        self.emit_diagnostic(self.err_invalid_literal(
+          span,
+          "character literal must contain exactly one Unicode scalar value",
+        ));
         return Err(());
       }
     }
@@ -898,7 +990,11 @@ impl Lexer {
               }
               if count < 2 || value > max_hex_escape {
                 let span = Span::new(escape_start, self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\x", Some(&format!("{} literal", context))));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\x",
+                  Some(&format!("{} literal", context)),
+                ));
               } else if forbid_nul && value == 0 {
                 self
                   .report_nul_in_string(context, diagnostic::Span::new(escape_start, self.current));
@@ -923,7 +1019,11 @@ impl Lexer {
                   },
                   None => {
                     let span = Span::new(escape_start, self.current);
-                    self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some(&format!("invalid unicode escape in {} literal", context))));
+                    self.emit_diagnostic(self.err_invalid_escape(
+                      span,
+                      "\\u",
+                      Some(&format!("invalid unicode escape in {} literal", context)),
+                    ));
                     self.advance();
                     break;
                   },
@@ -931,7 +1031,11 @@ impl Lexer {
               }
               if self.peek() != Some('}') {
                 let span = Span::new(escape_start, self.current);
-                self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("unterminated unicode escape, missing '}'")));
+                self.emit_diagnostic(self.err_invalid_escape(
+                  span,
+                  "\\u",
+                  Some("unterminated unicode escape, missing '}'"),
+                ));
               } else {
                 self.advance(); // consume '}'
                 if digits == 0
@@ -940,7 +1044,11 @@ impl Lexer {
                   || (0xD800..=0xDFFF).contains(&value)
                 {
                   let span = Span::new(escape_start, self.current);
-                  self.emit_diagnostic(self.err_invalid_escape(span, "\\u", Some("invalid unicode escape code point")));
+                  self.emit_diagnostic(self.err_invalid_escape(
+                    span,
+                    "\\u",
+                    Some("invalid unicode escape code point"),
+                  ));
                 }
                 if forbid_nul && value == 0 {
                   self.report_nul_in_string(
@@ -951,9 +1059,16 @@ impl Lexer {
               }
             },
             _ => {
-              let escape_char = self.peek().map(|c| c.to_string()).unwrap_or_else(|| "unknown".to_string());
+              let escape_char = self
+                .peek()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(escape_start, self.current);
-              self.emit_diagnostic(self.err_invalid_escape(span, &escape_char, Some(&format!("{} literal", context))));
+              self.emit_diagnostic(self.err_invalid_escape(
+                span,
+                &escape_char,
+                Some(&format!("{} literal", context)),
+              ));
               if self.peek().is_some() {
                 self.advance();
               }
@@ -962,7 +1077,11 @@ impl Lexer {
         },
         '\r' => {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_invalid_escape(span, "\\r", Some(&format!("{} literals", context))));
+          self.emit_diagnostic(self.err_invalid_escape(
+            span,
+            "\\r",
+            Some(&format!("{} literals", context)),
+          ));
           self.advance();
         },
         _ => {
