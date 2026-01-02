@@ -22,7 +22,7 @@ itemKind                -> functionItem            [x]
                          | typeAliasItem           [x]
                          | enumItem                [x]
                          | traitItem
-                         | implItem                [-]
+                         | implItem                [x]
                          | constItem               [x]
                          | staticItem              [x]
                          | moduleItem              [x]
@@ -152,35 +152,35 @@ typeAliasItem             -> "type" IDENTIFIER genericParams?
 
 traitItem                -> "unsafe"? "auto"? "trait" IDENTIFIER
                             genericParams? (":" typeParamBounds)?
-                            whereClause? traitBody ;
+                            whereClause? traitBody ;                    [x]
 
-traitBody                -> "{" innerAttr* associatedItem* "}" ;
+traitBody                -> "{" innerAttr* associatedItem* "}" ;        [x]
 
 implItem                 -> "unsafe"? "impl" genericParams?
                             "const"? "!"? traitPath "for" type
-                            whereClause? implBody
+                            whereClause? implBody                    [x]
                           | "unsafe"? "impl" genericParams? type
-                            whereClause? inherentImplBody ;
+                            whereClause? inherentImplBody ;          [x]
 
-implBody                 -> "{" innerAttr* associatedItem* "}" ;
-inherentImplBody         -> "{" innerAttr* inherentImplItem* "}" ;
+implBody                 -> "{" innerAttr* associatedItem* "}" ;     [x]
+inherentImplBody         -> "{" innerAttr* inherentImplItem* "}" ;   [x]
 
-traitPath                -> typePath ;
+traitPath                -> typePath ;                                [x]
 
-associatedItem           -> outerAttr* (macroInvocationSemi | associatedItemKind) ;
+associatedItem           -> outerAttr* (macroInvocationSemi | associatedItemKind) ; [x]
 
-associatedItemKind       -> associatedTypeItem
-                          | associatedConstItem
-                          | associatedFunctionItem ;
+associatedItemKind       -> associatedTypeItem                        [x]
+                          | associatedConstItem                       [x]
+                          | associatedFunctionItem ;                  [x]
 
 /* Associated type: generics (GATs) allowed, optional bounds, optional where, optional default */
 associatedTypeItem       -> "type" IDENTIFIER genericParams? (":" typeParamBounds)?
-                            whereClause? ("=" type)? ";" ;
+                            whereClause? ("=" type)? ";" ;            [x]
 
 /* Associated const: in traits value is optional, in impls it must be provided (semantic rule) */
-associatedConstItem      -> "const" IDENTIFIER ":" type ("=" expression)? ";" ;
+associatedConstItem      -> "const" IDENTIFIER ":" type ("=" expression)? ";" ;  [x]
 
-inherentImplItem         -> outerAttr* (visibility? (functionItem | constItem) | macroInvocationSemi) ;
+inherentImplItem         -> outerAttr* (visibility? (functionItem | constItem) | macroInvocationSemi) ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Externs, Modules, Use                                                     */
