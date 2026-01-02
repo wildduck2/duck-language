@@ -5,6 +5,7 @@ mod postfix_tests {
     ast::{
       expr::{ExprKind, FieldAccess},
       path::{PathSegment, PathSegmentKind},
+      Ident,
       Lit,
     },
     parser_utils::ParserContext,
@@ -75,7 +76,7 @@ mod postfix_tests {
         args,
       } => {
         assert_ident_expr(&receiver.kind, "foo");
-        assert_eq!(method, "bar");
+        assert_eq!(method.as_str(), "bar");
         assert!(turbofish.is_none());
         assert_eq!(args.len(), 1);
         assert_int(&args[0].kind, 1);
@@ -90,7 +91,7 @@ mod postfix_tests {
     match expr {
       ExprKind::Field { object, field } => {
         assert_ident_expr(&object.kind, "foo");
-        assert_eq!(field, FieldAccess::Named("bar".to_string()));
+        assert_eq!(field, FieldAccess::Named(Ident::Name("bar".to_string())));
       },
       other => panic!("expected field access, got: {:?}", other),
     }
@@ -165,7 +166,7 @@ mod postfix_tests {
           assert_int(&index.kind, 0);
           match object.kind {
             ExprKind::Field { object, field } => {
-              assert_eq!(field, FieldAccess::Named("bar".to_string()));
+              assert_eq!(field, FieldAccess::Named(Ident::Name("bar".to_string())));
               match object.kind {
                 ExprKind::Call { callee, args } => {
                   assert_ident_expr(&callee.kind, "foo");
@@ -215,10 +216,10 @@ mod postfix_tests {
         args,
         ..
       } => {
-        assert_eq!(method, "baz");
+        assert_eq!(method.as_str(), "baz");
         assert_eq!(args.len(), 1);
         match receiver.kind {
-          ExprKind::MethodCall { method: ref m, .. } => assert_eq!(m, "bar"),
+          ExprKind::MethodCall { method: ref m, .. } => assert_eq!(m.as_str(), "bar"),
           other => panic!("expected chained method call, got: {:?}", other),
         }
       },
@@ -435,7 +436,7 @@ mod postfix_tests {
     let expr = parse("((foo.bar)?).baz").unwrap();
     match expr {
       ExprKind::Field { object, field } => {
-        assert_eq!(field, FieldAccess::Named("baz".to_string()));
+        assert_eq!(field, FieldAccess::Named(Ident::Name("baz".to_string())));
         match object.kind {
           ExprKind::Group { expr } => match expr.kind {
             ExprKind::Try { .. } => {},
@@ -496,14 +497,14 @@ mod postfix_tests {
         args,
         ..
       } => {
-        assert_eq!(method, "baz");
+        assert_eq!(method.as_str(), "baz");
         assert_eq!(args.len(), 1);
         match receiver.kind {
           ExprKind::Field {
             field: FieldAccess::Named(ref name),
             ..
           } => {
-            assert_eq!(name, "bar");
+            assert_eq!(name.as_str(), "bar");
           },
           other => panic!("expected field access as receiver, got: {:?}", other),
         }
@@ -517,9 +518,9 @@ mod postfix_tests {
     let expr = parse("foo.bar().baz").unwrap();
     match expr {
       ExprKind::Field { object, field } => {
-        assert_eq!(field, FieldAccess::Named("baz".to_string()));
+        assert_eq!(field, FieldAccess::Named(Ident::Name("baz".to_string())));
         match object.kind {
-          ExprKind::MethodCall { method, .. } => assert_eq!(method, "bar"),
+          ExprKind::MethodCall { method, .. } => assert_eq!(method.as_str(), "bar"),
           other => panic!("expected method call before field, got: {:?}", other),
         }
       },
@@ -549,7 +550,7 @@ mod postfix_tests {
       ExprKind::MethodCall {
         receiver, method, ..
       } => {
-        assert_eq!(method, "bar");
+        assert_eq!(method.as_str(), "bar");
         match receiver.kind {
           ExprKind::Index { .. } => {},
           other => panic!("expected index as receiver, got: {:?}", other),
@@ -576,7 +577,7 @@ mod postfix_tests {
     let expr = parse("(((foo))).bar").unwrap();
     match expr {
       ExprKind::Field { object, field } => {
-        assert_eq!(field, FieldAccess::Named("bar".to_string()));
+        assert_eq!(field, FieldAccess::Named(Ident::Name("bar".to_string())));
         assert_ident_expr(&object.kind, "foo");
       },
       other => panic!("expected field access, got: {:?}", other),
@@ -590,7 +591,7 @@ mod postfix_tests {
       ExprKind::MethodCall {
         receiver, method, ..
       } => {
-        assert_eq!(method, "bar");
+        assert_eq!(method.as_str(), "bar");
         match receiver.kind {
           ExprKind::Group { expr } => match expr.kind {
             ExprKind::Call { .. } => {},
@@ -669,7 +670,7 @@ mod postfix_tests {
   fn parses_chained_method_calls_with_turbofish_on_second() {
     let expr = parse("foo.bar().baz::<i32>(1)").unwrap();
     match expr {
-      ExprKind::MethodCall { method, .. } => assert_eq!(method, "baz"),
+      ExprKind::MethodCall { method, .. } => assert_eq!(method.as_str(), "baz"),
       other => panic!("expected method call, got: {:?}", other),
     }
   }

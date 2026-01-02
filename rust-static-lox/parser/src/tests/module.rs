@@ -24,7 +24,7 @@ mod module_tests {
   fn module_decl_with_semicolon() {
     let vis = parse_module_item("mod foo;").unwrap();
     let decl = get_module(&vis);
-    assert_eq!(decl.name, "foo");
+    assert_eq!(decl.name.as_str(), "foo");
     assert!(decl.body.is_none());
   }
 
@@ -33,7 +33,7 @@ mod module_tests {
     let vis = parse_module_item("mod foo {}").unwrap();
     let decl = get_module(&vis);
     let body = decl.body.as_ref().expect("expected module body");
-    assert_eq!(decl.name, "foo");
+    assert_eq!(decl.name.as_str(), "foo");
     assert!(body.items.is_empty());
   }
 
@@ -65,7 +65,7 @@ mod module_tests {
   fn module_decl_with_attribute_and_visibility() {
     let vis = parse_module_item("#[attr] pub mod foo {}").unwrap();
     let decl = get_module(&vis);
-    assert_eq!(decl.name, "foo");
+    assert_eq!(decl.name.as_str(), "foo");
     assert_eq!(vis.visibility, Visibility::Public);
     assert_eq!(vis.attributes.len(), 1);
   }

@@ -102,7 +102,7 @@ mod generics_tests {
         default,
         ..
       } => {
-        assert_eq!(name, "T");
+        assert_eq!(name.as_str(), "T");
         assert_eq!(default, &Some(Type::I32));
         assert_eq!(bounds.len(), 2);
 
@@ -131,7 +131,7 @@ mod generics_tests {
       GenericParam::Const {
         name, ty, default, ..
       } => {
-        assert_eq!(name, "N");
+        assert_eq!(name.as_str(), "N");
         assert_eq!(ty, &Type::Usize);
         match default {
           Some(expr) => match &expr.kind {

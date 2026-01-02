@@ -410,7 +410,7 @@ mod pattern_tests {
         assert!(!has_rest);
         assert_eq!(fields.len(), 2);
 
-        assert_eq!(fields[0].name, "x");
+        assert_eq!(fields[0].name.as_str(), "x");
         assert_eq!(fields[0].attributes.len(), 1);
         assert!(!fields[0].is_shorthand);
         match fields[0].pattern.as_ref() {
@@ -418,7 +418,7 @@ mod pattern_tests {
           None => panic!("expected field pattern"),
         }
 
-        assert_eq!(fields[1].name, "z");
+        assert_eq!(fields[1].name.as_str(), "z");
         assert!(fields[1].attributes.is_empty());
         assert!(fields[1].is_shorthand);
         assert!(fields[1].pattern.is_none());
@@ -435,7 +435,7 @@ mod pattern_tests {
       } => {
         assert_eq!(fields.len(), 1);
         assert!(has_rest);
-        assert_eq!(fields[0].name, "x");
+        assert_eq!(fields[0].name.as_str(), "x");
       },
       other => panic!("expected struct pattern, got: {:?}", other),
     }
@@ -555,7 +555,7 @@ mod pattern_tests {
       Pattern::Struct { path, fields, .. } => {
         assert_ident_path(&path, "Foo");
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields[0].name, "x");
+        assert_eq!(fields[0].name.as_str(), "x");
         assert!(fields[0].is_shorthand);
       },
       other => panic!("expected struct pattern, got: {:?}", other),

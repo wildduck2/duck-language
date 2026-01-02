@@ -70,7 +70,7 @@ mod struct_tests {
     let vis = assert_decl_ok("struct Foo {}");
     let decl = get_decl(&vis);
 
-    assert_eq!(decl.name, "Foo");
+    assert_eq!(decl.name.as_str(), "Foo");
     assert!(decl.generics.is_none());
     assert!(decl.where_clause.is_none());
 
@@ -88,7 +88,7 @@ mod struct_tests {
     match &decl.kind {
       StructKind::Named { fields } => {
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields[0].name, "x");
+        assert_eq!(fields[0].name.as_str(), "x");
       },
       _ => panic!("expected named struct"),
     }
@@ -113,8 +113,8 @@ mod struct_tests {
     match &decl.kind {
       StructKind::Named { fields } => {
         assert_eq!(fields.len(), 2);
-        assert_eq!(fields[0].name, "x");
-        assert_eq!(fields[1].name, "y");
+        assert_eq!(fields[0].name.as_str(), "x");
+        assert_eq!(fields[1].name.as_str(), "y");
       },
       _ => panic!("expected named struct"),
     }
@@ -128,7 +128,7 @@ mod struct_tests {
     match &decl.kind {
       StructKind::Named { fields } => {
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields[0].name, "x");
+        assert_eq!(fields[0].name.as_str(), "x");
         assert!(!fields[0].attributes.is_empty());
         assert_eq!(fields[0].visibility, Visibility::Public);
       },
@@ -143,7 +143,7 @@ mod struct_tests {
     assert_eq!(vis.visibility, Visibility::Public);
 
     let decl = get_decl(&vis);
-    assert_eq!(decl.name, "Foo");
+    assert_eq!(decl.name.as_str(), "Foo");
   }
 
   #[test]

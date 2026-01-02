@@ -485,7 +485,7 @@ mod type_tests {
     match item {
       Item::Vis(vis_item) => match vis_item.kind {
         VisItemKind::TypeAlias(TypeAliasDecl { name, ty, .. }) => {
-          assert_eq!(name, "Foo");
+          assert_eq!(name.as_str(), "Foo");
           assert_eq!(ty, Type::I32);
         },
         other => panic!("expected type alias, got {:?}", other),
