@@ -26,7 +26,10 @@ impl Parser {
     context: ParserContext,
   ) -> Result<Vec<Attribute>, ()> {
     let mut attr = vec![];
-    while !self.is_eof() && matches!(self.current_token().kind, TokenKind::Pound) {
+    while !self.is_eof()
+      && matches!(self.current_token().kind, TokenKind::Pound)
+      && matches!(self.peek(1).kind, TokenKind::Bang)
+    {
       attr.push(self.parse_inner_attribute(context)?);
     }
     Ok(attr)

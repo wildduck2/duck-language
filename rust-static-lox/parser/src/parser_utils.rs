@@ -35,7 +35,6 @@ impl Parser {
       match self.parse_stmt(ParserContext::Default) {
         // Returns Item, not Stmt
         Ok(item) => {
-          // println!("{:#?}", item);
           println!("{:#?}", item);
           // item.print_tree("", true);
           // self.ast.push(item); // ast should be Vec<Item>
@@ -50,11 +49,13 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ParserContext,
   ) -> Result<Item, ()> {
     match self.current_token().kind {
       TokenKind::KwImpl | TokenKind::KwUnsafe if self.can_start_impl() => {
         self.parse_impl_decl(attributes, visibility, ParserContext::Impl)
+      },
+      TokenKind::KwTrait | TokenKind::KwUnsafe | TokenKind::KwAuto if self.can_start_trait() => {
+        self.parse_trait_decl(attributes, visibility, ParserContext::Trait)
       },
       TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility, ParserContext::Struct),
       TokenKind::KwConst if self.can_start_const_item() => {
@@ -83,10 +84,6 @@ impl Parser {
         self.parse_fn_decl(attributes, visibility, ParserContext::Function)
       },
       TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ParserContext::Module),
-      // TokenKind::KwMacro => self.parse_macro_decl(attributes, visibility, ),
-      // TokenKind::KwMacro2 => self.parse_macro2_decl(attributes, visibility, ),
-      // TokenKind::KwUnion => self.parse_union_decl(attributes, visibility, ),
-      // TokenKind::KwExtern => self.parse_extern_decl(attributes, visibility, ),
       _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
         self.emit(self.err_unexpected_token(
@@ -142,14 +139,15 @@ impl Parser {
         && !self.can_start_const_item()
         && !self.can_start_extern_crate()
         && !self.can_start_foreign_extern_crate()
-        && !self.can_start_impl() =>
+        && !self.can_start_impl()
+        && !self.can_start_trait() =>
       {
         self.parse_expr_stmt(outer_attributes, context)
       },
 
       // item statement
       _ => {
-        let item = self.parse_item(outer_attributes, visibility, context)?;
+        let item = self.parse_item(outer_attributes, visibility)?;
         Ok(Stmt::Item(Box::new(item)))
       },
     }

@@ -490,6 +490,6 @@ pub(crate) fn parse_item(input: &str, file_stem: &str, context: ParserContext) -
   run_parser(input, file_stem, |parser| {
     let attributes = parser.parse_outer_attributes(context)?;
     let visibility = parser.parse_visibility(context)?;
-    parser.parse_item(attributes, visibility, context)
+    parser.parse_item(attributes, visibility)
   })
 }

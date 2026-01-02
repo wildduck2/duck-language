@@ -29,6 +29,7 @@ mod range;
 mod shift;
 mod r#static;
 mod r#struct;
+mod r#trait;
 pub(crate) mod support;
 mod term;
 mod tuple;

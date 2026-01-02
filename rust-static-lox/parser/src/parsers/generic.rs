@@ -459,6 +459,7 @@ impl Parser {
         | TokenKind::RParen
         | TokenKind::Semi
         | TokenKind::Eof
+        | TokenKind::KwWhere
     )
   }
 

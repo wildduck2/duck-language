@@ -47,7 +47,7 @@ impl Parser {
         while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
           let outer_attributes = self.parse_outer_attributes(context)?;
           let visibility = self.parse_visibility(context)?;
-          items.push(self.parse_item(outer_attributes, visibility, context)?);
+          items.push(self.parse_item(outer_attributes, visibility)?);
         }
         let close = self.expect(TokenKind::RBrace)?;
         inner_token.span.merge(close.span);

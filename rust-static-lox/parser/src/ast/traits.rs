@@ -3,13 +3,11 @@
 
 use diagnostic::Span;
 
-use crate::ast::{Attribute, FnDecl, GenericParams, Type, TypeBound, Visibility, WhereClause};
+use crate::ast::{Attribute, FnDecl, GenericParams, Ident, Type, TypeBound, WhereClause};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TraitDecl {
-  pub attributes: Vec<Attribute>,
-  pub visibility: Visibility,
-  pub name: String,
+  pub name: Ident,
   pub is_auto: bool,
   pub is_unsafe: bool,
   pub generics: Option<GenericParams>,
@@ -19,7 +17,6 @@ pub struct TraitDecl {
   // These are the inner attributes inside the trait body: { #![..] ... }
   pub inner_attributes: Vec<Attribute>,
   pub items: Vec<TraitItem>,
-  pub span: Span,
 }
 
 #[repr(u8)]
@@ -29,7 +26,7 @@ pub enum TraitItem {
 
   Type {
     attributes: Vec<Attribute>,
-    name: String,
+    name: Ident,
     generics: Option<GenericParams>,
     bounds: Vec<TypeBound>,
     where_clause: Option<WhereClause>,

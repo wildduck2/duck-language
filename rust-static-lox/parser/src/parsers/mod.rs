@@ -30,6 +30,7 @@ mod shift;
 mod r#static;
 mod r#struct;
 mod term;
+mod r#trait;
 mod tuple;
 mod r#type;
 mod unary;
