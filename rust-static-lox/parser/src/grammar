@@ -21,15 +21,15 @@ itemKind                -> functionItem            [x]
                          | structItem              [x]
                          | typeAliasItem           [x]
                          | enumItem                [x]
-                         | traitItem
+                         | traitItem               [x]
                          | implItem                [x]
                          | constItem               [x]
-                         | staticItem              [x]
+                         | staticItem              [-]
                          | moduleItem              [x]
                          | useItem                 [x]
                          | externCrateItem         [x]
                          | foreignModItem          [-]
-                         | unionItem
+                         | unionItem               [-]
                          | externTypeItem ;        [x]
 
 /* ------------------------------------------------------------------------- */
@@ -139,7 +139,7 @@ constItem                -> "const" (IDENTIFIER | "_") ":" type "=" expression "
 /* Free-standing static may omit initializer */
 /* FIX 1: allow '_' identifier like rustc */
 staticItem               -> "static" "mut"? (IDENTIFIER | "_") ":" type
-                            ("=" expression)? ";" ;
+                            ("=" expression)? ";" ;  [-]
 
 /* Free-standing type alias must have '=' type */
 typeAliasItem             -> "type" IDENTIFIER genericParams?
@@ -195,8 +195,8 @@ useTree                  -> (simplePath? "::")? ("*" | useTreeList)         [x]
                           | simplePath ("as" (IDENTIFIER | "_"))? ;         [x]
 useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;        [x]
 
-moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [-]
-itemBlock                -> "{" innerAttr* item* "}" ;                      [-]
+moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [x]
+itemBlock                -> "{" innerAttr* item* "}" ;                      [x]
 
 foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;         [-]
 foreignModBody           -> "{" innerAttr* externalItem* "}" ;               [-]
