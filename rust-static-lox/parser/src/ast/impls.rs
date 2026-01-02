@@ -34,7 +34,7 @@ pub enum ImplItem {
   Type {
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    name: String,
+    name: Ident,
     generics: Option<GenericParams>,
     where_clause: Option<WhereClause>,
     ty: Type,

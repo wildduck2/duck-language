@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -75,7 +76,7 @@ impl Parser {
   }
 
   // Shared "{ innerAttr* items* }" wrapper. Only the item parser differs.
-  fn parse_impl_body_common<F>(
+  pub(crate) fn parse_impl_body_common<F>(
     &mut self,
     context: ParserContext,
     mut parse_item: F,
@@ -102,7 +103,7 @@ impl Parser {
     self.parse_impl_body_common(context, |p, ctx| p.parse_impl_body_item(false, ctx))
   }
 
-  fn parse_impl_body(
+  pub(crate) fn parse_impl_body(
     &mut self,
     context: ParserContext,
   ) -> Result<(Vec<ImplItem>, Vec<Attribute>), ()> {
@@ -123,25 +124,19 @@ impl Parser {
       TokenKind::KwType if !is_inherit => {
         self.advance(); // consume "type"
 
-        // Your ImplItem::Type currently stores `name: String`, so enforce normal identifier here.
-        let name = match self.parse_name(false)? {
-          Ident::Name(s) => s,
-          other => {
-            let found = format!("{other:?}");
-            self.emit(self.err_unexpected_token(self.current_token().span, "type name", &found));
-            return Err(());
-          },
-        };
+        let name = self.parse_name(false)?;
 
-        // Optional GAT generics (you already have a generic parser; reuse it)
-        // If your `parse_generic_params` needs a token span, keep it local.
         let mut dummy = self.current_token();
         let generics = self.parse_generic_params(&mut dummy, context)?;
 
-        // Optional bounds `: ...` (not represented in your current AST fields)
-        if matches!(self.current_token().kind, TokenKind::Colon) {
-          self.advance();
-          let _ = self.parse_type(context)?;
+        // Optional bounds `: ...` (parse + discard for now; AST doesn't store them).
+        let has_bounds = matches!(self.current_token().kind, TokenKind::Colon);
+        let bounds = self.parse_trait_bounds("impl associated type", context)?;
+        if has_bounds && bounds.is_empty() {
+          let token = self.current_token();
+          let lexeme = self.get_token_lexeme(&token);
+          self.emit(self.err_invalid_trait_bound(token.span, &lexeme));
+          return Err(());
         }
 
         let where_clause = self.parse_where_clause(context)?;
@@ -161,6 +156,19 @@ impl Parser {
         self.advance(); // consume '='
         let ty = self.parse_type(context)?;
         self.expect(TokenKind::Semi)?;
+
+        if let k @ Ident::Self_ = name {
+          let diagnostic = self
+            .diagnostic(DiagnosticError::InvalidNameIdentifier, "invalid name")
+            .with_label(
+              self.current_token().span,
+              Some(format!("You can not use `{}` as a type name", k.as_str()).to_string()),
+              LabelStyle::Primary,
+            )
+            .with_help("use proper identifier names".to_string());
+          self.emit(diagnostic);
+          return Err(());
+        }
 
         Ok(ImplItem::Type {
           attributes: outer_attributes,
@@ -203,7 +211,17 @@ impl Parser {
       // associatedFunctionItem
       TokenKind::KwFn => {
         let item = self.parse_fn_decl(outer_attributes, visibility, context)?;
-        self.impl_item_from_fn_item(item)
+        if let Item::Vis(VisItem {
+          kind: VisItemKind::Function(func),
+          ..
+        }) = item
+        {
+          Ok(ImplItem::Method(func))
+        } else {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(self.err_unexpected_token(self.current_token().span, "impl item", &found));
+          Err(())
+        }
       },
 
       // macroInvocationSemi
@@ -241,19 +259,5 @@ impl Parser {
     }
 
     matches!(self.peek(offset).kind, TokenKind::KwImpl)
-  }
-
-  pub(crate) fn impl_item_from_fn_item(&mut self, item: Item) -> Result<ImplItem, ()> {
-    if let Item::Vis(VisItem {
-      kind: VisItemKind::Function(func),
-      ..
-    }) = item
-    {
-      Ok(ImplItem::Method(func))
-    } else {
-      let found = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(self.current_token().span, "impl item", &found));
-      Err(())
-    }
   }
 }

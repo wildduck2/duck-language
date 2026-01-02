@@ -2,15 +2,12 @@
 mod impl_tests {
   use crate::{
     ast::{
-      expr::ExprKind,
-      Ident, ImplBlock, ImplItem, ImplPolarity, Item, Lit, Type, TypeAliasDecl, VisItem, VisItemKind,
+      expr::ExprKind, ImplBlock, ImplItem, ImplPolarity, Item, Lit, Type, VisItem, VisItemKind,
       Visibility,
     },
     parser_utils::ParserContext,
     tests::support::{parse_item, run_parser, simple_path, simplify_path},
   };
-  use diagnostic::Span;
-
   fn parse_impl_item(input: &str) -> Result<VisItem, ()> {
     parse_item(input, "impl_test_temp", ParserContext::Default).and_then(|item| match item {
       Item::Vis(vis) => Ok(vis),
@@ -26,7 +23,10 @@ mod impl_tests {
   }
 
   fn assert_impl_err(input: &str) {
-    assert!(parse_impl_item(input).is_err(), "expected error for {input:?}");
+    assert!(
+      parse_impl_item(input).is_err(),
+      "expected error for {input:?}"
+    );
   }
 
   fn assert_impl_decl_err(input: &str) {
@@ -63,10 +63,9 @@ mod impl_tests {
 
   #[test]
   fn trait_impl_with_const_negative_and_where() {
-    let vis = parse_impl_item(
-      "#[attr] pub unsafe impl const !Trait for Foo where Foo: Copy { fn f() {} }",
-    )
-    .unwrap();
+    let vis =
+      parse_impl_item("#[attr] pub unsafe impl const !Trait for Foo where Foo: Copy { fn f() {} }")
+        .unwrap();
     assert_eq!(vis.visibility, Visibility::Public);
     assert_eq!(vis.attributes.len(), 1);
     let block = impl_block(&vis);
@@ -120,7 +119,7 @@ mod impl_tests {
       } => {
         assert_eq!(attributes.len(), 1);
         assert_eq!(visibility, &Visibility::Public);
-        assert_eq!(name, "Assoc");
+        assert_eq!(name.as_str(), "Assoc");
         assert!(generics.as_ref().is_some());
         assert_eq!(
           generics.as_ref().unwrap().params.len(),
@@ -166,6 +165,7 @@ mod impl_tests {
       other => panic!("expected macro item, got: {:?}", other),
     }
   }
+
 
   #[test]
   fn inherent_impl_with_inner_attribute_only() {
@@ -340,32 +340,13 @@ mod impl_tests {
   }
 
   #[test]
-  fn impl_method_rejects_non_function_item() {
-    let result = run_parser("fn f() {}", "impl_method_non_function", |parser| {
-      let item = Item::Vis(VisItem {
-        attributes: vec![],
-        visibility: Visibility::Private,
-        kind: VisItemKind::TypeAlias(TypeAliasDecl {
-          name: Ident::Name("Alias".to_string()),
-          generics: None,
-          bounds: vec![],
-          where_clause: None,
-          ty: Type::I32,
-        }),
-        span: Span::new(0, 0),
-      });
-
-      parser.impl_item_from_fn_item(item)
-    });
-
-    assert!(result.is_err());
-  }
-
-  #[test]
   fn unsafe_fn_is_not_impl_item() {
-    let item =
-      parse_item("unsafe fn foo() {}", "impl_unsafe_fn_test_temp", ParserContext::Default)
-        .unwrap();
+    let item = parse_item(
+      "unsafe fn foo() {}",
+      "impl_unsafe_fn_test_temp",
+      ParserContext::Default,
+    )
+    .unwrap();
     match item {
       Item::Vis(vis) => match vis.kind {
         VisItemKind::Function(_) => {},
