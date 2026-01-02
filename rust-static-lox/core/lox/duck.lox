@@ -1,4 +1,3 @@
-impl MyType {
-    const CONST: i32 = 1;
+impl Foo { 
+  fn f()
 }
-
