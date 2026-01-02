@@ -13,6 +13,7 @@ mod extern_type;
 mod factor;
 mod r#fn;
 mod generic;
+mod r#impl;
 mod lifetime;
 mod literal;
 mod logical;

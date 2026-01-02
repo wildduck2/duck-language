@@ -22,7 +22,7 @@ itemKind                -> functionItem            [x]
                          | typeAliasItem           [x]
                          | enumItem                [x]
                          | traitItem
-                         | implItem
+                         | implItem                [-]
                          | constItem               [x]
                          | staticItem              [x]
                          | moduleItem              [x]
@@ -30,7 +30,7 @@ itemKind                -> functionItem            [x]
                          | externCrateItem         [x]
                          | foreignModItem          [-]
                          | unionItem
-                         | externTypeItem ;        [-]
+                         | externTypeItem ;        [x]
 
 /* ------------------------------------------------------------------------- */
 /* Macros                                                                    */
@@ -206,7 +206,7 @@ externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"   [-
                           | foreignFunctionItem ;                              [-]
 
 /* extern type is a separate free item (no generics) */
-externTypeItem           -> "extern" "type" IDENTIFIER ";" ;                 [-]
+externTypeItem           -> "extern" "type" IDENTIFIER ";" ;                 [x]
 
 /* ------------------------------------------------------------------------- */
 /* Macros (defs)                                                             */

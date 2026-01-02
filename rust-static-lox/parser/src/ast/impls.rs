@@ -14,7 +14,6 @@ pub enum ImplPolarity {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImplBlock {
-  pub attributes: Vec<Attribute>,
   pub is_unsafe: bool,
   pub is_const: bool,
   pub generics: Option<GenericParams>,
@@ -25,7 +24,6 @@ pub struct ImplBlock {
 
   pub inner_attributes: Vec<Attribute>,
   pub items: Vec<ImplItem>,
-  pub span: Span,
 }
 
 #[repr(u8)]

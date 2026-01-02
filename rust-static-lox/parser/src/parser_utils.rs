@@ -52,6 +52,9 @@ impl Parser {
     context: ParserContext,
   ) -> Result<Item, ()> {
     match self.current_token().kind {
+      TokenKind::KwImpl | TokenKind::KwUnsafe if self.can_start_impl() => {
+        self.parse_impl_decl(attributes, visibility, ParserContext::Impl)
+      },
       TokenKind::KwStruct => self.parse_struct_decl(attributes, visibility, ParserContext::Struct),
       TokenKind::KwConst if self.can_start_const_item() => {
         self.parse_const_decl(attributes, visibility, ParserContext::Default)
@@ -137,7 +140,8 @@ impl Parser {
         && !self.can_start_fun()
         && !self.can_start_const_item()
         && !self.can_start_extern_crate()
-        && !self.can_start_foreign_extern_crate() =>
+        && !self.can_start_foreign_extern_crate()
+        && !self.can_start_impl() =>
       {
         self.parse_expr_stmt(outer_attributes, context)
       },
