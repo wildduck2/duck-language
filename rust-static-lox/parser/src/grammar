@@ -29,7 +29,7 @@ itemKind                -> functionItem            [x]
                          | useItem                 [x]
                          | externCrateItem         [x]
                          | foreignModItem          [-]
-                         | unionItem               [-]
+                         | unionItem               [x]
                          | externTypeItem ;        [x]
 
 /* ------------------------------------------------------------------------- */
@@ -127,7 +127,7 @@ discriminant             -> "=" expression ;  [x]
 /* ------------------------------------------------------------------------- */
 
 unionItem                -> "union" IDENTIFIER genericParams?
-                            whereClause? recordStructFields ;
+                            whereClause? recordStructFields ;         [x]
 
 /* ------------------------------------------------------------------------- */
 /* Consts, Statics, Type Aliases                                             */
@@ -139,7 +139,7 @@ constItem                -> "const" (IDENTIFIER | "_") ":" type "=" expression "
 /* Free-standing static may omit initializer */
 /* FIX 1: allow '_' identifier like rustc */
 staticItem               -> "static" "mut"? (IDENTIFIER | "_") ":" type
-                            ("=" expression)? ";" ;  [-]
+                            ("=" expression)? ";" ;  [x]
 
 /* Free-standing type alias must have '=' type */
 typeAliasItem             -> "type" IDENTIFIER genericParams?

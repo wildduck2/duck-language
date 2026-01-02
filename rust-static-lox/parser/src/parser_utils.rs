@@ -18,6 +18,7 @@ pub enum ParserContext {
   Trait,
   Impl,
   Extern,
+  Union,
   Macro,
   Static,
   Type,
@@ -51,6 +52,7 @@ impl Parser {
     visibility: Visibility,
   ) -> Result<Item, ()> {
     match self.current_token().kind {
+      TokenKind::KwUnion => self.parse_union_decl(attributes, visibility, ParserContext::Union),
       TokenKind::KwImpl | TokenKind::KwUnsafe if self.can_start_impl() => {
         self.parse_impl_decl(attributes, visibility, ParserContext::Impl)
       },

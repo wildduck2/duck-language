@@ -35,6 +35,7 @@ mod term;
 mod tuple;
 mod r#type;
 mod unary;
+mod r#union;
 mod r#use;
 mod variables;
 mod visibility;

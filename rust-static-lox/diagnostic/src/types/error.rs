@@ -96,6 +96,7 @@ pub enum DiagnosticError {
   MismatchedTypes,
   TraitNotSatisfied,
   BorrowCheckerViolation,
+  InvalidConstKeyword,
 }
 
 impl DiagnosticError {
@@ -188,6 +189,8 @@ impl DiagnosticError {
       Self::MismatchedTypes => "E0213",
       Self::TraitNotSatisfied => "E0214",
       Self::BorrowCheckerViolation => "E0215",
+
+      Self::InvalidConstKeyword => "E0216",
     }
   }
 
