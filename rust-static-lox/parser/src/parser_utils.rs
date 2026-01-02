@@ -17,6 +17,7 @@ pub enum ParserContext {
   Closure,
   Trait,
   Impl,
+  Extern,
   Macro,
   Static,
   Type,

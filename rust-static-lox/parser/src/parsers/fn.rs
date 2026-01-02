@@ -24,7 +24,58 @@ impl Parser {
     let params = self.parse_function_params(is_extern, ParserContext::Function)?;
     let return_type = self.parse_return_type(context)?;
     let where_clause = self.parse_where_clause(context)?;
-    let body = Some(self.parse_block(None, ParserContext::Default, vec![])?);
+
+    let has_semi = matches!(self.current_token().kind, TokenKind::Semi);
+    let has_body = matches!(self.current_token().kind, TokenKind::LBrace);
+
+    let body = match context {
+      ParserContext::Trait => {
+        if has_semi {
+          self.expect(TokenKind::Semi)?;
+          None
+        } else if has_body {
+          Some(self.parse_block(None, ParserContext::Default, vec![])?)
+        } else {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(self.err_unexpected_token(self.current_token().span, "`;` or `{`", &found));
+          return Err(());
+        }
+      },
+      ParserContext::Impl | ParserContext::Function => {
+        if has_semi {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(self.err_unexpected_token(self.current_token().span, "`{`", &found));
+          return Err(());
+        }
+
+        if has_body {
+          Some(self.parse_block(None, ParserContext::Default, vec![])?)
+        } else {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(self.err_unexpected_token(self.current_token().span, "`{`", &found));
+          return Err(());
+        }
+      },
+      ParserContext::Extern => {
+        if has_semi {
+          self.expect(TokenKind::Semi)?;
+          None
+        } else {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(self.err_unexpected_token(self.current_token().span, "`;`", &found));
+          return Err(());
+        }
+      },
+      _ => {
+        if has_body {
+          Some(self.parse_block(None, ParserContext::Default, vec![])?)
+        } else {
+          let found = self.get_token_lexeme(&self.current_token());
+          self.emit(self.err_unexpected_token(self.current_token().span, "`{`", &found));
+          return Err(());
+        }
+      },
+    };
 
     Ok(Item::Vis(VisItem {
       attributes,
