@@ -11,6 +11,36 @@ Parser Progress
 Change Log
 ----------
 
+2026-01-02
+- Refactored identifiers to `Ident` across the parser and AST, then aligned impl parsing/tests,
+  extern type assertions, and the sample `duck.lox` program to match the new name handling.
+- Added trait declaration parsing with associated items, updated the grammar progress markers,
+  and built a dedicated trait test module that exercises attributes, defaults, and edge cases.
+- Enforced Rust-like function item rules (impl/free require bodies; trait items allow `;` or body;
+  extern items require `;`) and tightened impl associated type bounds handling.
+- Lexer now treats whitespace/newlines as lifetime terminators so `'a` at line endings lex correctly.
+
+2026-01-01
+- Added extern type declaration parsing and expanded foreign module handling alongside extern crate
+  improvements.
+
+2025-12-28
+- Implemented module declaration parsing and tightened extern crate parsing to accept more
+  identifier forms.
+
+2025-12-27
+- Implemented const declaration parsing and added a dedicated test module for constants.
+- Refined lifetime lexing plus diagnostic wiring to harden error reporting and recovery.
+- Expanded use-declaration parsing/tests to cover new forms and edge cases.
+
+2025-12-26
+- Enhanced use-declaration parsing/tests and loop-expression handling to cover more control-flow
+  shapes.
+
+2025-12-25
+- Expanded parser test coverage across comparison, control-flow, macro, pattern, variable, static,
+  visibility, type, and term layers.
+
 2025-12-13
 - Completed struct literal coverage by threading record/tuple/unit struct expressions
   through the expression parser, introducing `Expr::TupleStruct`, tracking field spans,
