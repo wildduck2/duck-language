@@ -1,5 +1,9 @@
 use crate::{
-  ast::{path::Path, Delimiter, Expr, ExprKind, MacroInvocation, RepeatKind, Stmt, TokenTree},
+  ast::{
+    path::Path, Attribute, Delimiter, Expr, ExprKind, Item, MacroInvocation, MacroItem,
+    MacroItemKind, MacroRule, MacroRulesDecl, RepeatKind, Stmt, TokenTree, VisItem, VisItemKind,
+    Visibility,
+  },
   match_and_consume,
   parser_utils::ParserContext,
   Parser,
@@ -8,11 +12,36 @@ use crate::{
 use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
-// TODO: token tree parsing here is still a syntax only approximation.
-// Right now it does not model full macro tt munching rules.
-// Keep it as is until you implement full macro parsing.
-
 impl Parser {
+  pub(crate) fn parse_macro_rules_decl(
+    &mut self,
+    attributes: Vec<Attribute>,
+    visibility: Visibility,
+    context: ParserContext,
+  ) -> Result<Item, ()> {
+    let mut token = self.current_token();
+    if !attributes.is_empty() {
+      token.span.merge(self.current_token().span);
+    }
+
+    self.expect(TokenKind::KwMacroRules)?;
+    self.expect(TokenKind::Bang)?;
+
+    let name = self.parse_name(true)?;
+    let rules = self.parse_macro_rules(context)?;
+
+    Ok(Item::Macro(MacroItem {
+      attributes,
+      visibility,
+      kind: MacroItemKind::MacroRules(MacroRulesDecl { name, rules }),
+      span: *token.span.merge(self.last_token_span()),
+    }))
+  }
+
+  pub(crate) fn parse_macro_rules(&mut self, context: ParserContext) -> Result<Vec<MacroRule>, ()> {
+    Err(())
+  }
+
   pub(crate) fn parse_macro_invocation_statement(
     &mut self,
     context: ParserContext,

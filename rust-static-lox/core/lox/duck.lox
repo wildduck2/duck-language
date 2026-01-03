@@ -1,3 +1,2 @@
-impl Foo { 
-  fn f()
+macro_rules! foo {
 }

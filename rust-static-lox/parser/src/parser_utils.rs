@@ -52,6 +52,9 @@ impl Parser {
     visibility: Visibility,
   ) -> Result<Item, ()> {
     match self.current_token().kind {
+      TokenKind::KwMacroRules => {
+        self.parse_macro_rules_decl(attributes, visibility, ParserContext::Default)
+      },
       TokenKind::KwUnion => self.parse_union_decl(attributes, visibility, ParserContext::Union),
       TokenKind::KwImpl | TokenKind::KwUnsafe if self.can_start_impl() => {
         self.parse_impl_decl(attributes, visibility, ParserContext::Impl)
@@ -129,7 +132,13 @@ impl Parser {
             | TokenKind::Dollar
             | TokenKind::KwCrate
             | TokenKind::KwSuper
-            | TokenKind::LParen
+            | TokenKind::LParen // )
+                                //   && matches!(
+                                // context,
+                                // ParserContext::Block
+                                //   | ParserContext::LoopCondition
+                                //   | ParserContext::WhileCondition
+                                //   | ParserContext::Default
         ) =>
       {
         self.parse_macro_invocation_statement(context)

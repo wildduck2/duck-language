@@ -55,6 +55,7 @@ impl Lexer {
       "macro" => Ok(TokenKind::KwMacro),
       "auto" => Ok(TokenKind::KwAuto),
       "default" => Ok(TokenKind::KwDefault),
+      "macro_rules" => Ok(TokenKind::KwMacroRules),
 
       // Modifier Keywords
       "pub" => Ok(TokenKind::Kwpub),

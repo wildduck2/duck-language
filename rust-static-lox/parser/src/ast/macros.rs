@@ -3,7 +3,7 @@
 
 use diagnostic::Span;
 
-use crate::ast::{Delimiter, Path, TokenTree};
+use crate::ast::{Delimiter, Ident, Path, TokenTree};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MacroInvocation {
@@ -15,9 +15,8 @@ pub struct MacroInvocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MacroRulesDecl {
-  pub name: String,
+  pub name: Ident,
   pub rules: Vec<MacroRule>,
-  pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]

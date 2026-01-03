@@ -51,6 +51,7 @@ pub enum VisItemKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MacroItem {
   pub attributes: Vec<Attribute>,
+  pub visibility: Visibility,
   pub kind: MacroItemKind,
   pub span: Span,
 }

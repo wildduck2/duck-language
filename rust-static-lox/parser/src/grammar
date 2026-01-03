@@ -13,8 +13,8 @@ shebang                 -> "#!" ~[\n]* ;
 
 item                    -> outerAttr* visItem ;
 
-visItem                 -> visibility? itemKind
-                         | macroItem ;
+visItem                 -> visibility? itemKind  [-]
+                         | macroItem ;           [-]
 
 /* Safe reorder: each alternative has a distinct leading keyword/token */
 itemKind                -> functionItem            [x]
@@ -24,7 +24,7 @@ itemKind                -> functionItem            [x]
                          | traitItem               [x]
                          | implItem                [x]
                          | constItem               [x]
-                         | staticItem              [-]
+                         | staticItem              [x]
                          | moduleItem              [x]
                          | useItem                 [x]
                          | externCrateItem         [x]
@@ -37,7 +37,7 @@ itemKind                -> functionItem            [x]
 /* ------------------------------------------------------------------------- */
 
 macroItem               -> macroInvocationSemi ;                              [-]
-                         | macroRulesItem
+                         | macroRulesItem                                     [-]
                          | macro2Item ;
 
 outerAttr               -> "#" "[" attrInput "]" ;
@@ -60,7 +60,6 @@ metaItemInner           -> metaItem | literalExpr ;
 /* Functions                                                                 */
 /* ------------------------------------------------------------------------- */
 
-/* Split signature from bodies to model semantics precisely */
 functionSig             -> functionQualifiers "fn" IDENTIFIER                           [x]
                            genericParams? "(" functionParams? ")" functionReturnType?   [x]
                            whereClause? ;                                               [x]
@@ -71,7 +70,6 @@ foreignFunctionItem     -> functionSig ";" ;               /* foreign items end 
 
 associatedFunctionItem  -> functionSig (blockExpr | ";") ; /* traits may have default bodies or ';' */ [x]
 
-/* Qualifiers */
 functionQualifiers      -> "const"? "async"? "unsafe"? ("extern" abi?)? ;  [x]
 
 abi                     -> STRING | RAW_STRING ;  [x]
@@ -92,12 +90,6 @@ functionReturnType      -> "->" type ;  [x]
 /* Structs                                                                   */
 /* ------------------------------------------------------------------------- */
 
-/*
-   Struct where placement rules:
-   - record:    where BEFORE '{', no trailing ';'
-   - tuple:     where AFTER ')', then ';' is required
-   - unit:      where BEFORE ';', ';' is required
-*/
 structItem               -> "struct" IDENTIFIER genericParams?      [x]
                             ( whereClause? recordStructFields       [x]
                             | tupleStructFields whereClause? ";"    [x]
@@ -133,15 +125,10 @@ unionItem                -> "union" IDENTIFIER genericParams?
 /* Consts, Statics, Type Aliases                                             */
 /* ------------------------------------------------------------------------- */
 
-/* Free-standing const must have initializer */
 constItem                -> "const" (IDENTIFIER | "_") ":" type "=" expression ";" ; [x]
-
-/* Free-standing static may omit initializer */
-/* FIX 1: allow '_' identifier like rustc */
 staticItem               -> "static" "mut"? (IDENTIFIER | "_") ":" type
                             ("=" expression)? ";" ;  [x]
 
-/* Free-standing type alias must have '=' type */
 typeAliasItem             -> "type" IDENTIFIER genericParams?
                             (":" typeParamBounds)?
                             whereClause? "=" type ";" ;  [x]
@@ -287,13 +274,10 @@ genericArg                -> LIFETIME                                           
                            | genericArgsBinding                                 [x]
                            | constrainedTypeParam ;                             [x]
 
-/* const args: grammar-level expression; evaluator enforces const-evaluable */
 genericArgsConst          -> expression ; [x]
 
-/* equality binding: e.g., Item<'a> = T */
 genericArgsBinding        -> IDENTIFIER genericArgs? "=" type ; [x]
 
-/* constrained type param (allowed contextually in bounds, like Item: Trait) */
 constrainedTypeParam      -> IDENTIFIER genericArgs? ":" typeParamBounds ; [x]
 
 /* ------------------------------------------------------------------------- */
@@ -343,12 +327,12 @@ bareFunctionType          -> forLifetimes? unsafe? externAbi? "fn"
                              "(" (type ("," type)* ("," "...")? | "...")? ","? ")"
                              ("->" typeNoBounds)?                                  [x]
 
-qualifiedPathInType       -> qualifiedPathType ("::" typePath)? ;     [-]
-qualifiedPathType         -> "<" type ("as" typePath)? ">" ;          [-]
+qualifiedPathInType       -> qualifiedPathType ("::" typePath)? ;     [x]
+qualifiedPathType         -> "<" type ("as" typePath)? ">" ;          [x]
 
 /* Note: no turbofish '::<' in type paths */
-typePath                  -> "::"? typePathSegment ("::" typePathSegment)* ; [-]
-typePathSegment           -> pathIdentSegment genericArgs? ;                 [-]
+typePath                  -> "::"? typePathSegment ("::" typePathSegment)* ; [x]
+typePathSegment           -> pathIdentSegment genericArgs? ;                 [x]
 
 /* ------------------------------------------------------------------------- */
 /* Paths in expressions                                                      */
@@ -441,8 +425,8 @@ obsoleteRangePattern      -> rangePatternBound "..." ;  [x]
 statement                 -> ";"
                            | item                   [-]
                            | letStatement           [x]
-                           | expressionStatement    [-]
-                           | macroInvocationSemi ;  [-]
+                           | expressionStatement    [x]
+                           | macroInvocationSemi ;  [x]
 
 letStatement              -> outerAttr* "let" patternNoTopAlt (":" type)?
                              ("=" expression ("else" blockExpr)?)? ";" ;  [x]
@@ -454,7 +438,7 @@ expressionStatement       -> expressionWithoutBlock ";"  [x]
 /* Macro invocations in expr/stmt                                            */
 /* ------------------------------------------------------------------------- */
 
-macroInvocationSemi       -> simplePath "!" delimTokenTree ";" ;  [-]
+macroInvocationSemi       -> simplePath "!" delimTokenTree ";" ;  [x]
 
 /* ------------------------------------------------------------------------- */
 /* Expressions                                                               */

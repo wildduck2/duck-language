@@ -370,22 +370,23 @@ pub enum TokenKind {
   KwReturn,   // return
 
   // Declaration Keywords
-  KwLet,     // let
-  KwFn,      // fn
-  KwStruct,  // struct
-  KwEnum,    // enum
-  KwUnion,   // union
-  KwTrait,   // trait
-  KwImpl,    // impl
-  KwType,    // type
-  KwMod,     // mod
-  KwUse,     // use
-  KwConst,   // const
-  KwStatic,  // static
-  KwExtern,  // extern
-  KwMacro,   // macro (2.0 / reserved)
-  KwAuto,    // auto (contextual in real Rust; treated as keyword here)
-  KwDefault, // default (contextual in real Rust; treated as keyword here)
+  KwLet,        // let
+  KwFn,         // fn
+  KwStruct,     // struct
+  KwEnum,       // enum
+  KwUnion,      // union
+  KwTrait,      // trait
+  KwImpl,       // impl
+  KwType,       // type
+  KwMod,        // mod
+  KwUse,        // use
+  KwConst,      // const
+  KwStatic,     // static
+  KwExtern,     // extern
+  KwMacro,      // macro (2.0 / reserved)
+  KwAuto,       // auto (contextual in real Rust; treated as keyword here)
+  KwDefault,    // default (contextual in real Rust; treated as keyword here)
+  KwMacroRules, // macro_rules! (2.0 / reserved)
 
   // Modifier Keywords
   Kwpub,    // pub
