@@ -134,66 +134,8 @@ impl Parser {
 
     Ok(None)
   }
-
-  // Recursively parses a delimited token tree into TokenTree.
-  fn parse_delim_token_tree(&mut self) -> Result<TokenTree, ()> {
-    let open = self.current_token();
-
-    let delimiter = match open.kind {
-      TokenKind::LParen => Delimiter::Paren,
-      TokenKind::LBracket => Delimiter::Bracket,
-      TokenKind::LBrace => Delimiter::Brace,
-      _ => {
-        let found = self.get_token_lexeme(&open);
-        self.emit(self.err_unexpected_token(
-          open.span,
-          "delimiter start (`(`, `[`, or `{`)",
-          &found,
-        ));
-        return Err(());
-      },
-    };
-
-    self.advance();
-
-    let mut tokens = Vec::new();
-
-    while !self.is_eof() {
-      let token = self.current_token();
-
-      let is_close = matches!(
-        (&token.kind, &delimiter),
-        (TokenKind::RParen, Delimiter::Paren)
-          | (TokenKind::RBracket, Delimiter::Bracket)
-          | (TokenKind::RBrace, Delimiter::Brace)
-      );
-
-      if is_close {
-        self.advance();
-        break;
-      }
-
-      if matches!(
-        token.kind,
-        TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace
-      ) {
-        let nested = self.parse_delim_token_tree()?;
-        tokens.push(nested);
-        continue;
-      }
-
-      let lexeme = self.get_token_lexeme(&token);
-      tokens.push(TokenTree::Token(lexeme));
-      self.advance();
-    }
-
-    Ok(TokenTree::Delimited { delimiter, tokens })
-  }
 }
 
-// Small helpers to avoid changing your TokenTree enum shape.
-// If your TokenTree already has these variants, keep this impl.
-// If not, adjust these to match your actual TokenTree definition.
 impl TokenTree {
   fn delimiter(&self) -> Delimiter {
     match self {

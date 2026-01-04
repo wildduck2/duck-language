@@ -1,2 +1,16 @@
-macro_rules! foo {
-}
+//macro_rules! simple {
+//  () => ();
+//};
+//
+
+//macro_rules! add {
+//  ($a:expr, $b:expr) => {
+//    $a + $b
+//  };
+//}
+
+macro_rules! make_vec [
+//  ($($x:expr),*) => {
+//    vec![$($x),*]
+//  };
+]

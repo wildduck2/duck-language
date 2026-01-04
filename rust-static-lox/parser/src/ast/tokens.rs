@@ -1,6 +1,8 @@
 // Token trees used by attributes and macros.
 // This is purely syntactic (no expansion).
 
+use crate::ast::Ident;
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Delimiter {
@@ -31,7 +33,7 @@ pub enum TokenTree {
     kind: RepeatKind,
   },
   MetaVar {
-    name: String,
-    frag: String,
+    name: Ident,
+    frag: Ident,
   },
 }
