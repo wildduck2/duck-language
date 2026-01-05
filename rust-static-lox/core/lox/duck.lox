@@ -1,16 +1,78 @@
-//macro_rules! simple {
-//  () => ();
-//};
-//
+macro_rules! simple {
+  () => ();
+};
 
-//macro_rules! add {
-//  ($a:expr, $b:expr) => {
-//    $a + $b
-//  };
-//}
+
+macro_rules! add {
+  ($a:expr, $b:expr) => {
+    $a + $b
+  };
+}
 
 macro_rules! make_vec [
-//  ($($x:expr),*) => {
-//    vec![$($x),*]
-//  };
+  ($($x:expr),*) => {
+    vec![$($x),*]
+  };
 ]
+
+macro_rules! multi {
+  ($x:ident) => ($x);
+  ($x:expr) => { $x };
+}
+
+macro_rules! nested {
+  ($(($a:expr)),+) => {
+    $(println!("{}", $a);)+
+  };
+}
+
+macro_rules! all_fragments {
+  ($b:block) => {};
+  ($e:expr) => {};
+  ($i:ident) => {};
+  ($it:item) => {};
+  ($l:lifetime) => {};
+  ($lit:literal) => {};
+  ($m:meta) => {};
+  ($p:pat) => {};
+  ($pp:pat_param) => {};
+  ($path:path) => {};
+  ($s:stmt) => {};
+  ($tt:tt) => {};
+  ($ty:ty) => {};
+  ($v:vis) => {};
+}
+
+macro_rules! sep {
+  ($($x:expr);*) => {
+    $(println!("{}", $x);)*
+  };
+}
+
+macro_rules! token_tree {
+  ({ $($tt:tt)* }) => {
+    { $($tt)* }
+  };
+}
+
+macro_rules! stress {
+  (
+    $vis:vis fn $name:ident < $($lt:lifetime),* > ( $($arg:ident : $ty:ty),* ) -> $ret:ty
+  ) => {
+    $vis fn $name<$($lt),*>( $($arg:$ty),* ) -> $ret {
+      unimplemented!()
+    }
+  };
+}
+
+
+//macro my_macro($x, $y,) {
+//  ($x + $y)
+//}
+//
+//macro empty() {
+//  ()
+//}
+
+
+

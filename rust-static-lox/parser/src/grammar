@@ -37,8 +37,8 @@ itemKind                -> functionItem            [x]
 /* ------------------------------------------------------------------------- */
 
 macroItem               -> macroInvocationSemi ;                              [-]
-                         | macroRulesItem                                     [-]
-                         | macro2Item ;
+                         | macroRulesItem                                     [x]
+                         | macro2Item ;                                       [-]
 
 outerAttr               -> "#" "[" attrInput "]" ;
 innerAttr               -> "#" "!" "[" attrInput "]" ;
@@ -50,7 +50,7 @@ attrInputTail           -> delimTokenTree
 
 delimTokenTree          -> "(" tokenStream ")"
                          | "[" tokenStream "]"
-                         | "{" tokenStream "}" ;
+                         | "{" tokenStream "}" ;                               [x]
 
 metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;
 metaSeq                 -> metaItemInner ("," metaItemInner)* ","? ;
@@ -199,32 +199,32 @@ externTypeItem           -> "extern" "type" IDENTIFIER ";" ;                 [x]
 /* Macros (defs)                                                             */
 /* ------------------------------------------------------------------------- */
 
-macroRulesItem            -> "macro_rules" "!" IDENTIFIER macroRulesDef ;
+macroRulesItem            -> "macro_rules" "!" IDENTIFIER macroRulesDef ;     [x]
 macroRulesDef             -> "(" macroRules ")" ";"
                            | "{" macroRules "}"
-                           | "[" macroRules "]" ;
+                           | "[" macroRules "]" ;                            [x]
 
-macroRules                -> macroRule (";" macroRule)* ";"? ;
-macroRule                 -> macroMatcher "=>" macroTranscriber ;
+macroRules                -> macroRule (";" macroRule)* ";"? ;                [x]
+macroRule                 -> macroMatcher "=>" macroTranscriber ;             [x]
 
 macroMatcher              -> "(" macroMatch* ")"
                            | "[" macroMatch* "]"
-                           | "{" macroMatch* "}" ;
+                           | "{" macroMatch* "}" ;                           [x]
 
 macroMatch                -> tokenExceptDelims
                            | macroMatcher
-                           | "$" (IDENTIFIER ":" macroFragSpec | "(" macroMatch+ ")" macroRepSep? macroRepOp) ;
+                           | "$" (IDENTIFIER ":" macroFragSpec | "(" macroMatch+ ")" macroRepSep? macroRepOp) ; [x]
 
 macroFragSpec             -> "block" | "expr" | "ident" | "item" | "lifetime" | "literal"
-                           | "meta" | "pat" | "pat_param" | "path" | "stmt" | "tt" | "ty" | "vis" ;
+                           | "meta" | "pat" | "pat_param" | "path" | "stmt" | "tt" | "ty" | "vis" ; [x]
 
-macroRepSep               -> tokenExceptDelims | macroRepOp ;
-macroRepOp                -> "*" | "+" | "?" ;
+macroRepSep               -> tokenExceptDelims | macroRepOp ;                 [x]
+macroRepOp                -> "*" | "+" | "?" ;                               [x]
 
-macroTranscriber          -> delimTokenTree ;
+macroTranscriber          -> delimTokenTree ;                                [x]
 
-macro2Item                -> "macro" IDENTIFIER "(" macroParams? ")" delimTokenTree ;
-macroParams               -> IDENTIFIER ("," IDENTIFIER)* ","? ;
+macro2Item                -> "macro" IDENTIFIER "(" macroParams? ")" delimTokenTree ;  [-]
+macroParams               -> IDENTIFIER ("," IDENTIFIER)* ","? ;             [-]
 
 /* ------------------------------------------------------------------------- */
 /* Generics                                                                  */
@@ -294,10 +294,10 @@ type                      -> typeNoBounds             [-]
                            | implTraitType
                            | traitObjectType ;
 
-typeNoBounds              -> parenthesizedType        [-]
+typeNoBounds              -> parenthesizedType        [x]
                            | implTraitTypeOneBound
                            | traitObjectTypeOneBound
-                           | typePath                 [-]
+                           | typePath                 [x]
                            | tupleType                [x]
                            | neverType                [x]
                            | rawPointerType           [x]
@@ -305,7 +305,7 @@ typeNoBounds              -> parenthesizedType        [-]
                            | arrayType                [x]
                            | sliceType                [x]
                            | inferredType             [x]
-                           | qualifiedPathInType      [-]
+                           | qualifiedPathInType      [x]
                            | bareFunctionType         [x]
                            | macroInvocation ;
 
@@ -548,7 +548,7 @@ structExprTuple             -> pathInExpression "(" (expression ("," expression)
 structExprUnit              -> pathInExpression ;  [x]
 
 closureExpr                 -> closureFlavors ("||" | "|" closureParams? "|")
-                               (expression | "->" typeNoBounds blockExpr) ;  [-]
+                               (expression | "->" typeNoBounds blockExpr) ;  [x]
 closureFlavors              -> ("move" "async"? | "async" "move"? | ε) ;             [x]
 closureParams               -> closureParam ("," closureParam)* ","? ;        [x]
 closureParam                -> outerAttr* patternNoTopAlt (":" type)? ;       [x]
@@ -562,7 +562,7 @@ tryBlockExpr                -> outerAttr* "try" blockExpr ;            [x]  /* n
 statements                  -> statement+ expression? ;  [x]
                            | expression ;               [x]
 
-loopExpr                    -> infiniteLoopExpr                                         [x]
+loopExpr                    -> infiniteLoopExpr                                       [x]
                            | predicateLoopExpr                                        [x]
                            | predicatePatternLoopExpr                                 [x]
                            | iteratorLoopExpr                                         [x]
@@ -650,14 +650,14 @@ expressionKindWithBlock     -> blockExpr        [x]
 /* Macro invocation (expr/stmt/type)                                         */
 /* ------------------------------------------------------------------------- */
 
-macroInvocation             -> simplePath "!" delimTokenTree ;
+macroInvocation             -> simplePath "!" delimTokenTree ;                [x]
 
 /* ------------------------------------------------------------------------- */
 /* Tokens                                                                    */
 /* ------------------------------------------------------------------------- */
 
-tokenStream                 -> tokenTree* ;
+tokenStream                 -> tokenTree* ;                                   [x]
 tokenTree                   -> tokenExceptDelims
-                           | delimTokenTree ;
+                           | delimTokenTree ;                                 [x]
 
 tupleIndex                  -> INTEGER ;

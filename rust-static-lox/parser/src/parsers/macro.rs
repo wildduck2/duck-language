@@ -39,24 +39,31 @@ impl Parser {
   }
 
   pub(crate) fn parse_macro_rules(&mut self) -> Result<Vec<MacroRule>, ()> {
-    match self.current_token().kind {
-      TokenKind::LBrace => {
-        self.advance(); // consume '{'
-        let mut rules = vec![];
-        while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
-          rules.push(self.parse_macro_rule()?);
-          match_and_consume!(self, TokenKind::Semi)?;
-        }
-        self.expect(TokenKind::RBrace)?;
-        Ok(rules)
-      },
+    let (close_kind, needs_semi) = match self.current_token().kind {
+      TokenKind::LBrace => (TokenKind::RBrace, false),
+      TokenKind::LBracket => (TokenKind::RBracket, false),
+      TokenKind::LParen => (TokenKind::RParen, true),
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "`{`", &lexeme));
-        Err(())
+        self.emit(self.err_unexpected_token(token.span, "`{`, `[`, or `(`", &lexeme));
+        return Err(());
       },
+    };
+
+    // macro_rules! bodies use {}, [], or () + trailing ';' (paren form).
+    self.advance(); // consume opening delimiter
+    let mut rules = vec![];
+    while !self.is_eof() && self.current_token().kind != close_kind {
+      rules.push(self.parse_macro_rule()?);
+      match_and_consume!(self, TokenKind::Semi)?;
     }
+    self.expect(close_kind)?;
+    if needs_semi {
+      self.expect(TokenKind::Semi)?;
+    }
+
+    Ok(rules)
   }
 
   fn parse_macro_rule(&mut self) -> Result<MacroRule, ()> {
@@ -75,56 +82,178 @@ impl Parser {
   }
 
   fn parse_macro_matcher(&mut self) -> Result<TokenTree, ()> {
+    let (open_kind, close_kind, delimiter) = match self.current_token().kind {
+      TokenKind::LParen => (TokenKind::LParen, TokenKind::RParen, Delimiter::Paren),
+      TokenKind::LBracket => (TokenKind::LBracket, TokenKind::RBracket, Delimiter::Bracket),
+      TokenKind::LBrace => (TokenKind::LBrace, TokenKind::RBrace, Delimiter::Brace),
+      _ => {
+        let token = self.current_token();
+        let lexeme = self.get_token_lexeme(&token);
+        self.emit(self.err_unexpected_token(token.span, "`(`, `[`, or `{`", &lexeme));
+        return Err(());
+      },
+    };
+
+    // Matchers are delimited token trees that may contain `$` metavars and repetitions.
+    self.expect(open_kind)?;
+    let mut tokens = vec![];
+    while !self.is_eof() && self.current_token().kind != close_kind {
+      tokens.push(self.parse_macro_match()?);
+    }
+    self.expect(close_kind)?;
+
+    Ok(TokenTree::Delimited { delimiter, tokens })
+  }
+
+  fn parse_macro_match(&mut self) -> Result<TokenTree, ()> {
     match self.current_token().kind {
-      TokenKind::LParen => {
-        self.advance(); // consume '('
-        let mut tokens = vec![];
-        while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
-          tokens.push(self.parse_macro_match()?);
-        }
-        self.expect(TokenKind::RParen)?;
-        Ok(TokenTree::Delimited {
-          delimiter: Delimiter::Paren,
-          tokens,
-        })
+      TokenKind::Dollar => self.parse_macro_match_dollar(),
+      TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => self.parse_macro_matcher(),
+      TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace => {
+        let token = self.current_token();
+        let lexeme = self.get_token_lexeme(&token);
+        self.emit(self.err_unexpected_token(token.span, "macro matcher token", &lexeme));
+        Err(())
       },
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "`(`", &lexeme));
+        self.advance();
+        Ok(TokenTree::Token(lexeme))
+      },
+    }
+  }
+
+  fn parse_macro_match_dollar(&mut self) -> Result<TokenTree, ()> {
+    self.expect(TokenKind::Dollar)?;
+
+    match self.current_token().kind {
+      // $name:frag
+      TokenKind::Ident => {
+        let name = self.parse_name(false)?;
+        self.expect(TokenKind::Colon)?;
+        let frag = self.parse_macro_frag_spec()?;
+        Ok(TokenTree::MetaVar { name, frag })
+      },
+
+      // $( ... ) separator? rep_op
+      TokenKind::LParen => self.parse_macro_repetition(),
+
+      _ => {
+        let token = self.current_token();
+        let lexeme = self.get_token_lexeme(&token);
+        self.emit(self.err_unexpected_token(token.span, "macro matcher", &lexeme));
         Err(())
       },
     }
   }
 
-  fn parse_macro_match(&mut self) -> Result<TokenTree, ()> {
-    match self.current_token().kind {
-      TokenKind::Dollar => {
-        self.advance();
-        let name = self.parse_name(false)?;
-        self.expect(TokenKind::Colon)?;
-        let frag = self.parse_name(false)?;
-        Ok(TokenTree::MetaVar { name, frag })
-      },
-      TokenKind::Comma => {
-        println!("{:?}", self.current_token().kind);
-        self.advance();
-        Ok(TokenTree::Token(",".to_string()))
-      },
-      _ => Err(()),
+  fn parse_macro_repetition(&mut self) -> Result<TokenTree, ()> {
+    self.expect(TokenKind::LParen)?;
+
+    if matches!(self.current_token().kind, TokenKind::RParen) {
+      let token = self.current_token();
+      let lexeme = self.get_token_lexeme(&token);
+      self.emit(self.err_unexpected_token(token.span, "macro matcher", &lexeme));
+      return Err(());
     }
+
+    let mut tokens = vec![];
+    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RParen) {
+      tokens.push(self.parse_macro_match()?);
+    }
+    self.expect(TokenKind::RParen)?;
+
+    let (separator, kind) = self.parse_macro_repetition_op()?;
+    Ok(TokenTree::Repeat {
+      tokens,
+      separator,
+      kind,
+    })
   }
 
-  fn parse_macro_frag_spec(&mut self, context: ParserContext) -> Result<TokenTree, ()> {
-    let mut token = self.current_token();
+  fn parse_macro_repetition_op(&mut self) -> Result<(Option<String>, RepeatKind), ()> {
+    // If the next token is a repetition operator, there's no separator.
+    let direct_op = match self.current_token().kind {
+      TokenKind::Star => Some(RepeatKind::ZeroOrMore),
+      TokenKind::Plus => Some(RepeatKind::OneOrMore),
+      TokenKind::Question => Some(RepeatKind::ZeroOrOne),
+      _ => None,
+    };
 
-    match self.current_token().kind {
-      TokenKind::Ident => {
-        self.advance();
-        Ok(TokenTree::Token(self.get_token_lexeme(&token)))
-      },
-      _ => Err(()),
+    if let Some(kind) = direct_op {
+      self.advance();
+      return Ok((None, kind));
     }
+
+    // Otherwise treat the next token as a separator and require a repetition op after it.
+    let separator_token = self.current_token();
+    if matches!(
+      separator_token.kind,
+      TokenKind::LParen
+        | TokenKind::LBracket
+        | TokenKind::LBrace
+        | TokenKind::RParen
+        | TokenKind::RBracket
+        | TokenKind::RBrace
+    ) {
+      let lexeme = self.get_token_lexeme(&separator_token);
+      self.emit(self.err_unexpected_token(
+        separator_token.span,
+        "macro repetition operator",
+        &lexeme,
+      ));
+      return Err(());
+    }
+
+    let separator = self.get_token_lexeme(&separator_token);
+    self.advance();
+
+    let kind = match self.current_token().kind {
+      TokenKind::Star => RepeatKind::ZeroOrMore,
+      TokenKind::Plus => RepeatKind::OneOrMore,
+      TokenKind::Question => RepeatKind::ZeroOrOne,
+      _ => {
+        let token = self.current_token();
+        let lexeme = self.get_token_lexeme(&token);
+        self.emit(self.err_unexpected_token(token.span, "macro repetition operator", &lexeme));
+        return Err(());
+      },
+    };
+    self.advance();
+
+    Ok((Some(separator), kind))
+  }
+
+  fn parse_macro_frag_spec(&mut self) -> Result<crate::ast::Ident, ()> {
+    let token = self.current_token();
+    let frag = self.parse_name(false)?;
+    let frag_name = frag.as_str();
+
+    let is_valid = matches!(
+      frag_name,
+      "block"
+        | "expr"
+        | "ident"
+        | "item"
+        | "lifetime"
+        | "literal"
+        | "meta"
+        | "pat"
+        | "pat_param"
+        | "path"
+        | "stmt"
+        | "tt"
+        | "ty"
+        | "vis"
+    );
+
+    if !is_valid {
+      self.emit(self.err_unexpected_token(token.span, "macro fragment specifier", frag_name));
+      return Err(());
+    }
+
+    Ok(frag)
   }
 
   pub(crate) fn parse_macro_invocation_statement(
