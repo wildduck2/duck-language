@@ -52,8 +52,9 @@ impl Parser {
     visibility: Visibility,
   ) -> Result<Item, ()> {
     match self.current_token().kind {
+      TokenKind::KwMacro => self.parse_macro_decl(attributes, visibility, ParserContext::Macro),
       TokenKind::KwMacroRules => {
-        self.parse_macro_rules_decl(attributes, visibility, ParserContext::Default)
+        self.parse_macro_rules_decl(attributes, visibility, ParserContext::Macro)
       },
       TokenKind::KwUnion => self.parse_union_decl(attributes, visibility, ParserContext::Union),
       TokenKind::KwImpl | TokenKind::KwUnsafe if self.can_start_impl() => {

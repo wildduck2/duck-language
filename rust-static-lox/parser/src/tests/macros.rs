@@ -158,7 +158,6 @@ mod macros_tests {
   }
 
   #[test]
-  #[ignore = "macro_rules items are not implemented yet"]
   fn parses_macro_rules_item() {
     let item = parse_item_decl("macro_rules! m { () => {} }").unwrap();
     match item {
@@ -171,12 +170,21 @@ mod macros_tests {
   }
 
   #[test]
-  #[ignore = "macro 2.0 items are not implemented yet"]
   fn parses_macro2_item() {
-    let item = parse_item_decl("macro m(x, y) { }").unwrap();
+    let item = parse_item_decl("macro m(x, y,) { }").unwrap();
     match item {
       Item::Macro(mac) => match mac.kind {
-        MacroItemKind::Macro2(_) => {},
+        MacroItemKind::Macro2(decl) => {
+          assert_eq!(decl.name, "m");
+          assert_eq!(decl.params, vec!["x".to_string(), "y".to_string()]);
+          match decl.body {
+            TokenTree::Delimited { delimiter, tokens } => {
+              assert_eq!(delimiter, Delimiter::Brace);
+              assert!(tokens.is_empty());
+            },
+            other => panic!("expected macro2 body token tree, got: {:?}", other),
+          }
+        },
         other => panic!("expected macro2 item, got: {:?}", other),
       },
       other => panic!("expected macro item, got: {:?}", other),

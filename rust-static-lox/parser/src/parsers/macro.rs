@@ -1,8 +1,7 @@
 use crate::{
   ast::{
-    path::Path, Attribute, Delimiter, Expr, ExprKind, Item, MacroInvocation, MacroItem,
-    MacroItemKind, MacroRule, MacroRulesDecl, RepeatKind, Stmt, TokenTree, VisItem, VisItemKind,
-    Visibility,
+    path::Path, Attribute, Delimiter, Expr, ExprKind, Item, Macro2Decl, MacroInvocation, MacroItem,
+    MacroItemKind, MacroRule, MacroRulesDecl, RepeatKind, Stmt, TokenTree, Visibility,
   },
   match_and_consume,
   parser_utils::ParserContext,
@@ -13,11 +12,62 @@ use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
+  pub(crate) fn parse_macro_decl(
+    &mut self,
+    attributes: Vec<Attribute>,
+    visibility: Visibility,
+    _context: ParserContext,
+  ) -> Result<Item, ()> {
+    let mut token = self.current_token();
+    if !attributes.is_empty() {
+      token.span.merge(self.current_token().span);
+    }
+
+    self.expect(TokenKind::KwMacro)?;
+    let name = self.parse_name(false)?;
+    self.expect(TokenKind::LParen)?;
+    let params = self.parse_macro_params()?;
+    self.expect(TokenKind::RParen)?;
+    let body = self.parse_delim_token_tree()?;
+
+    Ok(Item::Macro(MacroItem {
+      attributes,
+      visibility,
+      kind: MacroItemKind::Macro2(Macro2Decl { name, params, body }),
+      span: *token.span.merge(self.last_token_span()),
+    }))
+  }
+
+  fn parse_macro_params(&mut self) -> Result<Vec<String>, ()> {
+    // macroParams: IDENT ("," IDENT)* ","?
+    let mut params = Vec::new();
+    if matches!(self.current_token().kind, TokenKind::RParen) {
+      return Ok(params);
+    }
+
+    loop {
+      let param = self.parse_name(false)?;
+      params.push(param.as_str().to_string());
+
+      if matches!(self.current_token().kind, TokenKind::Comma) {
+        self.advance(); // consume ','
+        if matches!(self.current_token().kind, TokenKind::RParen) {
+          break;
+        }
+        continue;
+      }
+
+      break;
+    }
+
+    Ok(params)
+  }
+
   pub(crate) fn parse_macro_rules_decl(
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ParserContext,
+    _context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     if !attributes.is_empty() {

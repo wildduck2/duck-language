@@ -38,7 +38,7 @@ itemKind                -> functionItem            [x]
 
 macroItem               -> macroInvocationSemi ;                              [-]
                          | macroRulesItem                                     [x]
-                         | macro2Item ;                                       [-]
+                         | macro2Item ;                                       [x]
 
 outerAttr               -> "#" "[" attrInput "]" ;
 innerAttr               -> "#" "!" "[" attrInput "]" ;
@@ -223,8 +223,8 @@ macroRepOp                -> "*" | "+" | "?" ;                               [x]
 
 macroTranscriber          -> delimTokenTree ;                                [x]
 
-macro2Item                -> "macro" IDENTIFIER "(" macroParams? ")" delimTokenTree ;  [-]
-macroParams               -> IDENTIFIER ("," IDENTIFIER)* ","? ;             [-]
+macro2Item                -> "macro" IDENTIFIER "(" macroParams? ")" delimTokenTree ;  [x]
+macroParams               -> IDENTIFIER ("," IDENTIFIER)* ","? ;             [x]
 
 /* ------------------------------------------------------------------------- */
 /* Generics                                                                  */
