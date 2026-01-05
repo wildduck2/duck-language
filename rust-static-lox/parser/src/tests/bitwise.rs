@@ -73,6 +73,11 @@ mod bitwise_tests {
   }
 
   #[test]
+  fn bitwise_or_stops_before_comparison() {
+    assert_expr("1 == 2", bin(BinaryOp::Eq, int(1), int(2)));
+  }
+
+  #[test]
   fn errors_when_or_missing_rhs() {
     assert_err("1 |");
   }
