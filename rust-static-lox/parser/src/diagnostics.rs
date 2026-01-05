@@ -45,6 +45,9 @@ impl Parser {
         LabelStyle::Primary,
       )
       .with_note(format!("unexpected token: `{found}`"))
+      .with_help(format!(
+        "use `{expected}` here or adjust the surrounding syntax"
+      ))
   }
 
   pub(crate) fn err_missing_closing_bracket(&self, span: Span, bracket_type: &str) -> Diagnostic {
@@ -71,6 +74,7 @@ impl Parser {
         format!("invalid literal: {details}"),
       )
       .with_label(span, Some(details.to_string()), LabelStyle::Primary)
+      .with_help("check the literal syntax and escape sequences".to_string())
   }
 
   pub(crate) fn err_unterminated_string(&self, span: Span, string_type: &str) -> Diagnostic {
@@ -199,6 +203,9 @@ impl Parser {
         span,
         Some(format!("mutability specifier not allowed in {context}")),
         LabelStyle::Primary,
+      )
+      .with_help(
+        "use `mut` on bindings or `&mut`/`*mut` on types when mutability is allowed".to_string(),
       )
   }
 
@@ -333,6 +340,7 @@ impl Parser {
         LabelStyle::Primary,
       )
       .with_note(format!("trailing commas are not permitted in {context}"))
+      .with_help("remove the trailing comma or add another element".to_string())
   }
 
   // Function and parameter errors
@@ -480,6 +488,7 @@ impl Parser {
         Some(format!("`{flavor}` blocks cannot be used in {context}")),
         LabelStyle::Primary,
       )
+      .with_help("remove the block flavor or use it in a standalone block expression".to_string())
   }
 
   pub(crate) fn err_invalid_flavor_order(&self, span: Span, details: &str) -> Diagnostic {
@@ -489,6 +498,9 @@ impl Parser {
         format!("invalid block flavor order: {details}"),
       )
       .with_label(span, Some(details.to_string()), LabelStyle::Primary)
+      .with_help(
+        "use `async` optionally followed by `move`, or use `unsafe`/`try` alone".to_string(),
+      )
   }
 
   // Trailing `+` in bounds (existing, but improved)

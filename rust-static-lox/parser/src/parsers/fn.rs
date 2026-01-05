@@ -171,13 +171,14 @@ impl Parser {
         let name = self.get_token_lexeme(&self.current_token());
         if name != "C" {
           let diagnostic = self
-            .diagnostic(DiagnosticError::InvalidAbi, "invalid ABI")
+            .diagnostic(DiagnosticError::InvalidAbi, format!("unsupported ABI `{name}`"))
             .with_label(
               self.current_token().span,
-              Some("invalid ABI".to_string()),
+              Some("only the `C` ABI is supported here".to_string()),
               LabelStyle::Primary,
             )
-            .with_help("ABI must be either C or C-like".to_string());
+            .with_help("use `extern \"C\"` or remove the ABI string".to_string())
+            .with_note("other ABIs are not implemented yet".to_string());
           self.emit(diagnostic);
           return Err(());
         }
@@ -226,7 +227,8 @@ impl Parser {
             Some("variadic parameters are not allowed in non-extern functions".to_string()),
             LabelStyle::Primary,
           )
-          .with_help("variadic parameters are only allowed in extern functions".to_string());
+          .with_help("variadic parameters are only allowed in extern functions".to_string())
+          .with_note("C-style variadics require `extern` functions".to_string());
         self.emit(diagnostic);
         return Err(());
       }
@@ -277,6 +279,7 @@ impl Parser {
         binding,
         name,
         subpattern: None,
+        span,
         ..
       } if name == "self" => {
         let mutability = match binding {
@@ -284,7 +287,13 @@ impl Parser {
           BindingMode::ByRef(_) => {
             let diagnostic = self
               .diagnostic(DiagnosticError::InvalidSelfParam, "invalid self parameter")
-              .with_help("use `&self` or `&mut self`, not `ref self`".to_string());
+              .with_label(
+                *span,
+                Some("`ref self` is not valid in method parameters".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_help("use `&self` or `&mut self` instead of `ref self`".to_string())
+              .with_note("`ref` bindings are only allowed in patterns".to_string());
             self.emit(diagnostic);
             return Err(());
           },
@@ -307,6 +316,7 @@ impl Parser {
       Pattern::Reference {
         depth: 1,
         pattern: inner,
+        span,
         ..
       } => match &**inner {
         Pattern::Ident {
@@ -326,7 +336,13 @@ impl Parser {
                 DiagnosticError::InvalidSelfParam,
                 "typed self parameters cannot be references",
               )
-              .with_help("use `self: Type` or `&self` syntax, not both".to_string());
+              .with_label(
+                *span,
+                Some("`self: Type` cannot be combined with `&`".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_help("use `self: Type` or `&self` syntax, not both".to_string())
+              .with_note("`&self` already makes the parameter a reference".to_string());
             self.emit(diagnostic);
             return Err(());
           }

@@ -124,6 +124,7 @@ impl Parser {
       TokenKind::KwType if !is_inherit => {
         self.advance(); // consume "type"
 
+        let name_span = self.current_token().span;
         let name = self.parse_name(false)?;
 
         let mut dummy = self.current_token();
@@ -145,11 +146,15 @@ impl Parser {
         // Your AST requires `ty: Type` (not Option), so require `= Type` here.
         if !matches!(self.current_token().kind, TokenKind::Eq) {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(
-            self.current_token().span,
-            "associated type default `= Type`",
-            &found,
-          ));
+          let diagnostic = self
+            .err_unexpected_token(
+              self.current_token().span,
+              "associated type default `= Type`",
+              &found,
+            )
+            .with_help("provide a default type for this associated type".to_string())
+            .with_note("associated types in impls currently require a default".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -159,13 +164,14 @@ impl Parser {
 
         if let k @ Ident::Self_ = name {
           let diagnostic = self
-            .diagnostic(DiagnosticError::InvalidNameIdentifier, "invalid name")
+            .diagnostic(DiagnosticError::InvalidNameIdentifier, "invalid associated type name")
             .with_label(
-              self.current_token().span,
-              Some(format!("You can not use `{}` as a type name", k.as_str()).to_string()),
+              name_span,
+              Some(format!("`{}` is a reserved name", k.as_str()).to_string()),
               LabelStyle::Primary,
             )
-            .with_help("use proper identifier names".to_string());
+            .with_help("use a different identifier for the associated type".to_string())
+            .with_note("`self` is reserved for method receivers".to_string());
           self.emit(diagnostic);
           return Err(());
         }
@@ -190,7 +196,10 @@ impl Parser {
 
         if !matches!(self.current_token().kind, TokenKind::Eq) {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`= <expr>`", &found));
+          let diagnostic = self
+            .err_unexpected_token(self.current_token().span, "`= <expr>`", &found)
+            .with_help("provide an initializer expression for this associated const".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 

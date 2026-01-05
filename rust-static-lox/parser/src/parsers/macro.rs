@@ -355,17 +355,21 @@ impl Parser {
       TokenKind::LBrace => (TokenKind::LBrace, Delimiter::Brace, TokenKind::RBrace),
       _ => {
         let lexeme = self.get_token_lexeme(&token);
+        let expected = "a delimiter start (`(`, `[`, or `{`)";
         let diagnostic = self
           .diagnostic(
             DiagnosticError::UnexpectedToken,
-            format!("unexpected token `{lexeme}` in macro invocation"),
+            format!("expected macro arguments, found `{lexeme}`"),
           )
           .with_label(
             token.span,
-            Some("Expected `(`, `[` or `{` to start macro arguments".to_string()),
+            Some(format!("expected {expected} to start macro arguments")),
             LabelStyle::Primary,
           )
-          .with_help("Macro invocations must be followed by a delimited token tree.".to_string());
+          .with_help(
+            "macro invocations must be followed by a delimited token tree".to_string(),
+          )
+          .with_note("examples: `foo!(...)`, `foo![...]`, `foo!{...}`".to_string());
         self.emit(diagnostic);
         return Err(());
       },
