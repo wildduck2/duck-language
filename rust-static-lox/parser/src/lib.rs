@@ -1,7 +1,12 @@
 use std::{cell::RefCell, rc::Rc};
 
 use diagnostic::{
-  diagnostic::LabelStyle, types::error::DiagnosticError, DiagnosticEngine, SourceFile, Span,
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  DiagnosticEngine,
+  SourceFile,
+  Span,
 };
 use lexer::token::{Token, TokenKind};
 
@@ -9,7 +14,6 @@ use crate::ast::Item;
 
 pub mod ast;
 mod decoder;
-mod diagnostics;
 mod parser_utils;
 mod parsers;
 #[cfg(test)]
@@ -54,6 +58,20 @@ impl Parser {
     self.parse_program()
   }
 
+  // Create a parser diagnostic pre-populated with the current file path.
+  pub(crate) fn diagnostic(&self, code: DiagnosticError, message: impl Into<String>) -> Diagnostic {
+    Diagnostic::new(
+      DiagnosticCode::Error(code),
+      message.into(),
+      self.source_file.path.clone(),
+    )
+  }
+
+  // Emit a diagnostic through the parser's engine.
+  pub(crate) fn emit(&mut self, diagnostic: Diagnostic) {
+    self.engine.borrow_mut().add(diagnostic);
+  }
+
   /// Returns the token at the current cursor position.
   fn current_token(&self) -> Token {
     self.tokens[self.current].clone()
@@ -89,7 +107,18 @@ impl Parser {
   fn advance(&mut self) {
     if self.is_eof() {
       let current_token = self.current_token();
-      self.emit(self.err_unterminated_string(current_token.span, "string"));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnterminatedString,
+          "unterminated string literal",
+        )
+        .with_label(
+          current_token.span,
+          Some("string literal is not terminated".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("add a closing quote to terminate the string literal".to_string());
+      self.emit(diagnostic);
       return;
     }
 
@@ -144,7 +173,21 @@ impl Parser {
   fn error_expected_token_eof(&mut self, expected: TokenKind) {
     let token = self.current_token();
     let expected_str = format!("{expected:?}");
-    self.emit(self.err_unexpected_token(token.span, &expected_str, "end of file"));
+    let diagnostic = self
+      .diagnostic(
+        DiagnosticError::UnexpectedToken,
+        format!("expected `{expected_str}`, found `end of file`"),
+      )
+      .with_label(
+        token.span,
+        Some(format!("expected `{expected_str}` here")),
+        LabelStyle::Primary,
+      )
+      .with_note("unexpected token: `end of file`".to_string())
+      .with_help(format!(
+        "use `{expected_str}` here or adjust the surrounding syntax"
+      ));
+    self.emit(diagnostic);
   }
 
   /// Error for when we expect a token but find something else
@@ -156,8 +199,25 @@ impl Parser {
       .get(current_token.span.start..current_token.span.end)
       .unwrap();
     let expected_str = format!("{expected:?}");
-    let mut diag = self.err_unexpected_token(current_token.span, &expected_str, lexeme);
-    diag = diag.with_help(Parser::get_token_help(&expected, &found));
+    let mut diag = self
+      .diagnostic(
+        DiagnosticError::UnexpectedToken,
+        format!("expected `{expected_str}`, found `{lexeme}`"),
+      )
+      .with_label(
+        current_token.span,
+        Some(format!("expected `{expected_str}` here")),
+        LabelStyle::Primary,
+      )
+      .with_note(format!("unexpected token: `{lexeme}`"))
+      .with_help(format!(
+        "use `{expected_str}` here or adjust the surrounding syntax"
+      ));
+
+    let token_help = Parser::get_token_help(&expected, &found);
+    if !token_help.is_empty() {
+      diag = diag.with_help(token_help);
+    }
     self.emit(diag);
   }
 
@@ -215,10 +275,15 @@ impl Parser {
 
         _ => {
           let found = self.get_token_lexeme(&bad);
-          self.emit(self.err_invalid_comma(
-            bad.span,
-            &format!("expected expression or ')', found `{found}`"),
-          ));
+          let diagnostic = self
+            .diagnostic(DiagnosticError::InvalidComma, "unexpected comma".to_string())
+            .with_label(
+              bad.span,
+              Some(format!("expected expression or ')', found `{found}`")),
+              LabelStyle::Primary,
+            )
+            .with_help("remove the comma or add a valid element after it".to_string());
+          self.emit(diagnostic);
           Err(())
         },
       }

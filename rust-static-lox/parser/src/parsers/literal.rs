@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{LiteralKind, Token};
 
 use crate::{
@@ -48,7 +49,19 @@ impl Parser {
     base: lexer::token::Base,
   ) -> Result<Expr, ()> {
     if empty_int {
-      self.emit(self.err_invalid_literal(token.span, "integer literal has no digits"));
+      let details = "integer literal has no digits";
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::InvalidLiteral,
+          format!("invalid literal: {details}"),
+        )
+        .with_label(
+          token.span,
+          Some(details.to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("check the literal syntax and escape sequences".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -72,8 +85,19 @@ impl Parser {
     let value = match parsed {
       Ok(v) => v,
       Err(_) => {
-        self
-          .emit(self.err_invalid_literal(token.span, "integer literal is too large or malformed"));
+        let details = "integer literal is too large or malformed";
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidLiteral,
+            format!("invalid literal: {details}"),
+          )
+          .with_label(
+            token.span,
+            Some(details.to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("check the literal syntax and escape sequences".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };
@@ -110,7 +134,19 @@ impl Parser {
     let value = match parsed {
       Ok(v) => v,
       Err(_) => {
-        self.emit(self.err_invalid_literal(token.span, "float literal is too large or malformed"));
+        let details = "float literal is too large or malformed";
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidLiteral,
+            format!("invalid literal: {details}"),
+          )
+          .with_label(
+            token.span,
+            Some(details.to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("check the literal syntax and escape sequences".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };

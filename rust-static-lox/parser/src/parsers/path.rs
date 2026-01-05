@@ -108,7 +108,18 @@ impl Parser {
       let (segment, is_dollar_crate) = self.parse_path_segment(with_args, context)?;
       if is_dollar_crate && !segments.is_empty() {
         let offending = self.peek_prev(0);
-        self.emit(self.err_unexpected_token(offending.span, "path segment", "$crate"));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            "expected path segment, found `$crate`",
+          )
+          .with_label(
+            offending.span,
+            Some("`$crate` is only allowed at the start of a path".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("move `$crate` to the beginning of the path or remove it".to_string());
+        self.emit(diagnostic);
         return Err(());
       }
 
@@ -191,7 +202,21 @@ impl Parser {
       },
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_invalid_path_segment(token.span, &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidPathSegment,
+            format!("expected path segment, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some(format!("expected a path segment, found `{lexeme}`")),
+            LabelStyle::Primary,
+          )
+          .with_help(
+            "valid path segments are identifiers or keywords like `self`, `super`, `crate`, or `$crate`"
+              .to_string(),
+          );
+        self.emit(diagnostic);
         Err(())
       },
     }

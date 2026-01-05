@@ -1,4 +1,5 @@
 use crate::{ast::*, Parser};
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 #[repr(u8)]
@@ -95,11 +96,19 @@ impl Parser {
       },
       _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_unexpected_token(
-          self.current_token().span,
-          "item declaration",
-          &lexeme,
-        ));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `item declaration`, found `{lexeme}`"),
+          )
+          .with_label(
+            self.current_token().span,
+            Some("expected `item declaration` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("use a valid item declaration or remove the token".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }
@@ -254,7 +263,19 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "primary expression", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `primary expression`, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected `primary expression` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("start an expression or remove the unexpected token".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }

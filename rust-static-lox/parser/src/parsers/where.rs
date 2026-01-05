@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{ast::generic::*, match_and_consume, parser_utils::ParserContext, Parser};
@@ -28,7 +29,21 @@ impl Parser {
     if predicates.is_empty() {
       let token = self.current_token();
       let lexeme = self.get_token_lexeme(&token);
-      self.emit(self.err_invalid_where_clause(token.span, &lexeme));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::InvalidWhereClause,
+          format!("expected where-clause predicate, found `{lexeme}`"),
+        )
+        .with_label(
+          token.span,
+          Some("expected a valid where-clause predicate here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(
+          "where-clauses must contain at least one predicate, like `T: Clone` or `'a: 'b`"
+            .to_string(),
+        );
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -60,7 +75,18 @@ impl Parser {
         if bounds.is_empty() {
           let token = self.current_token();
           let lexeme = self.get_token_lexeme(&token);
-          self.emit(self.err_invalid_trait_bound(token.span, &lexeme));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::InvalidTraitBound,
+              format!("expected trait bound, found `{lexeme}`"),
+            )
+            .with_label(
+              token.span,
+              Some("expected a trait bound here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note("trait bounds must be trait names, like `Clone` or `Copy`".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -81,7 +107,23 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_invalid_where_predicate(token.span, &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidWherePredicate,
+            format!("expected where-clause predicate, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some(format!(
+              "expected a predicate like `T: Trait` or `'a: 'b`, found `{lexeme}`"
+            )),
+            LabelStyle::Primary,
+          )
+          .with_note(
+            "where-clause predicates must be of the form `Type: Bound`, `'lifetime: 'bound`, or `Type::Assoc = Type`"
+              .to_string(),
+          );
+        self.emit(diagnostic);
         Err(())
       },
     }

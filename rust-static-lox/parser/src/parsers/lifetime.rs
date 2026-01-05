@@ -1,3 +1,5 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
+
 use crate::Parser;
 use lexer::token::TokenKind;
 
@@ -26,7 +28,18 @@ impl Parser {
     }
 
     let lexeme = self.get_token_lexeme(&self.current_token());
-    self.emit(self.err_expected_lifetime(token.span, &lexeme));
+    let diagnostic = self
+      .diagnostic(
+        DiagnosticError::UnexpectedLifetime,
+        format!("expected lifetime, found `{lexeme}`"),
+      )
+      .with_label(
+        token.span,
+        Some("expected a valid lifetime here".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_note("a lifetime must be a valid identifier, like `'a` or `'b`".to_string());
+    self.emit(diagnostic);
     Err(())
   }
 
@@ -38,7 +51,18 @@ impl Parser {
       if matches!(self.current_token().kind, TokenKind::Gt) {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_expected_lifetime(token.span, &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedLifetime,
+            format!("expected lifetime, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected a valid lifetime here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note("a lifetime must be a valid identifier, like `'a` or `'b`".to_string());
+        self.emit(diagnostic);
         return Err(());
       }
 

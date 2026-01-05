@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -62,7 +63,19 @@ impl Parser {
         _ => {
           let bad = self.current_token();
           let lexeme = self.get_token_lexeme(&bad);
-          self.emit(self.err_unexpected_token(bad.span, "`,` or `]`", &lexeme));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `,` or `]`, found `{lexeme}`"),
+            )
+            .with_label(
+              bad.span,
+              Some("expected `,` or `]` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{lexeme}`"))
+            .with_help("use `,` to separate elements or close the array with `]`".to_string());
+          self.emit(diagnostic);
           return Err(());
         },
       }

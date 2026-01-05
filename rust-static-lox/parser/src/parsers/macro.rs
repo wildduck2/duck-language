@@ -96,7 +96,19 @@ impl Parser {
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "`{`, `[`, or `(`", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `{{`, `[`, or `(`, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected `{{`, `[`, or `(` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("use a valid macro_rules! body delimiter".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };
@@ -139,7 +151,19 @@ impl Parser {
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "`(`, `[`, or `{`", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `(`, `[`, or `{{`, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected `(`, `[`, or `{{` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("start a macro matcher with a delimiter".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };
@@ -162,7 +186,19 @@ impl Parser {
       TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "macro matcher token", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `macro matcher token`, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected `macro matcher token` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("remove the stray closing delimiter or add a matcher token".to_string());
+        self.emit(diagnostic);
         Err(())
       },
       _ => {
@@ -192,7 +228,19 @@ impl Parser {
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "macro matcher", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `macro matcher`, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected `macro matcher` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("use `$name:fragment` or `$(...)` repetition syntax".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }
@@ -204,7 +252,19 @@ impl Parser {
     if matches!(self.current_token().kind, TokenKind::RParen) {
       let token = self.current_token();
       let lexeme = self.get_token_lexeme(&token);
-      self.emit(self.err_unexpected_token(token.span, "macro matcher", &lexeme));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected `macro matcher`, found `{lexeme}`"),
+        )
+        .with_label(
+          token.span,
+          Some("expected `macro matcher` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{lexeme}`"))
+        .with_help("add a matcher token inside the repetition".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -248,11 +308,19 @@ impl Parser {
         | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&separator_token);
-      self.emit(self.err_unexpected_token(
-        separator_token.span,
-        "macro repetition operator",
-        &lexeme,
-      ));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected `macro repetition operator`, found `{lexeme}`"),
+        )
+        .with_label(
+          separator_token.span,
+          Some("expected `macro repetition operator` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{lexeme}`"))
+        .with_help("use `*`, `+`, or `?` to end a repetition".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -266,7 +334,19 @@ impl Parser {
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "macro repetition operator", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `macro repetition operator`, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected `macro repetition operator` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("use `*`, `+`, or `?` after the separator".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };
@@ -299,7 +379,19 @@ impl Parser {
     );
 
     if !is_valid {
-      self.emit(self.err_unexpected_token(token.span, "macro fragment specifier", frag_name));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected `macro fragment specifier`, found `{frag_name}`"),
+        )
+        .with_label(
+          token.span,
+          Some("expected `macro fragment specifier` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{frag_name}`"))
+        .with_help("use a valid fragment specifier like `expr`, `ident`, or `ty`".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -424,11 +516,19 @@ impl Parser {
       TokenKind::LBrace => Delimiter::Brace,
       _ => {
         let found = self.get_token_lexeme(&open);
-        self.emit(self.err_unexpected_token(
-          open.span,
-          "delimiter start (`(`, `[`, or `{`)",
-          &found,
-        ));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `delimiter start (`(`, `[`, or `{{`)`, found `{found}`"),
+          )
+          .with_label(
+            open.span,
+            Some("expected `delimiter start (`(`, `[`, or `{{`)` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{found}`"))
+          .with_help("start a delimited token tree with `(`, `[`, or `{`".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };

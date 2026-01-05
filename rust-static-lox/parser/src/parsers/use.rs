@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -102,7 +103,19 @@ impl Parser {
 
       _ => {
         let found = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_unexpected_token(self.current_token().span, "use tree", &found));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `use tree`, found `{found}`"),
+          )
+          .with_label(
+            self.current_token().span,
+            Some("expected `use tree` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{found}`"))
+          .with_help("use `use tree` here or adjust the surrounding syntax".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
     };

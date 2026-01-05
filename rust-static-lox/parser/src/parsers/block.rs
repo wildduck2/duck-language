@@ -3,10 +3,10 @@ use crate::{
     attrs::Attribute,
     expr::{BlockFlavor, Expr, ExprKind},
   },
-  match_and_consume,
   parser_utils::ParserContext,
   Parser,
 };
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 impl Parser {
@@ -50,8 +50,20 @@ impl Parser {
   ) -> Result<BlockFlavor, ()> {
     if !matches!(context, ParserContext::Default) {
       let token = self.current_token();
-      let flavor = "block flavor";
-      self.emit(self.err_invalid_block_flavor_context(token.span, flavor, "this context"));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::InvalidBlockFlavorContext,
+          "block flavors are not allowed in this context",
+        )
+        .with_label(
+          token.span,
+          Some("block flavors cannot be used here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help(
+          "remove the block flavor or use it in a standalone block expression".to_string(),
+        );
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -77,10 +89,18 @@ impl Parser {
         // forbid any other keyword after async or async move
         match self.current_token().kind {
           TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry | TokenKind::KwMove => {
-            self.emit(self.err_invalid_flavor_order(
-              start_span,
-              "async blocks may only be followed by optional move",
-            ));
+            let details = "async blocks may only be followed by optional move";
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidFlavorOrder,
+                format!("invalid block flavor order: {details}"),
+              )
+              .with_label(start_span, Some(details.to_string()), LabelStyle::Primary)
+              .with_help(
+                "use `async` optionally followed by `move`, or use `unsafe`/`try` alone"
+                  .to_string(),
+              );
+            self.emit(diagnostic);
             return Err(());
           },
           _ => {},
@@ -94,10 +114,18 @@ impl Parser {
         // unsafe cannot be followed by any other flavor
         match self.current_token().kind {
           TokenKind::KwAsync | TokenKind::KwMove | TokenKind::KwTry | TokenKind::KwUnsafe => {
-            self.emit(self.err_invalid_flavor_order(
-              start_span,
-              "unsafe cannot be mixed with other block flavors",
-            ));
+            let details = "unsafe cannot be mixed with other block flavors";
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidFlavorOrder,
+                format!("invalid block flavor order: {details}"),
+              )
+              .with_label(start_span, Some(details.to_string()), LabelStyle::Primary)
+              .with_help(
+                "use `async` optionally followed by `move`, or use `unsafe`/`try` alone"
+                  .to_string(),
+              );
+            self.emit(diagnostic);
             return Err(());
           },
           _ => {},
@@ -111,9 +139,18 @@ impl Parser {
         // try cannot be followed by anything
         match self.current_token().kind {
           TokenKind::KwAsync | TokenKind::KwMove | TokenKind::KwUnsafe | TokenKind::KwTry => {
-            self.emit(
-              self.err_invalid_flavor_order(start_span, "try must appear alone before a block"),
-            );
+            let details = "try must appear alone before a block";
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidFlavorOrder,
+                format!("invalid block flavor order: {details}"),
+              )
+              .with_label(start_span, Some(details.to_string()), LabelStyle::Primary)
+              .with_help(
+                "use `async` optionally followed by `move`, or use `unsafe`/`try` alone"
+                  .to_string(),
+              );
+            self.emit(diagnostic);
             return Err(());
           },
           _ => {},
@@ -121,7 +158,17 @@ impl Parser {
       },
 
       TokenKind::KwMove => {
-        self.emit(self.err_invalid_flavor_order(start_span, "move cannot introduce a block"));
+        let details = "move cannot introduce a block";
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidFlavorOrder,
+            format!("invalid block flavor order: {details}"),
+          )
+          .with_label(start_span, Some(details.to_string()), LabelStyle::Primary)
+          .with_help(
+            "use `async` optionally followed by `move`, or use `unsafe`/`try` alone".to_string(),
+          );
+        self.emit(diagnostic);
         return Err(());
       },
 
@@ -139,7 +186,18 @@ impl Parser {
       } else {
         "async"
       };
-      self.emit(self.err_expected_block_after_flavor(start_span, flavor));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::ExpectedBlockAfterFlavor,
+          format!("expected block after `{flavor}`"),
+        )
+        .with_label(
+          start_span,
+          Some(format!("expected a block `{{ ... }}` after `{flavor}`")),
+          LabelStyle::Primary,
+        )
+        .with_help(format!("add a block after `{flavor}`"));
+      self.emit(diagnostic);
       return Err(());
     }
 

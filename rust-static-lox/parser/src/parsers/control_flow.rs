@@ -19,14 +19,39 @@ impl Parser {
 
     if !matches!(self.current_token().kind, TokenKind::LBrace) {
       let found = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(self.current_token().span, "block", &found));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected block, found `{found}`"),
+        )
+        .with_label(
+          self.current_token().span,
+          Some("expected a block `{ ... }` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{found}`"))
+        .with_help("add a block after the `if` condition".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
     if !self.is_valid_condition(&condition) {
       token.span.merge(self.last_token_span());
       let found = self.get_token_lexeme(&token);
-      self.emit(self.err_invalid_condition(token.span, &found));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::InvalidCondition,
+          format!("expected boolean expression, found `{found}`"),
+        )
+        .with_label(
+          token.span,
+          Some("expected a condition that evaluates to a boolean".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help(
+          "conditions in `if`, `while`, and `match` expressions must be boolean".to_string(),
+        );
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -86,7 +111,18 @@ impl Parser {
     );
 
     if !allowed {
-      self.emit(self.err_continue_outside_loop(token.span));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::ContinueOutsideLoop,
+          "`continue` statement outside of loop",
+        )
+        .with_label(
+          token.span,
+          Some("`continue` can only be used inside a loop body".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("remove this `continue` statement or move it inside a loop".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -99,11 +135,19 @@ impl Parser {
       TokenKind::Semi | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(
-        self.current_token().span,
-        "colon or closing brace",
-        &lexeme,
-      ));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected `;` or `}}`, found `{lexeme}`"),
+        )
+        .with_label(
+          self.current_token().span,
+          Some("expected `;` or `}` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{lexeme}`"))
+        .with_help("end the `continue` statement or close the block".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -123,7 +167,18 @@ impl Parser {
     );
 
     if !allowed {
-      self.emit(self.err_break_outside_loop(token.span));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::BreakOutsideLoop,
+          "`break` statement outside of loop",
+        )
+        .with_label(
+          token.span,
+          Some("`break` can only be used inside a loop body".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("remove this `break` statement or move it inside a loop".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -145,11 +200,19 @@ impl Parser {
       TokenKind::Semi | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(
-        self.current_token().span,
-        "semicolon or closing brace",
-        &lexeme,
-      ));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected `;` or `}}`, found `{lexeme}`"),
+        )
+        .with_label(
+          self.current_token().span,
+          Some("expected `;` or `}` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{lexeme}`"))
+        .with_help("end the `break` statement or close the block".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -176,7 +239,18 @@ impl Parser {
     );
 
     if !allowed {
-      self.emit(self.err_return_outside_function(token.span));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::ReturnOutsideFunction,
+          "`return` statement outside of function",
+        )
+        .with_label(
+          token.span,
+          Some("`return` can only be used inside a function body".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("remove this `return` statement or move it inside a function".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -196,11 +270,19 @@ impl Parser {
       TokenKind::Semi | TokenKind::RBrace
     ) {
       let lexeme = self.get_token_lexeme(&self.current_token());
-      self.emit(self.err_unexpected_token(
-        self.current_token().span,
-        "semicolon or closing brace",
-        &lexeme,
-      ));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected `;` or `}}`, found `{lexeme}`"),
+        )
+        .with_label(
+          self.current_token().span,
+          Some("expected `;` or `}` here".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note(format!("unexpected token: `{lexeme}`"))
+        .with_help("end the `return` statement or close the block".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 

@@ -116,7 +116,24 @@ impl Parser {
       _ if matches!(token.kind, TokenKind::KwMut | TokenKind::KwConst) => {
         token.span.merge(self.current_token().span);
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_invalid_mutability_in_field(token.span, &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidMutabilityInField,
+            format!("`{lexeme}` cannot be used in this position"),
+          )
+          .with_label(
+            token.span,
+            Some(format!("`{lexeme}` is not allowed before a bare type")),
+            LabelStyle::Primary,
+          )
+          .with_note(
+            "`mut` and `const` cannot modify field or type declarations directly".to_string(),
+          )
+          .with_help(
+            "use `&mut T` or `*mut T` for mutable references or pointers, or make the binding itself mutable"
+              .to_string(),
+          );
+        self.emit(diagnostic);
         Err(())
       },
 
@@ -124,7 +141,20 @@ impl Parser {
       _ => {
         token.span.merge(self.current_token().span);
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_invalid_type(token.span, &lexeme, None));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidType,
+            format!("expected type, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some(format!("not a type: `{lexeme}`")),
+            LabelStyle::Primary,
+          )
+          .with_help(
+            "if this is a type name, ensure it is declared or imported into scope".to_string(),
+          );
+        self.emit(diagnostic);
         Err(())
       },
     }

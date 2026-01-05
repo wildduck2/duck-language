@@ -1,3 +1,5 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
+
 use crate::{
   ast::{
     Attribute, FnSig, ForeignItem, ForeignModDecl, Item, ModuleBody, ModuleDecl, VisItem,
@@ -59,7 +61,19 @@ impl Parser {
       },
       _ => {
         let found = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_unexpected_token(self.current_token().span, "module body", &found));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `;` or `{{` to start module body, found `{found}`"),
+          )
+          .with_label(
+            self.current_token().span,
+            Some("expected `;` or `{` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{found}`"))
+          .with_help("use `;` for an external module or provide an inline module body".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }
@@ -174,7 +188,19 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(token.span, "foreign item", &lexeme));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected foreign item, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected a foreign item here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("use `fn`, `static`, `type`, or a macro invocation inside the extern block".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }

@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -108,7 +109,19 @@ impl Parser {
 
         if !matches!(self.current_token().kind, TokenKind::Eq) {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`= <expr>`", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `= <expr>`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `= <expr>` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("provide a default expression for this associated const".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -140,7 +153,19 @@ impl Parser {
           Ok(TraitItem::Method(func))
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "impl item", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `trait item`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `trait item` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("add a valid trait item like `type`, `const`, or `fn`".to_string());
+          self.emit(diagnostic);
           Err(())
         }
       },
@@ -156,7 +181,19 @@ impl Parser {
 
       _ => {
         let found = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_unexpected_token(self.current_token().span, "impl item", &found));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `trait item`, found `{found}`"),
+          )
+          .with_label(
+            self.current_token().span,
+            Some("expected `trait item` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{found}`"))
+          .with_help("add a valid trait item like `type`, `const`, or `fn`".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }

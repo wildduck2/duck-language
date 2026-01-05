@@ -114,11 +114,19 @@ impl Parser {
 
       _ => {
         let lexeme = self.get_token_lexeme(&token);
-        self.emit(self.err_unexpected_token(
-          token.span,
-          "type, lifetime, or const parameter",
-          &lexeme,
-        ));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected type, lifetime, or const parameter, found `{lexeme}`"),
+          )
+          .with_label(
+            token.span,
+            Some("expected a type, lifetime, or const parameter here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{lexeme}`"))
+          .with_help("use `T`, `'a`, or `const N: Type` here".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }
@@ -174,9 +182,18 @@ impl Parser {
           Ok(TraitBoundModifier::Const)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(
-            self.err_invalid_trait_bound_modifier(self.current_token().span, &format!("~{found}")),
-          );
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::InvalidTraitBoundModifier,
+              format!("expected `const` after `~`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("`~` must be followed by `const` in trait bounds".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_help("use `~const Trait` or remove the modifier".to_string());
+          self.emit(diagnostic);
           Err(())
         }
       },
@@ -192,10 +209,18 @@ impl Parser {
             Ok(TraitBoundModifier::MaybeConst)
           } else {
             let found = self.get_token_lexeme(&self.current_token());
-            self.emit(
-              self
-                .err_invalid_trait_bound_modifier(self.current_token().span, &format!("?~{found}")),
-            );
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidTraitBoundModifier,
+                format!("expected `const` after `?~`, found `{found}`"),
+              )
+              .with_label(
+                self.current_token().span,
+                Some("`?~` must be followed by `const` in trait bounds".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_help("use `?~const Trait` or remove the modifier".to_string());
+            self.emit(diagnostic);
             Err(())
           }
         } else {
@@ -225,13 +250,36 @@ impl Parser {
           if matches!(self.current_token().kind, TokenKind::RParen)
             && matches!(token.kind, TokenKind::Comma)
           {
-            self.emit(self.err_invalid_trailing_comma(token.span, "generic argument list"));
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidTrailingComma,
+                "trailing comma not allowed in generic argument list",
+              )
+              .with_label(
+                token.span,
+                Some("remove this trailing comma".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_note("trailing commas are not permitted in generic argument list".to_string())
+              .with_help("remove the trailing comma or add another element".to_string());
+            self.emit(diagnostic);
             return Err(());
           }
         }
 
         if inputs.is_empty() {
-          self.emit(self.err_empty_generic_args(token.span));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::EmptyGenericArgs,
+              "empty generic arguments list",
+            )
+            .with_label(
+              token.span,
+              Some("generic arguments list cannot be empty".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_help("remove the parentheses or add input types".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -278,12 +326,19 @@ impl Parser {
     // reject invalid types in generic args
     match r#type {
       Type::Unit | Type::Slice { .. } => {
-        let found = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_unexpected_token(
-          *token.span.merge(self.last_token_span()),
-          "valid generic argument",
-          &found,
-        ));
+        let found = self.get_token_lexeme(&token);
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected generic argument type, found `{found}`"),
+          )
+          .with_label(
+            *token.span.merge(self.last_token_span()),
+            Some("expected a valid generic argument type here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("use a named type, lifetime, or const expression as a generic argument".to_string());
+        self.emit(diagnostic);
         return Err(());
       },
       _ => {},
@@ -389,7 +444,19 @@ impl Parser {
       if !Self::can_start_generic_arg(&self.current_token().kind) {
         let bad = self.current_token();
         let found = self.get_token_lexeme(&bad);
-        self.emit(self.err_unexpected_token(bad.span, "generic argument", &found));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected generic argument, found `{found}`"),
+          )
+          .with_label(
+            bad.span,
+            Some("expected a generic argument here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{found}`"))
+          .with_help("add a type, lifetime, or const expression".to_string());
+        self.emit(diagnostic);
         return Err(());
       }
 
@@ -399,8 +466,12 @@ impl Parser {
       if !matches!(self.current_token().kind, TokenKind::Comma | TokenKind::Gt) {
         let bad = self.current_token();
         let found = self.get_token_lexeme(&bad);
-        self
-          .emit(self.err_invalid_comma(bad.span, &format!("expected ',' or '>', found `{found}`")));
+        let details = format!("expected ',' or '>', found `{found}`");
+        let diagnostic = self
+          .diagnostic(DiagnosticError::InvalidComma, "unexpected comma".to_string())
+          .with_label(bad.span, Some(details), LabelStyle::Primary)
+          .with_help("remove the comma or add a valid element after it".to_string());
+        self.emit(diagnostic);
         return Err(());
       }
 
@@ -409,13 +480,36 @@ impl Parser {
       if matches!(self.current_token().kind, TokenKind::Gt)
         && matches!(token.kind, TokenKind::Comma)
       {
-        self.emit(self.err_invalid_trailing_comma(token.span, "generic argument list"));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidTrailingComma,
+            "trailing comma not allowed in generic argument list",
+          )
+          .with_label(
+            token.span,
+            Some("remove this trailing comma".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note("trailing commas are not permitted in generic argument list".to_string())
+          .with_help("remove the trailing comma or add another element".to_string());
+        self.emit(diagnostic);
         return Err(());
       }
     }
 
     if args.is_empty() {
-      self.emit(self.err_empty_generic_args(token.span));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::EmptyGenericArgs,
+          "empty generic arguments list",
+        )
+        .with_label(
+          token.span,
+          Some("generic arguments list cannot be empty".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("remove the angle brackets `<>` or add type parameters".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
@@ -480,12 +574,34 @@ impl Parser {
     let next = self.current_token();
     if Self::is_bound_terminator(&next.kind) {
       let prev = self.peek_prev(0);
-      self.emit(self.err_trailing_plus_in_bounds(prev.span, context));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("trailing `+` in {context} bounds"),
+        )
+        .with_label(
+          prev.span,
+          Some("remove this trailing `+` or add another bound".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("write bounds like `Clone + Copy` without a dangling `+`".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 
     if !is_valid_start(&next.kind) {
-      self.emit(self.err_expected_bound_after_plus(self.peek_prev(0).span, context));
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          format!("expected another bound after `+` in {context}"),
+        )
+        .with_label(
+          self.peek_prev(0).span,
+          Some("add a bound after `+`, e.g. `Trait` or `'a`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note("bounds are separated by `+`, such as `Clone + 'a`".to_string());
+      self.emit(diagnostic);
       return Err(());
     }
 

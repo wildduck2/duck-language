@@ -136,7 +136,18 @@ impl Parser {
         if has_bounds && bounds.is_empty() {
           let token = self.current_token();
           let lexeme = self.get_token_lexeme(&token);
-          self.emit(self.err_invalid_trait_bound(token.span, &lexeme));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::InvalidTraitBound,
+              format!("expected trait bound, found `{lexeme}`"),
+            )
+            .with_label(
+              token.span,
+              Some("expected a trait bound here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note("trait bounds must be trait names, like `Clone` or `Copy`".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -147,10 +158,14 @@ impl Parser {
         if !matches!(self.current_token().kind, TokenKind::Eq) {
           let found = self.get_token_lexeme(&self.current_token());
           let diagnostic = self
-            .err_unexpected_token(
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected associated type default `= Type`, found `{found}`"),
+            )
+            .with_label(
               self.current_token().span,
-              "associated type default `= Type`",
-              &found,
+              Some("expected associated type default `= Type` here".to_string()),
+              LabelStyle::Primary,
             )
             .with_help("provide a default type for this associated type".to_string())
             .with_note("associated types in impls currently require a default".to_string());
@@ -197,7 +212,16 @@ impl Parser {
         if !matches!(self.current_token().kind, TokenKind::Eq) {
           let found = self.get_token_lexeme(&self.current_token());
           let diagnostic = self
-            .err_unexpected_token(self.current_token().span, "`= <expr>`", &found)
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `= <expr>`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `= <expr>` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
             .with_help("provide an initializer expression for this associated const".to_string());
           self.emit(diagnostic);
           return Err(());
@@ -228,7 +252,19 @@ impl Parser {
           Ok(ImplItem::Method(func))
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "impl item", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `impl item`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `impl item` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("add a valid impl item like `fn`, `const`, or a macro invocation".to_string());
+          self.emit(diagnostic);
           Err(())
         }
       },
@@ -244,7 +280,19 @@ impl Parser {
 
       _ => {
         let found = self.get_token_lexeme(&self.current_token());
-        self.emit(self.err_unexpected_token(self.current_token().span, "impl item", &found));
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            format!("expected `impl item`, found `{found}`"),
+          )
+          .with_label(
+            self.current_token().span,
+            Some("expected `impl item` here".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("unexpected token: `{found}`"))
+          .with_help("add a valid impl item like `fn`, `const`, or a macro invocation".to_string());
+        self.emit(diagnostic);
         Err(())
       },
     }

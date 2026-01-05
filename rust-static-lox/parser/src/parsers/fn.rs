@@ -37,14 +37,38 @@ impl Parser {
           Some(self.parse_block(None, ParserContext::Default, vec![])?)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`;` or `{`", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `;` or `{{`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `;` or `{` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("use `;` for a declaration or provide a body block".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
       },
       ParserContext::Impl | ParserContext::Function => {
         if has_semi {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`{`", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `{{`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `{` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("function bodies in this context must use a block".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
 
@@ -52,7 +76,19 @@ impl Parser {
           Some(self.parse_block(None, ParserContext::Default, vec![])?)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`{`", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `{{`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `{` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("function bodies in this context must use a block".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
       },
@@ -62,7 +98,19 @@ impl Parser {
           None
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`;`", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `;`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `;` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("extern function declarations must end with `;`".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
       },
@@ -71,7 +119,19 @@ impl Parser {
           Some(self.parse_block(None, ParserContext::Default, vec![])?)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
-          self.emit(self.err_unexpected_token(self.current_token().span, "`{`", &found));
+          let diagnostic = self
+            .diagnostic(
+              DiagnosticError::UnexpectedToken,
+              format!("expected `{{`, found `{found}`"),
+            )
+            .with_label(
+              self.current_token().span,
+              Some("expected `{` here".to_string()),
+              LabelStyle::Primary,
+            )
+            .with_note(format!("unexpected token: `{found}`"))
+            .with_help("function bodies must use a block".to_string());
+          self.emit(diagnostic);
           return Err(());
         }
       },
