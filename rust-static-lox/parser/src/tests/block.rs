@@ -331,6 +331,16 @@ mod block_tests {
   }
 
   #[test]
+  fn block_flavor_requires_block_after_unsafe() {
+    assert!(parse_flavor("unsafe 1", ParserContext::Default).is_err());
+  }
+
+  #[test]
+  fn block_flavor_requires_block_after_try() {
+    assert!(parse_flavor("try 1", ParserContext::Default).is_err());
+  }
+
+  #[test]
   fn block_flavor_rejects_async_followed_by_other_flavor() {
     assert!(parse_flavor("async unsafe { 1 }", ParserContext::Default).is_err());
   }

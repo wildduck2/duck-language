@@ -132,14 +132,12 @@ impl Parser {
     if (is_async || is_move || is_unsafe || is_try)
       && !matches!(self.current_token().kind, TokenKind::LBrace)
     {
-      let flavor = if is_async {
-        "async"
-      } else if is_unsafe {
+      let flavor = if is_unsafe {
         "unsafe"
       } else if is_try {
         "try"
       } else {
-        "move"
+        "async"
       };
       self.emit(self.err_expected_block_after_flavor(start_span, flavor));
       return Err(());
