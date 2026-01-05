@@ -1,5 +1,5 @@
 use crate::{
-  ast::{Attribute, ExternCrateDecl, Ident, Item, VisItem, VisItemKind, Visibility},
+  ast::{Attribute, ExternCrateDecl, Item, VisItem, VisItemKind, Visibility},
   parser_utils::ParserContext,
   Parser,
 };
@@ -11,7 +11,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
-    context: ParserContext,
+    _context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     if !attributes.is_empty() {

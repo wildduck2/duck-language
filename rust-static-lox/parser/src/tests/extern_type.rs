@@ -15,7 +15,7 @@ mod extern_type_tests {
 
   fn parse_extern_type_decl_direct(input: &str) -> Result<Item, ()> {
     run_parser(input, "extern_type_decl_test_temp", |parser| {
-      parser.parse_extern_type_decl(Vec::new(), Visibility::Private)
+      parser.parse_extern_type_decl(Vec::new(), Visibility::Private, ParserContext::Extern)
     })
   }
 
@@ -35,7 +35,10 @@ mod extern_type_tests {
   }
 
   fn assert_err(input: &str) {
-    assert!(parse_extern_type_item(input).is_err(), "expected error for {input:?}");
+    assert!(
+      parse_extern_type_item(input).is_err(),
+      "expected error for {input:?}"
+    );
   }
 
   #[test]

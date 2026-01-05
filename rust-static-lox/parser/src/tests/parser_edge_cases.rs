@@ -4,7 +4,6 @@ mod parser_edge_cases_tests {
     parser_utils::ParserContext,
     tests::support::{parse_expression, parse_primary_expr, run_parser},
   };
-  use lexer::token::TokenKind;
 
   fn assert_err(input: &str) {
     assert!(
@@ -690,4 +689,3 @@ mod parser_edge_cases_tests {
     parse_expression(&input, "long_expr_test", ParserContext::Default).unwrap();
   }
 }
-

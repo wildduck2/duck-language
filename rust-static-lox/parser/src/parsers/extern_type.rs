@@ -2,6 +2,7 @@ use lexer::token::TokenKind;
 
 use crate::{
   ast::{Attribute, ExternTypeDecl, Item, VisItem, VisItemKind, Visibility},
+  parser_utils::ParserContext,
   Parser,
 };
 
@@ -10,6 +11,7 @@ impl Parser {
     &mut self,
     attributes: Vec<Attribute>,
     visibility: Visibility,
+    _context: ParserContext,
   ) -> Result<Item, ()> {
     let mut token = self.current_token();
     if !attributes.is_empty() {

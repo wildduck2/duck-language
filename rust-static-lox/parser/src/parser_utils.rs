@@ -69,13 +69,13 @@ impl Parser {
         self.parse_const_decl(attributes, visibility, ParserContext::Default)
       },
       TokenKind::KwExtern if matches!(self.peek(1).kind, TokenKind::KwType) => {
-        self.parse_extern_type_decl(attributes, visibility)
+        self.parse_extern_type_decl(attributes, visibility, ParserContext::Extern)
       },
       TokenKind::KwExtern | TokenKind::KwUnsafe if self.can_start_foreign_extern_crate() => {
-        self.parse_foreign_mod_decl(attributes, visibility, ParserContext::Default)
+        self.parse_foreign_mod_decl(attributes, visibility, ParserContext::Module)
       },
       TokenKind::KwExtern if self.can_start_extern_crate() => {
-        self.parse_extern_crate_decl(attributes, visibility, ParserContext::Default)
+        self.parse_extern_crate_decl(attributes, visibility, ParserContext::Extern)
       },
       TokenKind::KwEnum => self.parse_enum_decl(attributes, visibility, ParserContext::Enum),
       TokenKind::KwType => self.parse_type_alias_decl(attributes, visibility, ParserContext::Type),
