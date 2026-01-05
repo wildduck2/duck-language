@@ -76,8 +76,8 @@ mod closure_tests {
   }
 
   #[test]
-  fn closure_move_async() {
-    assert_ok("move async |x| x");
+  fn closure_move_async_errors() {
+    assert_err("move async |x| x");
   }
 
   #[test]
@@ -238,6 +238,21 @@ mod closure_tests {
   #[test]
   fn closure_duplicate_move_flavor_errors() {
     assert_err("move move |x| x");
+  }
+
+  #[test]
+  fn closure_direct_duplicate_async_flavor_errors() {
+    assert_direct_err("async async |x| x");
+  }
+
+  #[test]
+  fn closure_direct_move_async_errors() {
+    assert_direct_err("move async |x| x");
+  }
+
+  #[test]
+  fn closure_direct_duplicate_move_flavor_errors() {
+    assert_direct_err("move move |x| x");
   }
 
   #[test]

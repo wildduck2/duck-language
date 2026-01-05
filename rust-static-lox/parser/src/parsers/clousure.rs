@@ -119,18 +119,67 @@ impl Parser {
     let mut is_move = false;
     let mut is_async = false;
 
-    // We only allow `move` and `async`, in any order, but at most once each.
-    loop {
-      match self.current_token().kind {
-        TokenKind::KwAsync if !is_async => {
-          is_async = true;
-          self.advance();
-        },
-        TokenKind::KwMove if !is_move => {
-          is_move = true;
-          self.advance();
-        },
-        _ => break,
+    if matches!(self.current_token().kind, TokenKind::KwAsync) {
+      is_async = true;
+      self.advance();
+
+      if matches!(self.current_token().kind, TokenKind::KwMove) {
+        is_move = true;
+        self.advance();
+      }
+
+      if matches!(
+        self.current_token().kind,
+        TokenKind::KwAsync | TokenKind::KwMove
+      ) {
+        let bad = self.current_token();
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidFlavorOrder,
+            "invalid closure flavor order",
+          )
+          .with_label(
+            bad.span,
+            Some("async closures may only be followed by optional move".to_string()),
+            LabelStyle::Primary,
+          );
+        self.emit(diagnostic);
+        return Err(());
+      }
+    } else if matches!(self.current_token().kind, TokenKind::KwMove) {
+      is_move = true;
+      self.advance();
+
+      if matches!(self.current_token().kind, TokenKind::KwAsync) {
+        let bad = self.current_token();
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidFlavorOrder,
+            "invalid closure flavor order",
+          )
+          .with_label(
+            bad.span,
+            Some("`async` must come before `move` in async closures".to_string()),
+            LabelStyle::Primary,
+          );
+        self.emit(diagnostic);
+        return Err(());
+      }
+
+      if matches!(self.current_token().kind, TokenKind::KwMove) {
+        let bad = self.current_token();
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::InvalidFlavorOrder,
+            "invalid closure flavor order",
+          )
+          .with_label(
+            bad.span,
+            Some("`move` cannot appear twice in a closure".to_string()),
+            LabelStyle::Primary,
+          );
+        self.emit(diagnostic);
+        return Err(());
       }
     }
 
@@ -138,8 +187,7 @@ impl Parser {
   }
 
   /// Look ahead to verify a closure head can start at the current token.
-  /// Accepts `move`, `async`, or both (any order, single occurrence each)
-  /// followed by `|`. Stops at first unexpected token.
+  /// Accepts `async` optionally followed by `move`, or `move` alone, followed by `|`.
   pub(crate) fn can_start_closure(&self) -> bool {
     let mut offset = 0;
     let mut saw_async = false;
@@ -148,8 +196,8 @@ impl Parser {
     loop {
       match self.peek(offset).kind {
         TokenKind::KwAsync => {
-          // async can only appear once
-          if saw_async {
+          // async can only appear once and must come before move
+          if saw_async || saw_move {
             return false;
           }
           saw_async = true;
