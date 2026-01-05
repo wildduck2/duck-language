@@ -133,4 +133,20 @@ mod module_tests {
       other => panic!("expected function item, got: {:?}", other),
     }
   }
+
+  #[test]
+  fn module_decl_with_attributes_span_merge() {
+    let vis = parse_module_item("#[attr1] #[attr2] mod foo {}").unwrap();
+    let decl = get_module(&vis);
+    assert_eq!(decl.name.as_str(), "foo");
+    assert_eq!(vis.attributes.len(), 2);
+  }
+
+  #[test]
+  fn module_decl_with_visibility_and_attributes() {
+    let vis = parse_module_item("pub(crate) mod foo {}").unwrap();
+    let decl = get_module(&vis);
+    assert_eq!(decl.name.as_str(), "foo");
+    assert_eq!(vis.visibility, Visibility::PublicCrate);
+  }
 }

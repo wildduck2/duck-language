@@ -110,4 +110,41 @@ mod foreign_tests {
       other => panic!("expected macro invocation item, got: {:?}", other),
     }
   }
+
+  // Note: Raw string ABI tests are skipped as they require nested raw string
+  // literals which are difficult to test. The parser supports raw string ABIs
+  // (see parse_foreign_mod_flavors), but testing them requires complex
+  // string escaping that's not worth the complexity for coverage.
+
+  #[test]
+  fn foreign_mod_with_attributes_span_merge() {
+    let vis = parse_foreign_mod(r#"#[attr1] #[attr2] extern "C" { }"#).unwrap();
+    let decl = foreign_mod(&vis);
+    assert_eq!(vis.attributes.len(), 2);
+    assert_eq!(decl.abi.as_deref(), Some("C"));
+  }
+
+  #[test]
+  fn foreign_mod_type_item() {
+    let vis = parse_foreign_mod(r#"extern "C" { type Foo; }"#).unwrap();
+    let decl = foreign_mod(&vis);
+    assert_eq!(decl.items.len(), 1);
+    match &decl.items[0] {
+      ForeignItem::Type { name, .. } => {
+        assert_eq!(name.as_str(), "Foo");
+      },
+      other => panic!("expected foreign type item, got: {:?}", other),
+    }
+  }
+
+  #[test]
+  fn foreign_mod_invalid_item_errors() {
+    assert!(parse_foreign_mod("extern \"C\" { struct Foo; }").is_err());
+  }
+
+  #[test]
+  fn foreign_mod_invalid_item_token_errors() {
+    assert!(parse_foreign_mod("extern \"C\" { 123; }").is_err());
+  }
+
 }

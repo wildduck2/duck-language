@@ -4,7 +4,7 @@ mod function_tests {
   use crate::{
     ast::{Item, VisItemKind},
     parser_utils::ParserContext,
-    tests::support::parse_item,
+    tests::support::{parse_item, run_parser},
   };
 
   fn parse_fn(input: &str) -> Result<(), ()> {
@@ -27,6 +27,25 @@ mod function_tests {
     assert!(parse_fn(input).is_err(), "expected error for {input:?}");
   }
 
+  fn parse_fn_decl_with_context(input: &str, context: ParserContext) -> Result<(), ()> {
+    run_parser(input, "function_decl_context_temp", |parser| {
+      let attributes = parser.parse_outer_attributes(context)?;
+      let visibility = parser.parse_visibility(context)?;
+      parser.parse_fn_decl(attributes, visibility, context)?;
+      Ok(())
+    })
+  }
+
+  fn parse_can_start_fun(input: &str) -> Result<bool, ()> {
+    run_parser(input, "function_can_start_temp", |parser| {
+      let can_start = parser.can_start_fun();
+      let attributes = parser.parse_outer_attributes(ParserContext::Default)?;
+      let visibility = parser.parse_visibility(ParserContext::Default)?;
+      parser.parse_item(attributes, visibility)?;
+      Ok(can_start)
+    })
+  }
+
   // Basic functions
 
   #[test]
@@ -42,6 +61,11 @@ mod function_tests {
   #[test]
   fn function_with_params() {
     assert_ok("fn foo(x: i32, y: i32) {}");
+  }
+
+  #[test]
+  fn function_param_with_attribute() {
+    assert_ok("fn foo(#[attr] x: i32) {}");
   }
 
   #[test]
@@ -74,6 +98,11 @@ mod function_tests {
   #[test]
   fn function_extern_with_abi() {
     assert_ok(r#"extern "C" fn foo() {}"#);
+  }
+
+  #[test]
+  fn function_extern_with_raw_c_abi() {
+    assert_ok(r#"extern cr"C" fn foo() {}"#);
   }
 
   #[test]
@@ -172,6 +201,27 @@ mod function_tests {
   #[test]
   fn associated_function_without_body() {
     assert_err("fn foo();");
+  }
+
+  #[test]
+  fn extern_context_function_requires_semicolon() {
+    assert!(parse_fn_decl_with_context("fn foo();", ParserContext::Extern).is_ok());
+  }
+
+  #[test]
+  fn extern_context_function_body_errors() {
+    assert!(parse_fn_decl_with_context("fn foo() {}", ParserContext::Extern).is_err());
+  }
+
+  #[test]
+  fn function_decl_default_context_allows_body() {
+    assert!(parse_fn_decl_with_context("fn foo() {}", ParserContext::Default).is_ok());
+  }
+
+  #[test]
+  fn can_start_fun_rejects_const_item() {
+    let can_start = parse_can_start_fun("const A: i32 = 1;").unwrap();
+    assert!(!can_start);
   }
 
   // Error cases

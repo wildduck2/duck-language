@@ -65,6 +65,280 @@ mod literal_tests {
     assert_err("'\\x4142'");
   }
 
+  #[test]
+  fn test_char_unicode_escape() {
+    assert_lit("'\\u{41}'", ExprKind::Literal(Lit::Char('A')));
+  }
+
+  #[test]
+  fn test_char_unicode_escape_emoji() {
+    assert_lit("'\\u{1F600}'", ExprKind::Literal(Lit::Char('😀')));
+  }
+
+  #[test]
+  fn test_char_unicode_escape_zero() {
+    assert_lit("'\\u{0}'", ExprKind::Literal(Lit::Char('\0')));
+  }
+
+  #[test]
+  fn test_char_unicode_escape_max() {
+    assert_lit("'\\u{10FFFF}'", ExprKind::Literal(Lit::Char('\u{10FFFF}')));
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_missing_brace() {
+    assert_err("'\\u41'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_no_brace() {
+    assert_err("'\\u'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_empty() {
+    assert_err("'\\u{}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_too_many_digits() {
+    assert_err("'\\u{1234567}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_surrogate() {
+    assert_err("'\\u{D800}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_surrogate_end() {
+    assert_err("'\\u{DFFF}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_7_digits_should_error() {
+    assert_err("'\\u{1000000}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_non_hex_digit_middle() {
+    assert_err("'\\u{4G1}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_non_hex_digit_at_end() {
+    assert_err("'\\u{41G}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_non_hex_digit_at_start() {
+    assert_err("'\\u{G41}'");
+  }
+
+  #[test]
+  fn test_string_unicode_escape_non_hex_digit() {
+    assert_err("\"\\u{41G}\"");
+  }
+
+  #[test]
+  fn test_string_unicode_escape_non_hex_digit_middle() {
+    assert_err("\"\\u{4G1}\"");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_exactly_zero_digits() {
+    assert_err("'\\u{}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_value_one_over_max() {
+    assert_err("'\\u{110000}'");
+  }
+
+  #[test]
+  fn test_string_unicode_escape_non_hex_before_close() {
+    assert_err("\"\\u{41G}\"");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_missing_opening_brace() {
+    // Tests decode_unicode_escape error path when '{' is missing
+    assert_err("'\\u41'");
+  }
+
+  #[test]
+  fn test_string_unicode_escape_missing_opening_brace() {
+    assert_err("\"\\u41\"");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_missing_closing_brace() {
+    // Tests decode_unicode_escape error path when '}' is missing
+    assert_err("'\\u{41'");
+  }
+
+  #[test]
+  fn test_string_unicode_escape_missing_closing_brace() {
+    assert_err("\"\\u{41\"");
+  }
+
+
+  #[test]
+  fn test_char_unicode_escape_surrogate_middle() {
+    assert_err("'\\u{DC00}'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_missing_opening_brace_other_char() {
+    // Tests decode_unicode_escape when next char is not '{'
+    assert_err("'\\uA'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_missing_opening_brace_eof() {
+    // Tests decode_unicode_escape when next char is None
+    assert_err("'\\u");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_missing_closing_brace_other_char() {
+    // Tests decode_unicode_escape when closing brace is wrong char
+    assert_err("'\\u{41A'");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_missing_closing_brace_eof() {
+    // Tests decode_unicode_escape when closing brace is missing (EOF)
+    assert_err("'\\u{41");
+  }
+
+  #[test]
+  fn test_char_unicode_escape_invalid_no_closing_brace() {
+    assert_err("'\\u{41'");
+  }
+
+  #[test]
+  fn test_char_invalid_escape() {
+    assert_err("'\\z'");
+  }
+
+  #[test]
+  fn test_char_invalid_escape_unterminated() {
+    assert_err("'\\'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_invalid_one_digit() {
+    assert_err("'\\x4'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_invalid_no_digits() {
+    assert_err("'\\x'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_invalid_non_hex() {
+    assert_err("'\\xGG'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_first_none() {
+    // Tests decode_hex_escape when first char is None (EOF after \x)
+    assert_err("'\\x");
+  }
+
+  #[test]
+  fn test_char_hex_escape_second_none() {
+    // Tests decode_hex_escape when second char is None (only one char after \x)
+    assert_err("'\\xA");
+  }
+
+  #[test]
+  fn test_char_hex_escape_first_not_hex() {
+    assert_err("'\\xG1'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_second_not_hex() {
+    assert_err("'\\x1G'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_both_not_hex() {
+    assert_err("'\\xGG'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_no_second_digit() {
+    assert_err("'\\xA'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_no_digits_at_all() {
+    assert_err("'\\x'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_no_digits() {
+    assert_err("b'\\x'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_one_digit() {
+    assert_err("b'\\xA'");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_no_digits() {
+    assert_err("b\"\\x\"");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_one_digit() {
+    assert_err("b\"\\xA\"");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_first_none() {
+    assert_err("b\"\\x\"");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_second_none() {
+    assert_err("b\"\\xA");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_first_not_hex() {
+    assert_err("b\"\\xG1\"");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_second_not_hex() {
+    assert_err("b\"\\x1G\"");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_first_none() {
+    assert_err("b'\\x'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_second_none() {
+    assert_err("b'\\xA");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_first_not_hex() {
+    assert_err("b'\\xG1'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_second_not_hex() {
+    assert_err("b'\\x1G'");
+  }
+
   // String literals
   #[test]
   fn test_string_simple() {
@@ -119,6 +393,119 @@ mod literal_tests {
         raw_hashes: None,
       }),
     );
+  }
+
+  #[test]
+  fn test_string_unicode_escape() {
+    assert_lit(
+      "\"\\u{41}\"",
+      ExprKind::Literal(Lit::String {
+        value: "A".to_string(),
+        raw_hashes: None,
+      }),
+    );
+  }
+
+  #[test]
+  fn test_string_unicode_escape_emoji() {
+    assert_lit(
+      "\"\\u{1F600}\"",
+      ExprKind::Literal(Lit::String {
+        value: "😀".to_string(),
+        raw_hashes: None,
+      }),
+    );
+  }
+
+  #[test]
+  fn test_string_unicode_escape_multiple() {
+    assert_lit(
+      "\"\\u{48}\\u{65}\\u{6C}\\u{6C}\\u{6F}\"",
+      ExprKind::Literal(Lit::String {
+        value: "Hello".to_string(),
+        raw_hashes: None,
+      }),
+    );
+  }
+
+  #[test]
+  fn test_string_unicode_escape_invalid() {
+    assert_err("\"\\u{}\"");
+  }
+
+  #[test]
+  fn test_string_unicode_escape_invalid_missing_brace() {
+    assert_err("\"\\u41\"");
+  }
+
+  #[test]
+  fn test_string_invalid_escape() {
+    assert_err("\"\\z\"");
+  }
+
+  #[test]
+  fn test_string_hex_escape_invalid() {
+    assert_err("\"\\x4\"");
+  }
+
+  #[test]
+  fn test_string_hex_escape_no_digits() {
+    assert_err("\"\\x\"");
+  }
+
+  #[test]
+  fn test_string_hex_escape_one_digit_only() {
+    assert_err("\"\\xA\"");
+  }
+
+  #[test]
+  fn test_string_hex_escape_invalid_hex() {
+    assert_err("\"\\xGG\"");
+  }
+
+  #[test]
+  fn test_string_hex_escape_first_invalid() {
+    assert_err("\"\\xG1\"");
+  }
+
+  #[test]
+  fn test_string_hex_escape_second_invalid() {
+    assert_err("\"\\x1G\"");
+  }
+
+  #[test]
+  fn test_char_hex_escape_missing_first_digit() {
+    assert_err("'\\x'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_missing_second_digit() {
+    assert_err("'\\xA'");
+  }
+
+  #[test]
+  fn test_char_hex_escape_both_missing() {
+    assert_err("'\\x'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_missing_first() {
+    assert_err("b'\\x'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_missing_second() {
+    assert_err("b'\\xA'");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_missing_first() {
+    assert_err("b\"\\x\"");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_missing_second() {
+    assert_err("b\"\\xA\"");
   }
 
   // Raw strings
@@ -191,6 +578,21 @@ mod literal_tests {
     assert_lit("b'\\x41'", ExprKind::Literal(Lit::Byte(65)));
   }
 
+  #[test]
+  fn test_byte_unicode_escape_invalid() {
+    assert_err("b'\\u{41}'");
+  }
+
+  #[test]
+  fn test_byte_invalid_escape() {
+    assert_err("b'\\z'");
+  }
+
+  #[test]
+  fn test_byte_hex_escape_invalid() {
+    assert_err("b'\\x4'");
+  }
+
   // Byte string literals
   #[test]
   fn test_byte_string_simple() {
@@ -226,6 +628,18 @@ mod literal_tests {
   }
 
   #[test]
+  fn test_byte_string_with_quote_at_start() {
+    // Tests decode_byte_string removing quote at start
+    assert_lit(
+      "b\"\\\"test\"",
+      ExprKind::Literal(Lit::ByteString {
+        value: b"\"test".to_vec(),
+        raw_hashes: None,
+      }),
+    );
+  }
+
+  #[test]
   fn test_byte_string_quote() {
     assert_lit(
       "b\"\\\"\"",
@@ -234,6 +648,198 @@ mod literal_tests {
         raw_hashes: None,
       }),
     );
+  }
+
+  #[test]
+  fn test_byte_string_unicode_escape_invalid() {
+    assert_err("b\"\\u{41}\"");
+  }
+
+  #[test]
+  fn test_byte_string_invalid_escape() {
+    assert_err("b\"\\z\"");
+  }
+
+  #[test]
+  fn test_byte_string_hex_escape_invalid() {
+    assert_err("b\"\\x4\"");
+  }
+
+  #[test]
+  fn test_byte_string_non_byte_value() {
+    assert_err("b\"\\u{100}\"");
+  }
+
+  #[test]
+  fn test_byte_string_unicode_escape_disallowed() {
+    // Tests decode_escape with allow_unicode=false
+    assert_err("b\"\\u{41}\"");
+  }
+
+  #[test]
+  fn test_byte_non_byte_value() {
+    assert_err("b'\\u{100}'");
+  }
+
+  #[test]
+  fn test_byte_string_invalid_escape_unterminated() {
+    assert_err("b\"\\\"");
+  }
+
+  #[test]
+  fn test_string_invalid_escape_unterminated() {
+    assert_err("\"\\\"");
+  }
+
+  #[test]
+  fn test_char_invalid_escape_unterminated_at_end() {
+    assert_err("'\\");
+  }
+
+  #[test]
+  fn test_string_invalid_escape_unterminated_at_end() {
+    // Tests decode_escape None case for strings
+    assert_err("\"\\");
+  }
+
+  #[test]
+  fn test_byte_string_invalid_escape_unterminated_at_end() {
+    // Tests decode_escape None case for byte strings
+    assert_err("b\"\\");
+  }
+
+  #[test]
+  fn test_byte_invalid_escape_unterminated_at_end() {
+    // Tests decode_escape None case for bytes
+    assert_err("b'\\");
+  }
+
+  #[test]
+  fn test_string_invalid_escape_various_chars() {
+    // Tests decode_escape Some(other) case for various invalid escapes
+    assert_err("\"\\a\"");
+    assert_err("\"\\b\"");
+    assert_err("\"\\c\"");
+    assert_err("\"\\d\"");
+    assert_err("\"\\e\"");
+    assert_err("\"\\f\"");
+    assert_err("\"\\g\"");
+    assert_err("\"\\h\"");
+    assert_err("\"\\i\"");
+    assert_err("\"\\j\"");
+    assert_err("\"\\k\"");
+    assert_err("\"\\l\"");
+    assert_err("\"\\m\"");
+    assert_err("\"\\o\"");
+    assert_err("\"\\p\"");
+    assert_err("\"\\q\"");
+    assert_err("\"\\s\"");
+    assert_err("\"\\v\"");
+    assert_err("\"\\w\"");
+    assert_err("\"\\y\"");
+    assert_err("\"\\z\"");
+  }
+
+  #[test]
+  fn test_char_invalid_escape_various_chars() {
+    assert_err("'\\a'");
+    assert_err("'\\b'");
+    assert_err("'\\c'");
+    assert_err("'\\d'");
+    assert_err("'\\e'");
+    assert_err("'\\f'");
+    assert_err("'\\g'");
+    assert_err("'\\h'");
+    assert_err("'\\i'");
+    assert_err("'\\j'");
+    assert_err("'\\k'");
+    assert_err("'\\l'");
+    assert_err("'\\m'");
+    assert_err("'\\o'");
+    assert_err("'\\p'");
+    assert_err("'\\q'");
+    assert_err("'\\s'");
+    assert_err("'\\v'");
+    assert_err("'\\w'");
+    assert_err("'\\y'");
+    assert_err("'\\z'");
+  }
+
+  #[test]
+  fn test_byte_string_invalid_escape_various_chars() {
+    assert_err("b\"\\a\"");
+    assert_err("b\"\\b\"");
+    assert_err("b\"\\c\"");
+    assert_err("b\"\\d\"");
+    assert_err("b\"\\e\"");
+    assert_err("b\"\\f\"");
+    assert_err("b\"\\g\"");
+    assert_err("b\"\\h\"");
+    assert_err("b\"\\i\"");
+    assert_err("b\"\\j\"");
+    assert_err("b\"\\k\"");
+    assert_err("b\"\\l\"");
+    assert_err("b\"\\m\"");
+    assert_err("b\"\\o\"");
+    assert_err("b\"\\p\"");
+    assert_err("b\"\\q\"");
+    assert_err("b\"\\s\"");
+    assert_err("b\"\\v\"");
+    assert_err("b\"\\w\"");
+    assert_err("b\"\\y\"");
+    assert_err("b\"\\z\"");
+  }
+
+  #[test]
+  fn test_byte_invalid_escape_various_chars() {
+    assert_err("b'\\a'");
+    assert_err("b'\\b'");
+    assert_err("b'\\c'");
+    assert_err("b'\\d'");
+    assert_err("b'\\e'");
+    assert_err("b'\\f'");
+    assert_err("b'\\g'");
+    assert_err("b'\\h'");
+    assert_err("b'\\i'");
+    assert_err("b'\\j'");
+    assert_err("b'\\k'");
+    assert_err("b'\\l'");
+    assert_err("b'\\m'");
+    assert_err("b'\\o'");
+    assert_err("b'\\p'");
+    assert_err("b'\\q'");
+    assert_err("b'\\s'");
+    assert_err("b'\\v'");
+    assert_err("b'\\w'");
+    assert_err("b'\\y'");
+    assert_err("b'\\z'");
+  }
+
+  #[test]
+  fn test_char_empty_should_error() {
+    assert_err("''");
+  }
+
+  #[test]
+  fn test_char_multiple_chars_should_error() {
+    assert_err("'ab'");
+  }
+
+  #[test]
+  fn test_char_three_chars_should_error() {
+    assert_err("'abc'");
+  }
+
+  #[test]
+  fn test_char_zero_chars_should_error() {
+    // Tests decode_char when out.len() == 0 after processing
+    assert_err("''");
+  }
+
+  #[test]
+  fn test_char_four_chars_should_error() {
+    // Tests decode_char when out.len() > 1 (specifically 4)
+    assert_err("'abcd'");
   }
 
   // Raw byte strings

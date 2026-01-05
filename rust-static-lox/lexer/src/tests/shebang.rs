@@ -43,8 +43,25 @@ mod shebang_tests {
 
   #[test]
   fn invalid_shebang_forms_error() {
-    assert!(lex_tokens("#![allow(dead_code)]").is_err());
     assert!(lex_tokens("#!oops").is_err());
+  }
+
+  #[test]
+  fn inner_attribute_is_not_a_shebang() {
+    let tokens = lex_tokens("#![allow(dead_code)]").unwrap();
+    assert_eq!(
+      tokens,
+      vec![
+        TokenKind::Pound,
+        TokenKind::Bang,
+        TokenKind::LBracket,
+        TokenKind::Ident,
+        TokenKind::LParen,
+        TokenKind::Ident,
+        TokenKind::RParen,
+        TokenKind::RBracket
+      ]
+    );
   }
 
   #[test]
