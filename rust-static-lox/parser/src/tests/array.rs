@@ -4,7 +4,7 @@ mod array_tests {
   use crate::{
     ast::expr::ExprKind,
     parser_utils::ParserContext,
-    tests::support::{array, int, repeat_array, simplify_expr, SimpleExpr, parse_primary_expr},
+    tests::support::{array, int, path, repeat_array, simplify_expr, SimpleExpr, parse_primary_expr},
   };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
@@ -79,8 +79,8 @@ mod array_tests {
   }
 
   #[test]
-  fn repeat_form_requires_literal_count() {
-    assert_err("[1; foo]");
+  fn repeat_form_allows_expr_count() {
+    assert_expr("[1; foo]", repeat_array(int(1), path("foo")));
   }
 
   #[test]
@@ -109,7 +109,7 @@ mod array_tests {
   }
 
   #[test]
-  fn missing_separator_is_allowed() {
-    assert_expr("[1 2]", array(vec![int(1), int(2)]));
+  fn missing_separator_errors() {
+    assert_err("[1 2]");
   }
 }

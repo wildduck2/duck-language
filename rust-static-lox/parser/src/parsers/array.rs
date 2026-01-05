@@ -1,4 +1,3 @@
-use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::TokenKind;
 
 use crate::{
@@ -40,53 +39,33 @@ impl Parser {
     // Case 2: Repeat array form `[value; count]`
     if matches!(self.current_token().kind, TokenKind::Semi) {
       self.advance(); // consume `;`
-
-      // Reject `[value;]` - missing count expression
-      if !self.current_token().kind.is_literal() {
-        let bad = self.current_token();
-        let lexeme = self.get_token_lexeme(&bad);
-
-        let diagnostic = self
-          .diagnostic(
-            DiagnosticError::UnexpectedToken,
-            "invalid repeat expression",
-          )
-          .with_label(
-            bad.span,
-            Some(format!(
-              "expected an integer literal here, found `{lexeme}`"
-            )),
-            LabelStyle::Primary,
-          )
-          .with_note(
-            "repeat array syntax is: `[value; N]` where `N` is a compile-time constant integer."
-              .into(),
-          )
-          .with_help("example: `[x; 4]`".into());
-
-        self.emit(diagnostic);
-        return Err(());
-      }
-
       let repeat_count = self.parse_expression(vec![], ParserContext::Default)?;
       self.expect(TokenKind::RBracket)?;
       return Ok((elements, Some(repeat_count)));
     }
 
-    // Case 3: Standard comma-separated array                                 */
-    while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBracket) {
-      if matches!(self.current_token().kind, TokenKind::Comma) {
-        self.advance();
+    // Case 3: Standard comma-separated array
+    loop {
+      match self.current_token().kind {
+        TokenKind::Comma => {
+          self.advance();
+          if matches!(self.current_token().kind, TokenKind::RBracket) {
+            self.advance();
+            return Ok((elements, None));
+          }
+          elements.push(self.parse_expression(vec![], ParserContext::Default)?);
+        },
+        TokenKind::RBracket => {
+          self.advance();
+          return Ok((elements, None));
+        },
+        _ => {
+          let bad = self.current_token();
+          let lexeme = self.get_token_lexeme(&bad);
+          self.emit(self.err_unexpected_token(bad.span, "`,` or `]`", &lexeme));
+          return Err(());
+        },
       }
-
-      if self.current_token().kind == TokenKind::RBracket {
-        break;
-      }
-
-      elements.push(self.parse_expression(vec![], ParserContext::Default)?);
     }
-
-    self.expect(TokenKind::RBracket)?;
-    Ok((elements, None))
   }
 }
