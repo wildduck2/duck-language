@@ -1,4 +1,9 @@
-use diagnostic::Span;
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  Span,
+};
 
 use crate::{token::TokenKind, Lexer};
 
@@ -40,7 +45,18 @@ impl Lexer {
 
     if !has_identifier {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_lifetime_missing_name(span));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidLifetime),
+        "expected identifier after `'`".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("no lifetime name provided".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("try providing a name like `'a` or use `'_`".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -53,7 +69,18 @@ impl Lexer {
 
     if starts_with_number {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_lifetime_starts_with_digit(span, &lexeme));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidLifetime),
+        format!("`{lexeme}` is not a valid lifetime"),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("lifetime names cannot start with digits".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("rename the lifetime so it begins with a letter or `_`".to_string());
+      self.emit_diagnostic(diagnostic);
       Err(())
     } else {
       // Return lifetime token directly no diagnostics at this stage

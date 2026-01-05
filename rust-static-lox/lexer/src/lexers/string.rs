@@ -69,7 +69,12 @@
 //!   in this implementation (extension). Rust would treat them as identifiers.
 //!
 
-use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError, Span};
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  Span,
+};
 
 use crate::{
   token::{LiteralKind, TokenKind},
@@ -113,14 +118,39 @@ impl Lexer {
     // Prefix validation only for potentially prefixed literals (`b`, `c`, `r`, etc.).
     if first != "\"" {
       if RESERVED_PREFIXES.contains(&prefix.as_str()) {
-        let span = diagnostic::Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_reserved_prefix(span, &prefix));
+        let span = Span::new(self.start, self.current);
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::ReservedPrefix),
+          format!("`{prefix}` is a reserved prefix for string literals"),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("this prefix is reserved for future use".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help(format!("use a different prefix or remove `{prefix}`"));
+        self.emit_diagnostic(diagnostic);
         return Err(());
       }
 
       if !VALID_PREFIXES.contains(&prefix.as_str()) {
-        let span = diagnostic::Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_unknown_prefix(span, &prefix));
+        let span = Span::new(self.start, self.current);
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::UnknownPrefix),
+          format!("unknown literal prefix: `{prefix}`"),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some(format!("`{prefix}` is not a recognized literal prefix")),
+          LabelStyle::Primary,
+        )
+        .with_help(
+          "valid prefixes are: `b` (byte), `r` (raw), `c` (C string), `br` (byte raw), `cr` (C raw)"
+            .to_string(),
+        );
+        self.emit_diagnostic(diagnostic);
         return Err(());
       }
     }
@@ -159,16 +189,38 @@ impl Lexer {
 
     if n_hashes > MAX_HASHES {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_too_many_raw_str_hashes(span, n_hashes, MAX_HASHES));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::TooManyRawStrHashes),
+        format!("raw string literal uses {n_hashes} `#` characters; maximum is {MAX_HASHES}"),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some(format!("too many `#` characters here (maximum: {MAX_HASHES})")),
+        LabelStyle::Primary,
+      )
+      .with_help(format!("reduce the number of `#` characters to at most {MAX_HASHES}"));
+      self.emit_diagnostic(diagnostic);
       n_hashes = MAX_HASHES;
     }
 
     // Expect opening quote after `cr###`.
     if self.peek() != Some('"') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(
-        self.err_invalid_string_start(span, "expected '\"' after raw C string prefix"),
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidStringStart),
+        "expected string literal start, found `expected '\"' after raw C string prefix`".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected `\"` to start a string literal".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help(
+        "string literals must start with `\"` or a valid prefix like `r#\"` or `b\"`".to_string(),
       );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -181,7 +233,19 @@ impl Lexer {
     'outer: while let Some(c) = self.peek() {
       if c == '\r' {
         let span = Span::new(self.current, self.current + 1);
-        self.emit_diagnostic(self.err_invalid_escape(span, "\\r", Some("raw C string literals")));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+          "invalid escape sequence `\\r` in raw C string literals".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("unknown escape sequence: `\\r`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note("in raw C string literals, only certain escape sequences are allowed".to_string())
+        .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+        self.emit_diagnostic(diagnostic);
         self.advance();
         return Err(());
       }
@@ -218,7 +282,18 @@ impl Lexer {
 
     if !found_end {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_unterminated_string(span, "raw C string"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+        "unterminated raw C string literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("raw C string literal is not terminated".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add a closing quote to terminate the raw C string literal".to_string());
+      self.emit_diagnostic(diagnostic);
     }
 
     Ok(TokenKind::Literal {
@@ -242,16 +317,38 @@ impl Lexer {
 
     if n_hashes > MAX_HASHES {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_too_many_raw_str_hashes(span, n_hashes, MAX_HASHES));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::TooManyRawStrHashes),
+        format!("raw string literal uses {n_hashes} `#` characters; maximum is {MAX_HASHES}"),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some(format!("too many `#` characters here (maximum: {MAX_HASHES})")),
+        LabelStyle::Primary,
+      )
+      .with_help(format!("reduce the number of `#` characters to at most {MAX_HASHES}"));
+      self.emit_diagnostic(diagnostic);
       n_hashes = MAX_HASHES;
     }
 
     // Expect opening quote `"` after `r###`.
     if self.peek() != Some('"') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(
-        self.err_invalid_string_start(span, "expected '\"' after raw string prefix"),
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidStringStart),
+        "expected string literal start, found `expected '\"' after raw string prefix`".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected `\"` to start a string literal".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help(
+        "string literals must start with `\"` or a valid prefix like `r#\"` or `b\"`".to_string(),
       );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -265,7 +362,19 @@ impl Lexer {
       // (this is a non-Rust extension for nicer diagnostics).
       if c == '\r' {
         let span = Span::new(self.current, self.current + 1);
-        self.emit_diagnostic(self.err_invalid_escape(span, "\\r", Some("raw string literals")));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+          "invalid escape sequence `\\r` in raw string literals".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("unknown escape sequence: `\\r`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_note("in raw string literals, only certain escape sequences are allowed".to_string())
+        .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+        self.emit_diagnostic(diagnostic);
         self.advance();
         return Err(());
       }
@@ -321,7 +430,18 @@ impl Lexer {
 
     if !found_end {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_unterminated_string(span, "raw string"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+        "unterminated raw string literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("raw string literal is not terminated".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add a closing quote to terminate the raw string literal".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -344,7 +464,18 @@ impl Lexer {
 
     if !terminated {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_unterminated_string(span, "C string"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+        "unterminated C string literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("C string literal is not terminated".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add a closing quote to terminate the C string literal".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -378,15 +509,37 @@ impl Lexer {
 
       if n_hashes > MAX_HASHES {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_too_many_raw_str_hashes(span, n_hashes, MAX_HASHES));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::TooManyRawStrHashes),
+          format!("raw string literal uses {n_hashes} `#` characters; maximum is {MAX_HASHES}"),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some(format!("too many `#` characters here (maximum: {MAX_HASHES})")),
+          LabelStyle::Primary,
+        )
+        .with_help(format!("reduce the number of `#` characters to at most {MAX_HASHES}"));
+        self.emit_diagnostic(diagnostic);
         n_hashes = MAX_HASHES;
       }
 
       if self.peek() != Some('"') {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(
-          self.err_invalid_string_start(span, "expected '\"' after raw byte string prefix"),
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidStringStart),
+          "expected string literal start, found `expected '\"' after raw byte string prefix`".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("expected `\"` to start a string literal".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help(
+          "string literals must start with `\"` or a valid prefix like `r#\"` or `b\"`".to_string(),
         );
+        self.emit_diagnostic(diagnostic);
         return Ok(TokenKind::Literal {
           kind: LiteralKind::RawByteStr { n_hashes },
         });
@@ -398,22 +551,38 @@ impl Lexer {
       'outer: while let Some(c) = self.peek() {
         if c == '\r' {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_invalid_escape(
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+            "invalid escape sequence `\\r` in raw byte string literals".to_string(),
+            self.source.path.clone(),
+          )
+          .with_label(
             span,
-            "\\r",
-            Some("raw byte string literals"),
-          ));
+            Some("unknown escape sequence: `\\r`".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note("in raw byte string literals, only certain escape sequences are allowed".to_string())
+          .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+          self.emit_diagnostic(diagnostic);
           self.advance();
           return Err(());
         }
 
         if !c.is_ascii() {
           let span = Span::new(self.current, self.current + c.len_utf8());
-          self.emit_diagnostic(self.err_invalid_escape(
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+            format!("invalid escape sequence `\\{}` in raw byte strings must contain only ASCII", c),
+            self.source.path.clone(),
+          )
+          .with_label(
             span,
-            &c.to_string(),
-            Some("raw byte strings must contain only ASCII"),
-          ));
+            Some(format!("unknown escape sequence: `\\{}`", c)),
+            LabelStyle::Primary,
+          )
+          .with_note("in raw byte strings must contain only ASCII, only certain escape sequences are allowed".to_string())
+          .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+          self.emit_diagnostic(diagnostic);
           self.advance();
           return Err(());
         }
@@ -439,7 +608,18 @@ impl Lexer {
 
       if !found_end {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_unterminated_string(span, "raw byte string"));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+          "unterminated raw byte string literal".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("raw byte string literal is not terminated".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("add a closing quote to terminate the raw byte string literal".to_string());
+        self.emit_diagnostic(diagnostic);
       }
 
       return Ok(TokenKind::Literal {
@@ -450,9 +630,20 @@ impl Lexer {
     // --- NORMAL BYTE STRING: b"..." ---
     if self.peek() != Some('"') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(
-        self.err_invalid_string_start(span, "expected '\"' after 'b' in byte string literal"),
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidStringStart),
+        "expected string literal start, found `expected '\"' after 'b' in byte string literal`".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected `\"` to start a string literal".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help(
+        "string literals must start with `\"` or a valid prefix like `r#\"` or `b\"`".to_string(),
       );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -490,21 +681,37 @@ impl Lexer {
               }
               if count < 2 {
                 let span = Span::new(self.current.saturating_sub(2), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "invalid escape sequence `\\x` in hex escape must have exactly two hex digits".to_string(),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\x",
-                  Some("hex escape must have exactly two hex digits"),
-                ));
+                  Some("unknown escape sequence: `\\x`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("in hex escape must have exactly two hex digits, only certain escape sequences are allowed".to_string())
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
                 return Err(());
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
               let span = Span::new(self.current.saturating_sub(1), self.current + 1);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                "invalid escape sequence `\\u` in unicode escapes are not allowed in byte strings".to_string(),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                "\\u",
-                Some("unicode escapes are not allowed in byte strings"),
-              ));
+                Some("unknown escape sequence: `\\u`".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_note("in unicode escapes are not allowed in byte strings, only certain escape sequences are allowed".to_string())
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
               return Err(());
             },
             _ => {
@@ -513,11 +720,19 @@ impl Lexer {
                 .map(|c| c.to_string())
                 .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                format!("invalid escape sequence `\\{escape_char}` in byte string"),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                &escape_char,
-                Some("byte string"),
-              ));
+                Some(format!("unknown escape sequence: `\\{escape_char}`")),
+                LabelStyle::Primary,
+              )
+              .with_note("in byte string, only certain escape sequences are allowed".to_string())
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -531,17 +746,37 @@ impl Lexer {
         },
         '\r' => {
           let span = Span::new(self.current.saturating_sub(1), self.current);
-          self.emit_diagnostic(self.err_invalid_escape(span, "\\r", Some("byte string literals")));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+            "invalid escape sequence `\\r` in byte string literals".to_string(),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("unknown escape sequence: `\\r`".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note("in byte string literals, only certain escape sequences are allowed".to_string())
+          .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+          self.emit_diagnostic(diagnostic);
           return Err(());
         },
         _ => {
           if !c.is_ascii() {
             let span = Span::new(self.current.saturating_sub(1), self.current);
-            self.emit_diagnostic(self.err_invalid_escape(
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+              format!("invalid escape sequence `\\{}` in byte strings must contain only ASCII characters", c),
+              self.source.path.clone(),
+            )
+            .with_label(
               span,
-              &c.to_string(),
-              Some("byte strings must contain only ASCII characters"),
-            ));
+              Some(format!("unknown escape sequence: `\\{}`", c)),
+              LabelStyle::Primary,
+            )
+            .with_note("in byte strings must contain only ASCII characters, only certain escape sequences are allowed".to_string())
+            .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+            self.emit_diagnostic(diagnostic);
             return Err(());
           }
         },
@@ -550,7 +785,18 @@ impl Lexer {
 
     if !terminated {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_unterminated_string(span, "byte string"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+        "unterminated byte string literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("byte string literal is not terminated".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add a closing quote to terminate the byte string literal".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -568,9 +814,20 @@ impl Lexer {
     // We are just after 'b'; expect opening `'`.
     if self.peek() != Some('\'') {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(
-        self.err_invalid_string_start(span, "expected '\'' after 'b' in byte char literal"),
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidStringStart),
+        "expected string literal start, found `expected '\\'' after 'b' in byte char literal`".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected `\"` to start a string literal".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help(
+        "string literals must start with `\"` or a valid prefix like `r#\"` or `b\"`".to_string(),
       );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -607,22 +864,38 @@ impl Lexer {
               }
               if count < 2 {
                 let span = Span::new(self.current.saturating_sub(2), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "invalid escape sequence `\\x` in hex escape must have exactly two hex digits".to_string(),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\x",
-                  Some("hex escape must have exactly two hex digits"),
-                ));
+                  Some("unknown escape sequence: `\\x`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("in hex escape must have exactly two hex digits, only certain escape sequences are allowed".to_string())
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
               } else {
                 produced_bytes = produced_bytes.saturating_add(1);
               }
             },
             Some('u') if self.peek_next(1) == Some('{') => {
               let span = Span::new(self.current.saturating_sub(1), self.current + 1);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                "invalid escape sequence `\\u` in unicode escapes are not allowed in byte char literals".to_string(),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                "\\u",
-                Some("unicode escapes are not allowed in byte char literals"),
-              ));
+                Some("unknown escape sequence: `\\u`".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_note("in unicode escapes are not allowed in byte char literals, only certain escape sequences are allowed".to_string())
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
 
               // Recovery: consume until '}' or newline.
               self.advance(); // 'u'
@@ -636,11 +909,19 @@ impl Lexer {
             },
             Some('\n') => {
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                "invalid escape sequence `\\` in line continuation escapes are not supported in byte char literals".to_string(),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                "\\",
-                Some("line continuation escapes are not supported in byte char literals"),
-              ));
+                Some("unknown escape sequence: `\\`".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_note("in line continuation escapes are not supported in byte char literals, only certain escape sequences are allowed".to_string())
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
               self.advance();
             },
             _ => {
@@ -649,11 +930,19 @@ impl Lexer {
                 .map(|c| c.to_string())
                 .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                format!("invalid escape sequence `\\{escape_char}` in byte char literal"),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                &escape_char,
-                Some("byte char literal"),
-              ));
+                Some(format!("unknown escape sequence: `\\{escape_char}`")),
+                LabelStyle::Primary,
+              )
+              .with_note("in byte char literal, only certain escape sequences are allowed".to_string())
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -667,11 +956,19 @@ impl Lexer {
         _ => {
           if !c.is_ascii() {
             let span = Span::new(self.current, self.current + c.len_utf8());
-            self.emit_diagnostic(self.err_invalid_escape(
+            let diagnostic = Diagnostic::new(
+              DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+              format!("invalid escape sequence `\\{}` in byte char literals must be ASCII", c),
+              self.source.path.clone(),
+            )
+            .with_label(
               span,
-              &c.to_string(),
-              Some("byte char literals must be ASCII"),
-            ));
+              Some(format!("unknown escape sequence: `\\{}`", c)),
+              LabelStyle::Primary,
+            )
+            .with_note("in byte char literals must be ASCII, only certain escape sequences are allowed".to_string())
+            .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+            self.emit_diagnostic(diagnostic);
           }
           self.advance();
           produced_bytes = produced_bytes.saturating_add(1);
@@ -681,21 +978,50 @@ impl Lexer {
 
     if !self.get_current_lexeme().ends_with('\'') || !terminated {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_unterminated_string(span, "byte char"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+        "unterminated byte char literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("byte char literal is not terminated".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add a closing quote to terminate the byte char literal".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
     if produced_bytes == 0 {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_empty_char(span));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::EmptyChar),
+        "empty character literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("character literal must contain exactly one character".to_string()),
+        LabelStyle::Primary,
+      );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
     if produced_bytes > 1 {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(
-        self.err_invalid_literal(span, "byte char literal must encode exactly one byte"),
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
+        "invalid literal: byte char literal must encode exactly one byte".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("byte char literal must encode exactly one byte".to_string()),
+        LabelStyle::Primary,
       );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -744,19 +1070,35 @@ impl Lexer {
               }
               if count < 2 {
                 let span = Span::new(self.current.saturating_sub(2), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "invalid escape sequence `\\x` in hex escape must have exactly two hex digits".to_string(),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\x",
-                  Some("hex escape must have exactly two hex digits"),
-                ));
+                  Some("unknown escape sequence: `\\x`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("in hex escape must have exactly two hex digits, only certain escape sequences are allowed".to_string())
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
                 return Err(());
               } else if value > 0x7F {
                 let span = Span::new(self.start, self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "invalid escape sequence `\\x` in characters must be in ASCII range (<= 0x7F)".to_string(),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\x",
-                  Some("characters must be in ASCII range (<= 0x7F)"),
-                ));
+                  Some("unknown escape sequence: `\\x`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("in characters must be in ASCII range (<= 0x7F), only certain escape sequences are allowed".to_string())
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
                 return Err(());
               }
             },
@@ -780,11 +1122,19 @@ impl Lexer {
                   },
                   None => {
                     let span = Span::new(self.current.saturating_sub(3), self.current);
-                    self.emit_diagnostic(self.err_invalid_escape(
+                    let diagnostic = Diagnostic::new(
+                      DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                      "invalid escape sequence `\\u` in unicode escape must contain only hex digits".to_string(),
+                      self.source.path.clone(),
+                    )
+                    .with_label(
                       span,
-                      "\\u",
-                      Some("unicode escape must contain only hex digits"),
-                    ));
+                      Some("unknown escape sequence: `\\u`".to_string()),
+                      LabelStyle::Primary,
+                    )
+                    .with_note("in unicode escape must contain only hex digits, only certain escape sequences are allowed".to_string())
+                    .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                    self.emit_diagnostic(diagnostic);
                     self.advance();
                     return Err(());
                   },
@@ -798,20 +1148,36 @@ impl Lexer {
                   || (0xD800..=0xDFFF).contains(&value)
                 {
                   let span = Span::new(self.current.saturating_sub(10), self.current);
-                  self.emit_diagnostic(self.err_invalid_escape(
+                  let diagnostic = Diagnostic::new(
+                    DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                    "invalid escape sequence `\\u` in invalid unicode escape code point".to_string(),
+                    self.source.path.clone(),
+                  )
+                  .with_label(
                     span,
-                    "\\u",
-                    Some("invalid unicode escape code point"),
-                  ));
+                    Some("unknown escape sequence: `\\u`".to_string()),
+                    LabelStyle::Primary,
+                  )
+                  .with_note("in invalid unicode escape code point, only certain escape sequences are allowed".to_string())
+                  .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                  self.emit_diagnostic(diagnostic);
                   return Err(());
                 }
               } else {
                 let span = Span::new(self.current.saturating_sub(10), self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "invalid escape sequence `\\u` in unterminated unicode escape, missing '}'".to_string(),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\u",
-                  Some("unterminated unicode escape, missing '}'"),
-                ));
+                  Some("unknown escape sequence: `\\u`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("in unterminated unicode escape, missing '}', only certain escape sequences are allowed".to_string())
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
                 return Err(());
               }
             },
@@ -821,11 +1187,19 @@ impl Lexer {
                 .map(|c| c.to_string())
                 .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(self.current.saturating_sub(1), self.current);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                format!("invalid escape sequence `\\{escape_char}` in char literal"),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                &escape_char,
-                Some("char literal"),
-              ));
+                Some(format!("unknown escape sequence: `\\{escape_char}`")),
+                LabelStyle::Primary,
+              )
+              .with_note("in char literal, only certain escape sequences are allowed".to_string())
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -849,7 +1223,17 @@ impl Lexer {
     // Empty: "''"
     if lexeme == "''" {
       let span = Span::new(self.current.saturating_sub(2), self.current);
-      self.emit_diagnostic(self.err_empty_char(span));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::EmptyChar),
+        "empty character literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("character literal must contain exactly one character".to_string()),
+        LabelStyle::Primary,
+      );
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -863,10 +1247,17 @@ impl Lexer {
       // If it doesn't start with an escape, it must be exactly one scalar.
       if !inner.starts_with('\\') && inner.chars().count() != 1 {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_invalid_literal(
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
+          "invalid literal: character literal must contain exactly one Unicode scalar value".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
           span,
-          "character literal must contain exactly one Unicode scalar value",
-        ));
+          Some("character literal must contain exactly one Unicode scalar value".to_string()),
+          LabelStyle::Primary,
+        );
+        self.emit_diagnostic(diagnostic);
         return Err(());
       }
     }
@@ -887,7 +1278,18 @@ impl Lexer {
 
     if !terminated {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_unterminated_string(span, "string"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::UnterminatedString),
+        "unterminated string literal".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("string literal is not terminated".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add a closing quote to terminate the string literal".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -990,11 +1392,19 @@ impl Lexer {
               }
               if count < 2 || value > max_hex_escape {
                 let span = Span::new(escape_start, self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  format!("invalid escape sequence `\\x` in {} literal", context),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\x",
-                  Some(&format!("{} literal", context)),
-                ));
+                  Some("unknown escape sequence: `\\x`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note(format!("in {} literal, only certain escape sequences are allowed", context))
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
               } else if forbid_nul && value == 0 {
                 self
                   .report_nul_in_string(context, diagnostic::Span::new(escape_start, self.current));
@@ -1019,11 +1429,19 @@ impl Lexer {
                   },
                   None => {
                     let span = Span::new(escape_start, self.current);
-                    self.emit_diagnostic(self.err_invalid_escape(
+                    let diagnostic = Diagnostic::new(
+                      DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                      format!("invalid escape sequence `\\u` in invalid unicode escape in {} literal", context),
+                      self.source.path.clone(),
+                    )
+                    .with_label(
                       span,
-                      "\\u",
-                      Some(&format!("invalid unicode escape in {} literal", context)),
-                    ));
+                      Some("unknown escape sequence: `\\u`".to_string()),
+                      LabelStyle::Primary,
+                    )
+                    .with_note(format!("in invalid unicode escape in {} literal, only certain escape sequences are allowed", context))
+                    .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                    self.emit_diagnostic(diagnostic);
                     self.advance();
                     break;
                   },
@@ -1031,11 +1449,19 @@ impl Lexer {
               }
               if self.peek() != Some('}') {
                 let span = Span::new(escape_start, self.current);
-                self.emit_diagnostic(self.err_invalid_escape(
+                let diagnostic = Diagnostic::new(
+                  DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                  "invalid escape sequence `\\u` in unterminated unicode escape, missing '}'".to_string(),
+                  self.source.path.clone(),
+                )
+                .with_label(
                   span,
-                  "\\u",
-                  Some("unterminated unicode escape, missing '}'"),
-                ));
+                  Some("unknown escape sequence: `\\u`".to_string()),
+                  LabelStyle::Primary,
+                )
+                .with_note("in unterminated unicode escape, missing '}', only certain escape sequences are allowed".to_string())
+                .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                self.emit_diagnostic(diagnostic);
               } else {
                 self.advance(); // consume '}'
                 if digits == 0
@@ -1044,11 +1470,19 @@ impl Lexer {
                   || (0xD800..=0xDFFF).contains(&value)
                 {
                   let span = Span::new(escape_start, self.current);
-                  self.emit_diagnostic(self.err_invalid_escape(
+                  let diagnostic = Diagnostic::new(
+                    DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                    "invalid escape sequence `\\u` in invalid unicode escape code point".to_string(),
+                    self.source.path.clone(),
+                  )
+                  .with_label(
                     span,
-                    "\\u",
-                    Some("invalid unicode escape code point"),
-                  ));
+                    Some("unknown escape sequence: `\\u`".to_string()),
+                    LabelStyle::Primary,
+                  )
+                  .with_note("in invalid unicode escape code point, only certain escape sequences are allowed".to_string())
+                  .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+                  self.emit_diagnostic(diagnostic);
                 }
                 if forbid_nul && value == 0 {
                   self.report_nul_in_string(
@@ -1064,11 +1498,19 @@ impl Lexer {
                 .map(|c| c.to_string())
                 .unwrap_or_else(|| "unknown".to_string());
               let span = Span::new(escape_start, self.current);
-              self.emit_diagnostic(self.err_invalid_escape(
+              let diagnostic = Diagnostic::new(
+                DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+                format!("invalid escape sequence `\\{escape_char}` in {} literal", context),
+                self.source.path.clone(),
+              )
+              .with_label(
                 span,
-                &escape_char,
-                Some(&format!("{} literal", context)),
-              ));
+                Some(format!("unknown escape sequence: `\\{escape_char}`")),
+                LabelStyle::Primary,
+              )
+              .with_note(format!("in {} literal, only certain escape sequences are allowed", context))
+              .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+              self.emit_diagnostic(diagnostic);
               if self.peek().is_some() {
                 self.advance();
               }
@@ -1077,11 +1519,19 @@ impl Lexer {
         },
         '\r' => {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_invalid_escape(
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidEscape),
+            format!("invalid escape sequence `\\r` in {} literals", context),
+            self.source.path.clone(),
+          )
+          .with_label(
             span,
-            "\\r",
-            Some(&format!("{} literals", context)),
-          ));
+            Some("unknown escape sequence: `\\r`".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_note(format!("in {} literals, only certain escape sequences are allowed", context))
+          .with_help("valid escape sequences are: `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\xHH`, and `\\u{{HHHH}}`".to_string());
+          self.emit_diagnostic(diagnostic);
           self.advance();
         },
         _ => {
@@ -1100,20 +1550,20 @@ impl Lexer {
   }
 
   fn report_nul_in_string(&mut self, context: &str, span: Span) {
-    let diag = self
-      .diagnostic(
-        DiagnosticError::InvalidCharacter,
-        format!("{context} literal cannot contain interior NUL bytes"),
-      )
-      .with_label(
-        span,
-        Some("NUL byte is not allowed here".to_string()),
-        LabelStyle::Primary,
-      )
-      .with_help(
-        "Split the literal or avoid escapes that evaluate to zero when targeting C strings."
-          .to_string(),
-      );
+    let diag = Diagnostic::new(
+      DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+      format!("{context} literal cannot contain interior NUL bytes"),
+      self.source.path.clone(),
+    )
+    .with_label(
+      span,
+      Some("NUL byte is not allowed here".to_string()),
+      LabelStyle::Primary,
+    )
+    .with_help(
+      "Split the literal or avoid escapes that evaluate to zero when targeting C strings."
+        .to_string(),
+    );
     self.emit_diagnostic(diag);
   }
 }

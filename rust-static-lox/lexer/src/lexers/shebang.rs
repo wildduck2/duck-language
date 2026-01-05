@@ -4,7 +4,12 @@
 //! at the very start of a source file.
 
 use crate::{token::TokenKind, Lexer};
-use diagnostic::Span;
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  Span,
+};
 
 impl Lexer {
   /// Lexes a shebang line (`#!...`).
@@ -40,7 +45,18 @@ impl Lexer {
       // Anything else is invalid for a shebang
       _ => {
         let span = Span::new(self.start, self.current);
-        self.emit_diagnostic(self.err_invalid_shebang(span, "shebang must start with `#!` followed by `/` or `[`"));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidShebang),
+          "invalid shebang: shebang must start with `#!` followed by `/` or `[`".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("shebang must start with `#!` followed by `/` or `[`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("shebangs must start with `#!` and be on the first line".to_string());
+        self.emit_diagnostic(diagnostic);
         Err(())
       },
     }

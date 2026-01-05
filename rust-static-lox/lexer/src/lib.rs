@@ -16,10 +16,16 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::token::{LiteralKind, Token, TokenKind};
-use diagnostic::{DiagnosticEngine, SourceFile, Span};
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  DiagnosticEngine,
+  SourceFile,
+  Span,
+};
 
 mod lexers;
-mod diagnostics;
 mod scanner_utils;
 mod tests;
 pub mod token;
@@ -93,7 +99,18 @@ impl Lexer {
         Err(_) => {
           let span = Span::new(self.current, self.column + 1);
           let c = self.source.src.chars().nth(self.current).unwrap_or('?');
-          self.emit_diagnostic(self.err_invalid_character(span, c));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+            format!("invalid character: `{c}`"),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some(format!("character `{c}` is not valid in source code")),
+            LabelStyle::Primary,
+          )
+          .with_help("remove this character or replace it with a valid one".to_string());
+          self.engine.borrow_mut().add(diagnostic);
           return Err(std::io::Error::other("invalid character"));
         },
       };
@@ -132,6 +149,11 @@ impl Lexer {
       }
     }
     false
+  }
+
+  /// Emits a diagnostic through the lexer's engine.
+  pub(crate) fn emit_diagnostic(&mut self, diagnostic: Diagnostic) {
+    self.engine.borrow_mut().add(diagnostic);
   }
 
   /// Emits a token with a span covering the text from `start` to `current`.

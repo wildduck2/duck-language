@@ -1,4 +1,9 @@
-use diagnostic::Span;
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  Span,
+};
 
 use crate::{
   token::{Base, LiteralKind, TokenKind},
@@ -35,7 +40,19 @@ impl Lexer {
     let number = self.get_current_lexeme();
     if number.starts_with('_') || number.ends_with('_') {
       let bad_span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_integer_starts_with_underscore(bad_span, &number));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+        format!("`{number}` is not a valid integer literal"),
+        self.source.path.clone(),
+      )
+      .with_label(
+        bad_span,
+        Some("underscores may be used only between digits, never at the start or end".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("examples of valid literals: `1_000`, `0xFF_A0`, `123`".to_string())
+      .with_note("examples of invalid literals: `_123`, `123_`, `0x_12`".to_string());
+      self.emit_diagnostic(diagnostic);
       return Err(());
     }
 
@@ -56,21 +73,53 @@ impl Lexer {
       } else if c == '_' && self.peek_next(1) != Some('_') {
         if !empty_int {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_underscore_after_prefix(span, "0b"));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+            "0b literal cannot start with `_` after the prefix".to_string(),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("remove this underscore".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("add digits after `0b` before any underscores".to_string());
+          self.emit_diagnostic(diagnostic);
           break;
         }
         self.advance();
         continue;
       } else if c == '_' {
         let span = Span::new(self.current, self.current + 1);
-        self.emit_diagnostic(self.err_consecutive_underscores(span, "binary"));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+          "invalid `_` placement in binary literal".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("consecutive underscores are not allowed".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("underscores can only appear between digits, not consecutively".to_string());
+        self.emit_diagnostic(diagnostic);
         break;
       } else {
         if c == 'u' || c == 'i' {
           self.check_suffix_type(c, &mut suffix_start, false);
         } else {
           let span = Span::new(self.current, self.current + c.len_utf8());
-          self.emit_diagnostic(self.err_invalid_digit_in_base(span, c, "binary"));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+            format!("invalid digit `{c}` in binary literal"),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("expected a valid binary digit here".to_string()),
+            LabelStyle::Primary,
+          );
+          self.emit_diagnostic(diagnostic);
         }
         break;
       }
@@ -82,7 +131,18 @@ impl Lexer {
 
     if !empty_int {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_binary_literal_no_digits(span));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+        "binary literal has no digits after `0b` prefix".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected binary digits (`0` or `1`) after `0b`".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add binary digits after `0b`, e.g. `0b1010`".to_string());
+      self.emit_diagnostic(diagnostic);
     }
 
     LiteralKind::Integer {
@@ -106,21 +166,53 @@ impl Lexer {
       } else if c == '_' && self.peek_next(1) != Some('_') {
         if !empty_int {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_underscore_after_prefix(span, "0o"));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+            "0o literal cannot start with `_` after the prefix".to_string(),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("remove this underscore".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("add digits after `0o` before any underscores".to_string());
+          self.emit_diagnostic(diagnostic);
           break;
         }
         self.advance();
         continue;
       } else if c == '_' {
         let span = Span::new(self.current, self.current + 1);
-        self.emit_diagnostic(self.err_consecutive_underscores(span, "octal"));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+          "invalid `_` placement in octal literal".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("consecutive underscores are not allowed".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("underscores can only appear between digits, not consecutively".to_string());
+        self.emit_diagnostic(diagnostic);
         break;
       } else {
         if c == 'u' || c == 'i' {
           self.check_suffix_type(c, &mut suffix_start, false);
         } else {
           let span = Span::new(self.current, self.current + c.len_utf8());
-          self.emit_diagnostic(self.err_invalid_digit_in_base(span, c, "octal"));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+            format!("invalid digit `{c}` in octal literal"),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("expected a valid octal digit here".to_string()),
+            LabelStyle::Primary,
+          );
+          self.emit_diagnostic(diagnostic);
         }
         break;
       }
@@ -132,7 +224,18 @@ impl Lexer {
 
     if !empty_int {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_octal_literal_no_digits(span));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+        "octal literal has no digits after `0o` prefix".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected octal digits (`0`-`7`) after `0o`".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add octal digits after `0o`, e.g. `0o755`".to_string());
+      self.emit_diagnostic(diagnostic);
     }
 
     LiteralKind::Integer {
@@ -281,7 +384,17 @@ impl Lexer {
     // Integer suffix: u* / i*
     if (c == 'u' || c == 'i') && is_float {
       let span = Span::new(*suffix_start, self.current + c.len_utf8());
-      self.emit_diagnostic(self.err_invalid_literal(span, "float literals cannot have integer suffixes"));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidLiteral),
+        "invalid literal: float literals cannot have integer suffixes".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("float literals cannot have integer suffixes".to_string()),
+        LabelStyle::Primary,
+      );
+      self.emit_diagnostic(diagnostic);
       return false;
     }
 
@@ -388,7 +501,18 @@ impl Lexer {
 
   fn report_invalid_suffix(&mut self, c: char, suffix_start: usize) {
     let span = Span::new(suffix_start, self.current);
-    self.emit_diagnostic(self.err_invalid_character(span, c));
+    let diagnostic = Diagnostic::new(
+      DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+      format!("invalid character: `{c}`"),
+      self.source.path.clone(),
+    )
+    .with_label(
+      span,
+      Some(format!("character `{c}` is not valid in source code")),
+      LabelStyle::Primary,
+    )
+    .with_help("remove this character or replace it with a valid one".to_string());
+    self.emit_diagnostic(diagnostic);
   }
 
   /// Lex a hexadecimal number (`0x`/`0X`), supporting **ints and hex floats**.
@@ -415,13 +539,35 @@ impl Lexer {
       } else if c == '_' && self.peek_next(1) != Some('_') {
         if !empty_int {
           let span = Span::new(self.current, self.current + 1);
-          self.emit_diagnostic(self.err_underscore_after_prefix(span, "0x"));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+            "0x literal cannot start with `_` after the prefix".to_string(),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("remove this underscore".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("add digits after `0x` before any underscores".to_string());
+          self.emit_diagnostic(diagnostic);
           break;
         }
         self.advance();
       } else if c == '_' {
         let span = Span::new(self.current, self.current + 1);
-        self.emit_diagnostic(self.err_consecutive_underscores(span, "hexadecimal"));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+          "invalid `_` placement in hexadecimal literal".to_string(),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("consecutive underscores are not allowed".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("underscores can only appear between digits, not consecutively".to_string());
+        self.emit_diagnostic(diagnostic);
         break;
       } else if c == '.' && !has_dot {
         has_dot = true;
@@ -458,7 +604,18 @@ impl Lexer {
 
         if !has_exp_digits {
           let span = Span::new(self.start, self.current);
-          self.emit_diagnostic(self.err_invalid_character(span, 'p'));
+          let diagnostic = Diagnostic::new(
+            DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+            "invalid character: `p`".to_string(),
+            self.source.path.clone(),
+          )
+          .with_label(
+            span,
+            Some("character `p` is not valid in source code".to_string()),
+            LabelStyle::Primary,
+          )
+          .with_help("remove this character or replace it with a valid one".to_string());
+          self.emit_diagnostic(diagnostic);
         }
       }
     }
@@ -469,7 +626,17 @@ impl Lexer {
         self.check_suffix_type(c, &mut suffix_start, has_dot || has_exponent);
       } else if c != 'p' && c != 'P' {
         let span = Span::new(self.current, self.current + c.len_utf8());
-        self.emit_diagnostic(self.err_invalid_digit_in_base(span, c, "hexadecimal"));
+        let diagnostic = Diagnostic::new(
+          DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+          format!("invalid digit `{c}` in hexadecimal literal"),
+          self.source.path.clone(),
+        )
+        .with_label(
+          span,
+          Some("expected a valid hexadecimal digit here".to_string()),
+          LabelStyle::Primary,
+        );
+        self.emit_diagnostic(diagnostic);
       }
     }
 
@@ -480,7 +647,18 @@ impl Lexer {
 
     if !empty_int {
       let span = Span::new(self.start, self.current);
-      self.emit_diagnostic(self.err_hex_literal_no_digits(span));
+      let diagnostic = Diagnostic::new(
+        DiagnosticCode::Error(DiagnosticError::InvalidInteger),
+        "hexadecimal literal has no digits after `0x` prefix".to_string(),
+        self.source.path.clone(),
+      )
+      .with_label(
+        span,
+        Some("expected hexadecimal digits (`0`-`9`, `a`-`f`, `A`-`F`) after `0x`".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_help("add hexadecimal digits after `0x`, e.g. `0xFF`".to_string());
+      self.emit_diagnostic(diagnostic);
     }
 
     if has_dot || has_exponent {

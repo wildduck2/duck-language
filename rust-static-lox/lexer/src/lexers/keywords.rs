@@ -4,7 +4,12 @@
 //! still emitting ordinary identifiers (including `r#raw` forms) and reporting
 //! malformed ones with clear diagnostics.
 
-use diagnostic::Span;
+use diagnostic::{
+  code::DiagnosticCode,
+  diagnostic::{Diagnostic, LabelStyle},
+  types::error::DiagnosticError,
+  Span,
+};
 
 use crate::{token::TokenKind, Lexer};
 
@@ -135,7 +140,18 @@ impl Lexer {
 
   fn report_invalid_identifier(&mut self, lexeme_owned: String) -> Result<TokenKind, ()> {
     let span = Span::new(self.start, self.current);
-    self.emit_diagnostic(self.err_invalid_identifier(span, &lexeme_owned));
+    let diagnostic = Diagnostic::new(
+      DiagnosticCode::Error(DiagnosticError::InvalidIdentifier),
+      format!("expected identifier, found `{lexeme_owned}`"),
+      self.source.path.clone(),
+    )
+    .with_label(
+      span,
+      Some(format!("`{lexeme_owned}` is not a valid identifier")),
+      LabelStyle::Primary,
+    )
+    .with_help("identifiers must start with a letter or underscore and contain only alphanumeric characters and underscores".to_string());
+    self.emit_diagnostic(diagnostic);
     Err(())
   }
 }

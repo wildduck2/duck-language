@@ -21,9 +21,7 @@ mod coverage_tests {
     (Lexer::new(source_file, engine.clone()), engine)
   }
 
-  fn scan_tokens_with_engine(
-    input: &str,
-  ) -> (Vec<TokenKind>, Rc<RefCell<DiagnosticEngine>>) {
+  fn scan_tokens_with_engine(input: &str) -> (Vec<TokenKind>, Rc<RefCell<DiagnosticEngine>>) {
     let (mut lexer, engine) = make_lexer(input);
     let _ = lexer.scan_tokens();
     (lexer.tokens.iter().map(|t| t.kind).collect(), engine)
@@ -66,20 +64,8 @@ mod coverage_tests {
     assert!(!At.can_start_path());
 
     let expr_starters = [
-      Ident,
-      lit_int,
-      LParen,
-      LBrace,
-      LBracket,
-      Minus,
-      Bang,
-      Star,
-      Amp,
-      KwIf,
-      KwMatch,
-      KwWhile,
-      KwFor,
-      KwLoop,
+      Ident, lit_int, LParen, LBrace, LBracket, Minus, Bang, Star, Amp, KwIf, KwMatch, KwWhile,
+      KwFor, KwLoop,
     ];
     for kind in expr_starters {
       assert!(kind.token_starts_expression());
@@ -87,38 +73,9 @@ mod coverage_tests {
     assert!(!Semi.token_starts_expression());
 
     let full_expr_starters = [
-      Ident,
-      RawIdent,
-      lit_float,
-      LParen,
-      LBracket,
-      LBrace,
-      Or,
-      KwMove,
-      Minus,
-      Star,
-      Bang,
-      Amp,
-      KwIf,
-      KwMatch,
-      KwWhile,
-      KwLoop,
-      KwFor,
-      KwReturn,
-      KwBreak,
-      KwContinue,
-      lifetime,
-      ColonColon,
-      KwSelf,
-      KwSelfType,
-      KwSuper,
-      KwCrate,
-      KwTry,
-      KwConst,
-      KwAsync,
-      KwUnsafe,
-      KwExtern,
-      Lt,
+      Ident, RawIdent, lit_float, LParen, LBracket, LBrace, Or, KwMove, Minus, Star, Bang, Amp,
+      KwIf, KwMatch, KwWhile, KwLoop, KwFor, KwReturn, KwBreak, KwContinue, lifetime, ColonColon,
+      KwSelf, KwSelfType, KwSuper, KwCrate, KwTry, KwConst, KwAsync, KwUnsafe, KwExtern, Lt,
     ];
     for kind in full_expr_starters {
       assert!(kind.can_start_expression());
@@ -126,9 +83,39 @@ mod coverage_tests {
     assert!(!Semi.can_start_expression());
 
     let continue_expr = [
-      Dot, LParen, LBracket, Question, KwAs, Plus, Minus, Star, Slash, Percent, Caret, Or, Amp,
-      EqEq, Ne, Lt, Le, Gt, Ge, PlusEq, MinusEq, StarEq, SlashEq, PercentEq, AndEq, OrEq, CaretEq,
-      ShiftLeftEq, ShiftRightEq, DotDot, DotDotEq, ThinArrow, FatArrow,
+      Dot,
+      LParen,
+      LBracket,
+      Question,
+      KwAs,
+      Plus,
+      Minus,
+      Star,
+      Slash,
+      Percent,
+      Caret,
+      Or,
+      Amp,
+      EqEq,
+      Ne,
+      Lt,
+      Le,
+      Gt,
+      Ge,
+      PlusEq,
+      MinusEq,
+      StarEq,
+      SlashEq,
+      PercentEq,
+      AndEq,
+      OrEq,
+      CaretEq,
+      ShiftLeftEq,
+      ShiftRightEq,
+      DotDot,
+      DotDotEq,
+      ThinArrow,
+      FatArrow,
     ];
     for kind in continue_expr {
       assert!(kind.can_continue_expression());
@@ -149,70 +136,22 @@ mod coverage_tests {
 
     assert!(Whitespace.is_trivia());
     assert!(LineComment { doc_style: None }.is_trivia());
-    assert!(
-      BlockComment {
-        doc_style: Some(DocStyle::Outer),
-        terminated: true
-      }
-      .is_trivia()
-    );
+    assert!(BlockComment {
+      doc_style: Some(DocStyle::Outer),
+      terminated: true
+    }
+    .is_trivia());
     assert!(!Ident.is_trivia());
 
     assert!(lit_int.is_literal());
     assert!(!Ident.is_literal());
 
     let keywords = [
-      KwAs,
-      KwBreak,
-      KwConst,
-      KwContinue,
-      KwCrate,
-      KwElse,
-      KwEnum,
-      KwExtern,
-      KwFalse,
-      KwFn,
-      KwFor,
-      KwIf,
-      KwImpl,
-      KwIn,
-      KwLet,
-      KwLoop,
-      KwMatch,
-      KwMod,
-      KwMove,
-      KwMut,
-      Kwpub,
-      KwRef,
-      KwReturn,
-      KwSelf,
-      KwSelfType,
-      KwStatic,
-      KwStruct,
-      KwSuper,
-      KwTrait,
-      KwTrue,
-      KwType,
-      KwUnsafe,
-      KwUse,
-      KwWhere,
-      KwWhile,
-      KwAsync,
-      KwAwait,
-      KwDyn,
-      KwAbstract,
-      KwBecome,
-      KwFinal,
-      KwMacro,
-      KwOverride,
-      KwTry,
-      KwTypeof,
-      KwUnion,
-      KwUnsized,
-      KwYield,
-      KwBox,
-      KwDo,
-      KwVirtual,
+      KwAs, KwBreak, KwConst, KwContinue, KwCrate, KwElse, KwEnum, KwExtern, KwFalse, KwFn, KwFor,
+      KwIf, KwImpl, KwIn, KwLet, KwLoop, KwMatch, KwMod, KwMove, KwMut, Kwpub, KwRef, KwReturn,
+      KwSelf, KwSelfType, KwStatic, KwStruct, KwSuper, KwTrait, KwTrue, KwType, KwUnsafe, KwUse,
+      KwWhere, KwWhile, KwAsync, KwAwait, KwDyn, KwAbstract, KwBecome, KwFinal, KwMacro,
+      KwOverride, KwTry, KwTypeof, KwUnion, KwUnsized, KwYield, KwBox, KwDo, KwVirtual,
     ];
     for kind in keywords {
       assert!(kind.is_keyword());
@@ -232,21 +171,17 @@ mod coverage_tests {
     }
     assert!(!LiteralKind::Char.is_string_like());
 
-    assert!(
-      LiteralKind::Integer {
-        base: Base::Decimal,
-        empty_int: false,
-        suffix_start: 0,
-      }
-      .is_numeric()
-    );
-    assert!(
-      LiteralKind::Float {
-        base: Base::Decimal,
-        suffix_start: 0,
-      }
-      .is_numeric()
-    );
+    assert!(LiteralKind::Integer {
+      base: Base::Decimal,
+      empty_int: false,
+      suffix_start: 0,
+    }
+    .is_numeric());
+    assert!(LiteralKind::Float {
+      base: Base::Decimal,
+      suffix_start: 0,
+    }
+    .is_numeric());
     assert!(!LiteralKind::Str.is_numeric());
 
     assert!(LiteralKind::Char.is_char_like());
@@ -288,34 +223,27 @@ mod coverage_tests {
 
   #[test]
   fn lexer_diagnostics_cover_all_builders() {
+    use diagnostic::{
+      code::DiagnosticCode,
+      diagnostic::{Diagnostic, LabelStyle},
+      types::error::DiagnosticError,
+    };
     let (mut lexer, _) = make_lexer("x");
     let span = Span::new(0, 1);
 
-    let _ = lexer.err_invalid_shebang(span, "bad");
-    let _ = lexer.err_invalid_character(span, 'x');
-    let _ = lexer.err_unterminated_string(span, "string");
-    let _ = lexer.err_too_many_raw_str_hashes(span, 3, 2);
-    let _ = lexer.err_invalid_string_start(span, "bad");
-    let _ = lexer.err_invalid_escape(span, "q", Some("string"));
-    let _ = lexer.err_invalid_escape(span, "q", None);
-    let _ = lexer.err_unknown_prefix(span, "z");
-    let _ = lexer.err_reserved_prefix(span, "f");
-    let _ = lexer.err_invalid_lifetime(span, "'1", "bad");
-    let _ = lexer.err_lifetime_starts_with_digit(span, "'1");
-    let _ = lexer.err_lifetime_missing_name(span);
-    let _ = lexer.err_invalid_integer(span, "bad int");
-    let _ = lexer.err_integer_starts_with_underscore(span, "_1");
-    let _ = lexer.err_binary_literal_no_digits(span);
-    let _ = lexer.err_octal_literal_no_digits(span);
-    let _ = lexer.err_hex_literal_no_digits(span);
-    let _ = lexer.err_invalid_digit_in_base(span, '9', "binary");
-    let _ = lexer.err_consecutive_underscores(span, "decimal");
-    let _ = lexer.err_underscore_after_prefix(span, "0x");
-    let _ = lexer.err_invalid_identifier(span, "9abc");
-    let _ = lexer.err_invalid_literal(span, "bad literal");
-    let _ = lexer.err_empty_char(span);
-
-    lexer.emit_diagnostic(lexer.err_invalid_character(span, 'x'));
+    // Test that diagnostics can be created and emitted
+    let diag = Diagnostic::new(
+      DiagnosticCode::Error(DiagnosticError::InvalidCharacter),
+      "invalid character: `x`".to_string(),
+      lexer.source.path.clone(),
+    )
+    .with_label(
+      span,
+      Some("character `x` is not valid in source code".to_string()),
+      LabelStyle::Primary,
+    )
+    .with_help("remove this character or replace it with a valid one".to_string());
+    lexer.emit_diagnostic(diag);
     assert!(lexer.engine.borrow().has_errors());
   }
 
@@ -378,7 +306,11 @@ mod coverage_tests {
       tokens.as_slice(),
       [
         TokenKind::Literal {
-          kind: LiteralKind::Integer { base: Base::Decimal, empty_int: false, .. }
+          kind: LiteralKind::Integer {
+            base: Base::Decimal,
+            empty_int: false,
+            ..
+          }
         },
         TokenKind::Dot,
         TokenKind::Ident
@@ -390,7 +322,12 @@ mod coverage_tests {
     let tokens = non_eof(tokens);
     assert!(matches!(
       tokens.as_slice(),
-      [TokenKind::Literal { kind: LiteralKind::Float { base: Base::Decimal, .. } }]
+      [TokenKind::Literal {
+        kind: LiteralKind::Float {
+          base: Base::Decimal,
+          ..
+        }
+      }]
     ));
 
     for src in ["1.0f32", "1.0f64"] {
@@ -400,7 +337,12 @@ mod coverage_tests {
       assert_eq!(tokens.len(), 1);
       assert!(matches!(
         tokens[0],
-        TokenKind::Literal { kind: LiteralKind::Float { base: Base::Decimal, .. } }
+        TokenKind::Literal {
+          kind: LiteralKind::Float {
+            base: Base::Decimal,
+            ..
+          }
+        }
       ));
     }
 
@@ -415,7 +357,12 @@ mod coverage_tests {
       assert_eq!(tokens.len(), 1);
       assert!(matches!(
         tokens[0],
-        TokenKind::Literal { kind: LiteralKind::Integer { base: Base::Decimal, .. } }
+        TokenKind::Literal {
+          kind: LiteralKind::Integer {
+            base: Base::Decimal,
+            ..
+          }
+        }
       ));
     }
 
@@ -429,7 +376,12 @@ mod coverage_tests {
     let tokens = non_eof(tokens);
     assert!(matches!(
       tokens.as_slice(),
-      [TokenKind::Literal { kind: LiteralKind::Float { base: Base::Hexadecimal, .. } }]
+      [TokenKind::Literal {
+        kind: LiteralKind::Float {
+          base: Base::Hexadecimal,
+          ..
+        }
+      }]
     ));
   }
 
@@ -444,7 +396,12 @@ mod coverage_tests {
       assert!(!engine.borrow().has_errors());
       assert!(matches!(
         tok,
-        TokenKind::Literal { kind: LiteralKind::Float { base: Base::Decimal, .. } }
+        TokenKind::Literal {
+          kind: LiteralKind::Float {
+            base: Base::Decimal,
+            ..
+          }
+        }
       ));
     }
 
@@ -457,7 +414,12 @@ mod coverage_tests {
       assert!(!engine.borrow().has_errors());
       assert!(matches!(
         tok,
-        TokenKind::Literal { kind: LiteralKind::Integer { base: Base::Decimal, .. } }
+        TokenKind::Literal {
+          kind: LiteralKind::Integer {
+            base: Base::Decimal,
+            ..
+          }
+        }
       ));
     }
   }
@@ -529,7 +491,9 @@ mod coverage_tests {
     let tokens = non_eof(tokens);
     assert!(matches!(
       tokens.as_slice(),
-      [TokenKind::Literal { kind: LiteralKind::RawStr { n_hashes: 1 } }]
+      [TokenKind::Literal {
+        kind: LiteralKind::RawStr { n_hashes: 1 }
+      }]
     ));
 
     let (_, engine) = scan_tokens_with_engine("r#\"line1\nr#\"next\"#");
@@ -542,4 +506,3 @@ mod coverage_tests {
     assert!(engine.borrow().has_errors());
   }
 }
-
