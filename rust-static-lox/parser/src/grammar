@@ -183,12 +183,12 @@ useTreeList              -> "{" (useTree ("," useTree)* ","?)? "}" ;        [x]
 moduleItem               -> "mod" IDENTIFIER (";" | itemBlock) ;            [x]
 itemBlock                -> "{" innerAttr* item* "}" ;                      [x]
 
-foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;         [-]
-foreignModBody           -> "{" innerAttr* externalItem* "}" ;               [-]
+foreignModItem           -> "unsafe"? "extern" abi? foreignModBody ;         [x]
+foreignModBody           -> "{" innerAttr* externalItem* "}" ;               [x]
 
-externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;  [-]
-externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"   [-]
-                          | foreignFunctionItem ;                              [-]
+externalItem             -> outerAttr* (macroInvocationSemi | (visibility? externalItemKind)) ;  [x]
+externalItemKind         -> "static" "mut"? (IDENTIFIER | "_") ":" type ";"   [x]
+                          | foreignFunctionItem ;                              [x]
 
 /* extern type is a separate free item (no generics) */
 externTypeItem           -> "extern" "type" IDENTIFIER ";" ;                 [x]

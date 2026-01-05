@@ -9,6 +9,7 @@ mod r#const;
 mod control_flow;
 mod r#enum;
 mod r#extern;
+mod foreign;
 mod extern_type;
 mod factor;
 mod r#fn;
