@@ -53,6 +53,21 @@ mod const_tests {
   }
 
   #[test]
+  fn const_item_with_attribute() {
+    let item = parse_const_item("#[attr] const FOO: i32 = 1;").unwrap();
+    match item {
+      Item::Vis(vis) => {
+        assert_eq!(vis.attributes.len(), 1);
+        match vis.kind {
+          VisItemKind::Const(decl) => assert_const_decl(&decl, "FOO", 1),
+          other => panic!("expected const item, got: {:?}", other),
+        }
+      },
+      other => panic!("expected vis item, got: {:?}", other),
+    }
+  }
+
+  #[test]
   fn const_item_as_statement() {
     let stmt = parse_stmt("const FOO: i32 = 1;").unwrap();
     match stmt {
