@@ -90,6 +90,9 @@ impl Parser {
         self.parse_fn_decl(attributes, visibility, ParserContext::Function)
       },
       TokenKind::KwMod => self.parse_module_decl(attributes, visibility, ParserContext::Module),
+      kind if kind.can_start_path() => {
+        self.parse_macro_invocation_item(attributes, visibility, ParserContext::Macro)
+      },
       _ => {
         let lexeme = self.get_token_lexeme(&self.current_token());
         self.emit(self.err_unexpected_token(

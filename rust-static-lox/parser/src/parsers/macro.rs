@@ -1,7 +1,7 @@
 use crate::{
   ast::{
-    path::Path, Attribute, Delimiter, Expr, ExprKind, Item, Macro2Decl, MacroInvocation, MacroItem,
-    MacroItemKind, MacroRule, MacroRulesDecl, RepeatKind, Stmt, TokenTree, Visibility,
+    path::Path, Attribute, Delimiter, Item, Macro2Decl, MacroInvocation, MacroItem, MacroItemKind,
+    MacroRule, MacroRulesDecl, RepeatKind, Stmt, TokenTree, Visibility,
   },
   match_and_consume,
   parser_utils::ParserContext,
@@ -306,38 +306,42 @@ impl Parser {
     Ok(frag)
   }
 
+  pub(crate) fn parse_macro_invocation_item(
+    &mut self,
+    attributes: Vec<Attribute>,
+    visibility: Visibility,
+    context: ParserContext,
+  ) -> Result<Item, ()> {
+    let mut token = self.current_token();
+    if !attributes.is_empty() {
+      token.span.merge(self.current_token().span);
+    }
+
+    let path = self.parse_path(true, context)?;
+    self.expect(TokenKind::Bang)?;
+    let mac = self.parse_macro_invocation(path)?;
+    self.expect(TokenKind::Semi)?;
+
+    Ok(Item::Macro(MacroItem {
+      attributes,
+      visibility,
+      kind: MacroItemKind::Invocation(mac),
+      span: *token.span.merge(self.last_token_span()),
+    }))
+  }
+
   pub(crate) fn parse_macro_invocation_statement(
     &mut self,
     context: ParserContext,
   ) -> Result<Stmt, ()> {
     let mut token = self.current_token();
 
-    let expr = self.parse_macro_invocation_expression(context)?;
-    let mac = match expr.kind {
-      ExprKind::Macro { mac } => mac,
-      _ => unreachable!(),
-    };
-
-    Ok(Stmt::Macro {
-      mac,
-      span: *token.span.merge(self.last_token_span()),
-    })
-  }
-
-  pub(crate) fn parse_macro_invocation_expression(
-    &mut self,
-    context: ParserContext,
-  ) -> Result<Expr, ()> {
-    let mut token = self.current_token();
-
     let path = self.parse_path(true, context)?;
-
     self.expect(TokenKind::Bang)?;
     let mac = self.parse_macro_invocation(path)?;
 
-    Ok(Expr {
-      attributes: vec![],
-      kind: ExprKind::Macro { mac },
+    Ok(Stmt::Macro {
+      mac,
       span: *token.span.merge(self.last_token_span()),
     })
   }
