@@ -100,8 +100,8 @@ impl Parser {
 
   // Parses attribute metadata like `derive(Debug)` or `path = value`.
   fn parse_attribute_input(&mut self, context: ParserContext) -> Result<AttrInput, ()> {
-    // Kept as-is: parse_path(true) means "allow generic args" in your parser.
-    let path = self.parse_path(true, context)?;
+    // Attribute paths are simple paths without generic arguments.
+    let path = self.parse_path(false, context)?;
     let args = self.parse_attribute_input_tail()?;
 
     Ok(AttrInput { path, args })

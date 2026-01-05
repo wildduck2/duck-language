@@ -141,7 +141,11 @@ impl Lexer {
   ///
   /// `Ok(TokenKind::Pound)` or `Some(TokenKind::Shebang)`, or `None` for invalid shebang
   pub(crate) fn lex_pound(&mut self) -> Result<TokenKind, ()> {
-    if self.start == 0 && self.match_char('!') {
+    if self.start == 0 && self.peek() == Some('!') {
+      if self.peek_next(1) == Some('[') {
+        return Ok(TokenKind::Pound);
+      }
+      self.advance(); // consume '!' for shebang handling
       return self.lex_shebang();
     }
 

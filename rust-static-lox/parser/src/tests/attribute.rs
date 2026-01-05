@@ -56,13 +56,28 @@ mod attributes_tests {
   }
 
   #[test]
+  fn parses_outer_attribute_path_segments() {
+    let attrs = parse_outer_attrs("#[rustfmt::skip]").unwrap();
+    assert_eq!(attrs.len(), 1);
+    assert!(!attrs[0].input.path.leading_colon);
+    assert_eq!(attrs[0].input.path.segments.len(), 2);
+    match &attrs[0].input.path.segments[0].kind {
+      PathSegmentKind::Ident(name) => assert_eq!(name, "rustfmt"),
+      other => panic!("expected ident path segment, got: {:?}", other),
+    }
+    match &attrs[0].input.path.segments[1].kind {
+      PathSegmentKind::Ident(name) => assert_eq!(name, "skip"),
+      other => panic!("expected ident path segment, got: {:?}", other),
+    }
+  }
+
+  #[test]
   fn parses_attribute_outer_style() {
     let attr = parse_attribute_direct("#[test]").unwrap();
     assert_eq!(attr.style, AttrStyle::Outer);
   }
 
   #[test]
-  #[ignore = "expression attributes are not preserved yet"]
   fn parses_attribute_inner_style() {
     let attr = parse_attribute_direct("#![test]").unwrap();
     assert_eq!(attr.style, AttrStyle::Inner);
@@ -84,6 +99,12 @@ mod attributes_tests {
       },
       other => panic!("expected name-value attr args, got: {:?}", other),
     }
+  }
+
+  #[test]
+  fn rejects_attribute_with_generic_args() {
+    assert!(parse_outer_attrs("#[attr::<T>]").is_err());
+    assert!(parse_outer_attrs("#[attr<T>]").is_err());
   }
 
   #[test]
