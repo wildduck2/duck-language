@@ -66,7 +66,7 @@ impl Parser {
     })
   }
 
-  fn parse_attribute(&mut self, context: ParserContext) -> Result<Attribute, ()> {
+  pub(crate) fn parse_attribute(&mut self, context: ParserContext) -> Result<Attribute, ()> {
     let mut start = self.current_token();
 
     let attr_style = match self.current_token().kind {
@@ -137,62 +137,17 @@ impl Parser {
 }
 
 impl TokenTree {
-  fn delimiter(&self) -> Delimiter {
+  pub(crate) fn delimiter(&self) -> Delimiter {
     match self {
       TokenTree::Delimited { delimiter, .. } => delimiter.clone(),
       _ => Delimiter::Paren,
     }
   }
 
-  fn tokens(&self) -> Vec<TokenTree> {
+  pub(crate) fn tokens(&self) -> Vec<TokenTree> {
     match self {
       TokenTree::Delimited { tokens, .. } => tokens.clone(),
       _ => vec![],
     }
-  }
-}
-
-#[cfg(test)]
-mod attributes_parser_tests {
-  use super::*;
-  use crate::{parser_utils::ParserContext, tests::support::run_parser};
-
-  fn parse_attribute_direct(input: &str) -> Result<Attribute, ()> {
-    run_parser(input, "attr_direct_test_temp", |parser| {
-      parser.parse_attribute(ParserContext::Default)
-    })
-  }
-
-  #[test]
-  fn parses_attribute_outer_style() {
-    let attr = parse_attribute_direct("#[test]").unwrap();
-    assert_eq!(attr.style, AttrStyle::Outer);
-  }
-
-  #[test]
-  #[ignore = "expression attributes are not preserved yet"]
-  fn parses_attribute_inner_style() {
-    let attr = parse_attribute_direct("#![test]").unwrap();
-    assert_eq!(attr.style, AttrStyle::Inner);
-  }
-
-  #[test]
-  fn attribute_rejects_non_attribute_start() {
-    assert!(parse_attribute_direct("test").is_err());
-  }
-
-  #[test]
-  fn delim_token_tree_rejects_non_delimiter_start() {
-    let result = run_parser("test", "attr_tree_error_temp", |parser| {
-      parser.parse_delim_token_tree()
-    });
-    assert!(result.is_err());
-  }
-
-  #[test]
-  fn token_tree_helpers_default_for_token_variant() {
-    let tree = TokenTree::Token("x".to_string());
-    assert_eq!(tree.delimiter(), Delimiter::Paren);
-    assert!(tree.tokens().is_empty());
   }
 }

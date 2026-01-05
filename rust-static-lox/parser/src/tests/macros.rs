@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod macros_tests {
   use crate::{
-    ast::{Delimiter, ExprKind, Item, MacroItemKind, RepeatKind, Stmt, TokenTree},
+    ast::{Delimiter, ExprKind, Ident, Item, MacroItemKind, RepeatKind, Stmt, TokenTree},
     parser_utils::ParserContext,
     tests::support::{parse_expression, parse_item, run_parser},
   };
@@ -30,7 +30,9 @@ mod macros_tests {
           mac.tokens,
           vec![
             TokenTree::Token("x".to_string()),
+            TokenTree::Token(",".to_string()),
             TokenTree::Token("1".to_string()),
+            TokenTree::Token(",".to_string()),
             TokenTree::Token("true".to_string()),
           ]
         );
@@ -106,13 +108,13 @@ mod macros_tests {
   }
 
   #[test]
-  fn rejects_invalid_macro_token_tree() {
-    assert!(parse_expr("foo!(@)").is_err());
+  fn rejects_unclosed_macro_invocation() {
+    assert!(parse_expr("foo!(x").is_err());
   }
 
   #[test]
-  fn rejects_repeat_syntax_without_body() {
-    assert!(parse_expr("foo!(.. =)").is_err());
+  fn rejects_mismatched_macro_invocation_delimiter() {
+    assert!(parse_expr("foo!(x]").is_err());
   }
 
   #[test]
@@ -124,8 +126,8 @@ mod macros_tests {
         assert_eq!(
           mac.tokens,
           vec![TokenTree::MetaVar {
-            name: "x".to_string(),
-            frag: "expr".to_string(),
+            name: Ident::Name("x".to_string()),
+            frag: Ident::Name("expr".to_string()),
           }]
         );
       },
@@ -175,7 +177,7 @@ mod macros_tests {
     match item {
       Item::Macro(mac) => match mac.kind {
         MacroItemKind::Macro2(decl) => {
-          assert_eq!(decl.name, "m");
+          assert_eq!(decl.name, Ident::Name("m".to_string()));
           assert_eq!(decl.params, vec!["x".to_string(), "y".to_string()]);
           match decl.body {
             TokenTree::Delimited { delimiter, tokens } => {

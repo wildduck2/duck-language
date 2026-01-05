@@ -15,6 +15,12 @@ mod attributes_tests {
     })
   }
 
+  fn parse_attribute_direct(input: &str) -> Result<crate::ast::Attribute, ()> {
+    run_parser(input, "attr_direct_test_temp", |parser| {
+      parser.parse_attribute(ParserContext::Default)
+    })
+  }
+
   fn parse_inner_attrs(input: &str) -> Result<Vec<crate::ast::Attribute>, ()> {
     run_parser(input, "inner_attr_test_temp", |parser| {
       if !matches!(parser.current_token().kind, lexer::token::TokenKind::Pound) {
@@ -47,6 +53,24 @@ mod attributes_tests {
     assert_eq!(attrs[0].style, AttrStyle::Outer);
     assert_ident_path(&attrs[0].input.path, "test");
     assert!(attrs[0].input.args.is_none());
+  }
+
+  #[test]
+  fn parses_attribute_outer_style() {
+    let attr = parse_attribute_direct("#[test]").unwrap();
+    assert_eq!(attr.style, AttrStyle::Outer);
+  }
+
+  #[test]
+  #[ignore = "expression attributes are not preserved yet"]
+  fn parses_attribute_inner_style() {
+    let attr = parse_attribute_direct("#![test]").unwrap();
+    assert_eq!(attr.style, AttrStyle::Inner);
+  }
+
+  #[test]
+  fn attribute_rejects_non_attribute_start() {
+    assert!(parse_attribute_direct("test").is_err());
   }
 
   #[test]
@@ -110,6 +134,21 @@ mod attributes_tests {
       },
       other => panic!("expected delimited attr args, got: {:?}", other),
     }
+  }
+
+  #[test]
+  fn delim_token_tree_rejects_non_delimiter_start() {
+    let result = run_parser("test", "attr_tree_error_temp", |parser| {
+      parser.parse_delim_token_tree()
+    });
+    assert!(result.is_err());
+  }
+
+  #[test]
+  fn token_tree_helpers_default_for_token_variant() {
+    let tree = TokenTree::Token("x".to_string());
+    assert_eq!(tree.delimiter(), Delimiter::Paren);
+    assert!(tree.tokens().is_empty());
   }
 
   #[test]

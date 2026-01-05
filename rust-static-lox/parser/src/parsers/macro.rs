@@ -388,8 +388,20 @@ impl Parser {
         TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace
       )
     {
-      tokens.push(self.parse_delim_token_tree()?);
-      match_and_consume!(self, TokenKind::Comma)?;
+      if matches!(
+        self.current_token().kind,
+        TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace
+      ) {
+        // Nested delimited tree inside a macro invocation.
+        tokens.push(self.parse_delim_token_tree()?);
+        match_and_consume!(self, TokenKind::Comma)?;
+        continue;
+      }
+
+      // Accept any other token as a raw token tree element.
+      let lexeme = self.get_token_lexeme(&self.current_token());
+      tokens.push(TokenTree::Token(lexeme));
+      self.advance();
     }
 
     Ok(tokens)
