@@ -36,7 +36,7 @@ itemKind                -> functionItem            [x]
 /* Macros                                                                    */
 /* ------------------------------------------------------------------------- */
 
-macroItem               -> macroInvocationSemi ;                              [-]
+macroItem               -> macroInvocationSemi ;                              [x]
                          | macroRulesItem                                     [x]
                          | macro2Item ;                                       [x]
 
@@ -48,8 +48,8 @@ attrInput               -> simplePath attrInputTail? ;
 attrInputTail           -> delimTokenTree
                          | "=" expression ;
 
-delimTokenTree          -> "(" tokenStream ")"
-                         | "[" tokenStream "]"
+delimTokenTree          -> "(" tokenStream ")"                                 [x]
+                         | "[" tokenStream "]"                                 [x]
                          | "{" tokenStream "}" ;                               [x]
 
 metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;
@@ -64,11 +64,11 @@ functionSig             -> functionQualifiers "fn" IDENTIFIER                   
                            genericParams? "(" functionParams? ")" functionReturnType?   [x]
                            whereClause? ;                                               [x]
 
-functionItem            -> functionSig blockExpr ;         /* free functions need a body */ [x]
+functionItem            -> functionSig blockExpr ;                    [x]
 
-foreignFunctionItem     -> functionSig ";" ;               /* foreign items end with ';' */ [x]
+foreignFunctionItem     -> functionSig ";" ;                         [x]
 
-associatedFunctionItem  -> functionSig (blockExpr | ";") ; /* traits may have default bodies or ';' */ [x]
+associatedFunctionItem  -> functionSig (blockExpr | ";") ;            [x]
 
 functionQualifiers      -> "const"? "async"? "unsafe"? ("extern" abi?)? ;  [x]
 
@@ -160,11 +160,9 @@ associatedItemKind       -> associatedTypeItem                        [x]
                           | associatedConstItem                       [x]
                           | associatedFunctionItem ;                  [x]
 
-/* Associated type: generics (GATs) allowed, optional bounds, optional where, optional default */
 associatedTypeItem       -> "type" IDENTIFIER genericParams? (":" typeParamBounds)?
                             whereClause? ("=" type)? ";" ;            [x]
 
-/* Associated const: in traits value is optional, in impls it must be provided (semantic rule) */
 associatedConstItem      -> "const" IDENTIFIER ":" type ("=" expression)? ";" ;  [x]
 
 inherentImplItem         -> outerAttr* (visibility? (functionItem | constItem) | macroInvocationSemi) ;  [x]
@@ -200,15 +198,15 @@ externTypeItem           -> "extern" "type" IDENTIFIER ";" ;                 [x]
 /* ------------------------------------------------------------------------- */
 
 macroRulesItem            -> "macro_rules" "!" IDENTIFIER macroRulesDef ;     [x]
-macroRulesDef             -> "(" macroRules ")" ";"
-                           | "{" macroRules "}"
-                           | "[" macroRules "]" ;                            [x]
+macroRulesDef             -> "(" macroRules ")" ";"                           [x]
+                           | "{" macroRules "}"                               [x]
+                           | "[" macroRules "]" ;                             [x]
 
 macroRules                -> macroRule (";" macroRule)* ";"? ;                [x]
 macroRule                 -> macroMatcher "=>" macroTranscriber ;             [x]
 
-macroMatcher              -> "(" macroMatch* ")"
-                           | "[" macroMatch* "]"
+macroMatcher              -> "(" macroMatch* ")"                             [x]
+                           | "[" macroMatch* "]"                             [x]
                            | "{" macroMatch* "}" ;                           [x]
 
 macroMatch                -> tokenExceptDelims
