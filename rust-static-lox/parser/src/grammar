@@ -3,18 +3,18 @@
  * Models rustc behavior modulo macro expansion and semantic checks.
  */
 
-program                 -> shebang? innerAttr* item* EOF ;
+program                 -> shebang? innerAttr* item* EOF ;  [-]
 
-shebang                 -> "#!" ~[\n]* ;
+shebang                 -> "#!" ~[\n]* ;                   [-]
 
 /* ------------------------------------------------------------------------- */
 /* Items                                                                     */
 /* ------------------------------------------------------------------------- */
 
-item                    -> outerAttr* visItem ;
+item                    -> outerAttr* visItem ;            [x]
 
-visItem                 -> visibility? itemKind  [-]
-                         | macroItem ;           [-]
+visItem                 -> visibility? itemKind  [x]
+                         | macroItem ;           [x]
 
 /* Safe reorder: each alternative has a distinct leading keyword/token */
 itemKind                -> functionItem            [x]
@@ -28,7 +28,7 @@ itemKind                -> functionItem            [x]
                          | moduleItem              [x]
                          | useItem                 [x]
                          | externCrateItem         [x]
-                         | foreignModItem          [-]
+                         | foreignModItem          [x]
                          | unionItem               [x]
                          | externTypeItem ;        [x]
 
@@ -40,21 +40,21 @@ macroItem               -> macroInvocationSemi ;                              [x
                          | macroRulesItem                                     [x]
                          | macro2Item ;                                       [x]
 
-outerAttr               -> "#" "[" attrInput "]" ;
-innerAttr               -> "#" "!" "[" attrInput "]" ;
+outerAttr               -> "#" "[" attrInput "]" ;         [x]
+innerAttr               -> "#" "!" "[" attrInput "]" ;     [x]
 
-attrInput               -> simplePath attrInputTail? ;
+attrInput               -> simplePath attrInputTail? ;     [x]
 
 attrInputTail           -> delimTokenTree
-                         | "=" expression ;
+                         | "=" expression ;                [x]
 
 delimTokenTree          -> "(" tokenStream ")"                                 [x]
                          | "[" tokenStream "]"                                 [x]
                          | "{" tokenStream "}" ;                               [x]
 
-metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;
-metaSeq                 -> metaItemInner ("," metaItemInner)* ","? ;
-metaItemInner           -> metaItem | literalExpr ;
+metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;  [-]
+metaSeq                 -> metaItemInner ("," metaItemInner)* ","? ;          [-]
+metaItemInner           -> metaItem | literalExpr ;                           [-]
 
 /* ------------------------------------------------------------------------- */
 /* Functions                                                                 */
@@ -288,13 +288,13 @@ visibility                -> "pub" ("(" ("crate" | "self" | "super" | "in" simpl
 /* Types                                                                     */
 /* ------------------------------------------------------------------------- */
 
-type                      -> typeNoBounds             [-]
-                           | implTraitType
-                           | traitObjectType ;
+type                      -> typeNoBounds             [x]
+                           | implTraitType            [-]
+                           | traitObjectType ;         [-]
 
 typeNoBounds              -> parenthesizedType        [x]
-                           | implTraitTypeOneBound
-                           | traitObjectTypeOneBound
+                           | implTraitTypeOneBound    [-]
+                           | traitObjectTypeOneBound  [-]
                            | typePath                 [x]
                            | tupleType                [x]
                            | neverType                [x]
@@ -307,7 +307,7 @@ typeNoBounds              -> parenthesizedType        [x]
                            | bareFunctionType         [x]
                            | macroInvocation ;
 
-parenthesizedType         -> "(" type ")" ;
+parenthesizedType         -> "(" type ")" ;                               [x]
 
 tupleType                 -> "(" ")"                     [x]
                            | "(" (type ",")+ type? ")" ; [x]
@@ -421,7 +421,7 @@ obsoleteRangePattern      -> rangePatternBound "..." ;  [x]
 /* ------------------------------------------------------------------------- */
 
 statement                 -> ";"
-                           | item                   [-]
+                           | item                   [x]
                            | letStatement           [x]
                            | expressionStatement    [x]
                            | macroInvocationSemi ;  [x]
@@ -658,4 +658,4 @@ tokenStream                 -> tokenTree* ;                                   [x
 tokenTree                   -> tokenExceptDelims
                            | delimTokenTree ;                                 [x]
 
-tupleIndex                  -> INTEGER ;
+tupleIndex                  -> INTEGER ;                                    [x]
