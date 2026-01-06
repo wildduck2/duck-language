@@ -3,12 +3,13 @@ members = [
   "core",
   "diagnostic",
   "lexer", 
+  "name_resolution", 
   "parser"
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.4"
 edition = "2021"
 authors = ["wildduck2 <duckui@duck.com>"]
 description = "A statically-typed language built on what you learned from Lox"
