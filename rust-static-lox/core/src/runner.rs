@@ -32,7 +32,7 @@ impl Runner {
       println!("\n============= SCANNED ===============\n");
 
       let mut lexer = Lexer::new(source_file.clone(), engine.clone());
-      lexer.scan_tokens();
+      lexer.scan_tokens()?;
 
       if engine.borrow().has_errors() {
         engine.borrow().print_diagnostics();
