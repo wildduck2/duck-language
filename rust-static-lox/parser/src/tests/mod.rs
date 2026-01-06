@@ -7,6 +7,7 @@ mod clousure;
 mod comparison;
 mod r#const;
 mod control_flow;
+mod decoder;
 mod r#enum;
 mod r#extern;
 mod foreign;

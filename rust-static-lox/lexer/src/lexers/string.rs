@@ -305,7 +305,7 @@ impl Lexer {
   ///
   /// Counts `#` fences, requires an opening `"`, then scans until a matching
   /// closing `"###…###`. Escapes are not processed.
-  fn lex_raw_str(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_raw_str(&mut self) -> Result<TokenKind, ()> {
     const MAX_HASHES: usize = 255;
 
     // We're just after the 'r' and at zero or more '#'.
@@ -493,7 +493,7 @@ impl Lexer {
   ///
   /// For `br...`:
   /// - Acts like a raw string; bytes are taken verbatim.
-  fn lex_bstr(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_bstr(&mut self) -> Result<TokenKind, ()> {
     // The 'b' prefix has already been consumed.
     if self.peek() == Some('r') {
       // --- RAW BYTE STRING: br"..." or br#"..."# ---
@@ -810,7 +810,7 @@ impl Lexer {
   /// - Must encode exactly one byte.
   /// - Content must be ASCII.
   /// - Allowed escapes: `\\`, `\'`, `\n`, `\r`, `\t`, `\0`, `\xNN`.
-  fn lex_bchar(&mut self) -> Result<TokenKind, ()> {
+  pub(crate) fn lex_bchar(&mut self) -> Result<TokenKind, ()> {
     // We are just after 'b'; expect opening `'`.
     if self.peek() != Some('\'') {
       let span = Span::new(self.start, self.current);
@@ -1571,56 +1571,5 @@ impl Lexer {
         .to_string(),
     );
     self.emit_diagnostic(diag);
-  }
-}
-
-#[cfg(test)]
-mod string_private_tests {
-  use super::Lexer;
-  use diagnostic::{DiagnosticEngine, SourceFile};
-  use std::{cell::RefCell, path::PathBuf, rc::Rc};
-
-  fn make_lexer(input: &str) -> (Lexer, Rc<RefCell<DiagnosticEngine>>) {
-    let engine = Rc::new(RefCell::new(DiagnosticEngine::new()));
-    let test_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-      .join("tests")
-      .join("files")
-      .join("string_private_test_temp.lox");
-    let path_str = test_file_path.to_str().unwrap().to_string();
-
-    let source_file = SourceFile::new(path_str.clone(), input.to_string());
-    engine.borrow_mut().add_file(&path_str, input);
-
-    (Lexer::new(source_file, engine.clone()), engine)
-  }
-
-  #[test]
-  fn raw_string_missing_open_quote_errors() {
-    let (mut lexer, engine) = make_lexer("r#noquote");
-    lexer.start = 0;
-    lexer.current = 1;
-    lexer.column = 1;
-    assert!(lexer.lex_raw_str().is_err());
-    assert!(engine.borrow().has_errors());
-  }
-
-  #[test]
-  fn byte_string_missing_quote_reports_error() {
-    let (mut lexer, engine) = make_lexer("bq");
-    lexer.start = 0;
-    lexer.current = 1;
-    lexer.column = 1;
-    assert!(lexer.lex_bstr().is_err());
-    assert!(engine.borrow().has_errors());
-  }
-
-  #[test]
-  fn byte_char_missing_quote_reports_error() {
-    let (mut lexer, engine) = make_lexer("bx");
-    lexer.start = 0;
-    lexer.current = 1;
-    lexer.column = 1;
-    assert!(lexer.lex_bchar().is_err());
-    assert!(engine.borrow().has_errors());
   }
 }

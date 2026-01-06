@@ -94,7 +94,7 @@ impl Diagnostic {
   }
 
   /// Loads context lines using SourceMap
-  fn load_context(&self, source_map: &SourceMap) -> Vec<(usize, String)> {
+  pub(crate) fn load_context(&self, source_map: &SourceMap) -> Vec<(usize, String)> {
     if self.labels.is_empty() {
       return Vec::new();
     }
@@ -323,40 +323,5 @@ impl Diagnostic {
 
   pub fn eprint(&self, source_map: &SourceMap) {
     eprint!("{}", self.format(source_map));
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::{Diagnostic, LabelStyle};
-  use crate::{
-    code::DiagnosticCode,
-    source_map::{Span, SourceMap},
-    types::error::DiagnosticError,
-  };
-
-  #[test]
-  fn load_context_empty_labels_returns_empty() {
-    let diag = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::CodeNotFound),
-      "msg".to_string(),
-      "missing.rs".to_string(),
-    );
-    let map = SourceMap::new();
-    let context = diag.load_context(&map);
-    assert!(context.is_empty());
-  }
-
-  #[test]
-  fn load_context_missing_file_returns_empty() {
-    let diag = Diagnostic::new(
-      DiagnosticCode::Error(DiagnosticError::CodeNotFound),
-      "msg".to_string(),
-      "missing.rs".to_string(),
-    )
-    .with_label(Span::new(0, 1), None, LabelStyle::Primary);
-    let map = SourceMap::new();
-    let context = diag.load_context(&map);
-    assert!(context.is_empty());
   }
 }

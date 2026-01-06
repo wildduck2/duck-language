@@ -8,6 +8,9 @@ pub mod types;
 // Re-exports for convenience
 pub use source_map::{SourceFile, SourceMap, Span};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Default)]
 pub struct DiagnosticEngine {
   source: String,
