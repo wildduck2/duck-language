@@ -171,8 +171,8 @@ fn source_map_add_and_lookup() {
   let root = env::temp_dir().join(format!("diagnostic_test_{}", unique));
   let nested = root.join("nested");
   fs::create_dir_all(&nested).unwrap();
-  let file_a = root.join("a.txt");
-  let file_b = nested.join("b.txt");
+  let file_a = root.join("a.duck");
+  let file_b = nested.join("b.duck");
   fs::write(&file_a, "a").unwrap();
   fs::write(&file_b, "b").unwrap();
 
@@ -220,7 +220,7 @@ fn add_wd_forced_entry_error_exits() {
     .as_nanos();
   let root = env::temp_dir().join(format!("diagnostic_force_entry_error_{unique}"));
   fs::create_dir_all(&root).unwrap();
-  fs::write(root.join("file.txt"), "data").unwrap();
+  fs::write(root.join("file.duck"), "data").unwrap();
 
   let exe = env::current_exe().unwrap();
   let status = Command::new(exe)

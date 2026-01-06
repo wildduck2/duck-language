@@ -169,6 +169,10 @@ impl SourceMap {
       if path.is_dir() {
         self.get_files(path.to_str().unwrap())?;
       } else if path.is_file() {
+        if path.extension().and_then(|ext| ext.to_str()) != Some("duck") {
+          continue;
+        }
+
         self.add_file(
           path.clone().to_str().unwrap(),
           &fs::read_to_string(path).unwrap(),
@@ -216,7 +220,7 @@ mod tests {
   fn get_files_propagates_entry_error() {
     let root = temp_root("diagnostic_entry_error");
     fs::create_dir_all(&root).unwrap();
-    fs::write(root.join("file.txt"), "hi").unwrap();
+    fs::write(root.join("file.duck"), "hi").unwrap();
 
     let mut map = SourceMap::new();
     let result = with_forced_readdir_entry_error(|| map.get_files(root.to_str().unwrap()));
