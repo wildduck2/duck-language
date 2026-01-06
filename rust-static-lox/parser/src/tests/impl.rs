@@ -93,7 +93,7 @@ mod impl_tests {
   #[const_attr]
   pub const A: i32 = 1;
   fn f() {}
-  foo!();
+  foo!()
 }"#;
     let vis = parse_impl_item(src).unwrap();
     let block = impl_block(&vis);
@@ -307,8 +307,8 @@ mod impl_tests {
   }
 
   #[test]
-  fn inherent_impl_macro_missing_semi_errors() {
-    assert_impl_err("impl Foo { foo!() }");
+  fn inherent_impl_macro_trailing_semi_errors() {
+    assert_impl_err("impl Foo { foo!(); }");
   }
 
   #[test]

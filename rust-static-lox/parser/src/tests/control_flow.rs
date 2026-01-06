@@ -7,12 +7,24 @@ mod if_tests {
     parse_expression(input, "if_expr_test_temp", ParserContext::IfCondition)
   }
 
+  fn parse_default(input: &str) -> Result<ExprKind, ()> {
+    parse_expression(input, "control_flow_expr_test_temp", ParserContext::Default)
+  }
+
   fn assert_ok(input: &str) {
     assert!(parse_single(input).is_ok(), "expected ok for {input:?}");
   }
 
   fn assert_err(input: &str) {
     assert!(parse_single(input).is_err(), "expected error for {input:?}");
+  }
+
+  fn assert_ok_default(input: &str) {
+    assert!(parse_default(input).is_ok(), "expected ok for {input:?}");
+  }
+
+  fn assert_err_default(input: &str) {
+    assert!(parse_default(input).is_err(), "expected error for {input:?}");
   }
 
   // Basic if expressions
@@ -178,78 +190,78 @@ mod if_tests {
   // continue expressions
   #[test]
   fn continue_basic_errors() {
-    assert_err("continue");
+    assert_err_default("continue");
   }
 
   #[test]
   fn continue_with_label_errors() {
-    assert_err("continue 'a");
+    assert_err_default("continue 'a");
   }
 
   #[test]
   fn continue_inside_loop() {
-    assert_ok("loop { continue }");
+    assert_ok_default("loop { continue }");
   }
 
   #[test]
   fn continue_inside_labeled_loop() {
-    assert_ok("'a: loop { continue 'a }");
+    assert_ok_default("'a: loop { continue 'a }");
   }
 
   #[test]
   fn continue_with_expression_errors() {
-    assert_err("loop { continue 1 }");
+    assert_err_default("loop { continue 1 }");
   }
 
   #[test]
   fn continue_double_label_errors() {
-    assert_err("loop { continue 'a 'b }");
+    assert_err_default("loop { continue 'a 'b }");
   }
 
   #[test]
   fn continue_stray_tokens_errors() {
-    assert_err("loop { continue 1 + 2 }");
+    assert_err_default("loop { continue 1 + 2 }");
   }
 
   // break expressions
   #[test]
   fn break_basic_errors() {
-    assert_err("break");
+    assert_err_default("break");
   }
 
   #[test]
   fn break_with_label_errors() {
-    assert_err("break 'a");
+    assert_err_default("break 'a");
   }
 
   #[test]
   fn break_inside_loop() {
-    assert_ok("loop { break }");
+    assert_ok_default("loop { break }");
   }
 
   #[test]
   fn break_inside_labeled_loop() {
-    assert_ok("'a: loop { break 'a }");
+    assert_ok_default("'a: loop { break 'a }");
   }
 
   #[test]
   fn break_with_expression() {
-    assert_ok("loop { break 1 }");
+    assert_ok_default("loop { break 1 }");
   }
 
   #[test]
   fn break_with_label_and_expression() {
-    assert_ok("'a: loop { break 'a 1 }");
+    assert_ok_default("'a: loop { break 'a 1 }");
   }
 
   #[test]
   fn break_double_label_errors() {
-    assert_err("loop { break 'a 'b }");
+    assert_err_default("loop { break 'a 'b }");
   }
 
   #[test]
   fn break_stray_tokens_errors() {
-    assert_err("loop { break 1 2 }");
+    assert_err_default("loop { break 1 2 }");
   }
 
   // return expressions
@@ -370,17 +382,17 @@ mod if_tests {
 
   #[test]
   fn continue_inside_block_errors() {
-    assert_err("{ continue }");
+    assert_err_default("{ continue }");
   }
 
   #[test]
   fn continue_to_block_label_errors() {
-    assert_err("'a: { continue 'a }");
+    assert_err_default("'a: { continue 'a }");
   }
 
   #[test]
   fn break_with_label_and_expression_errors() {
-    assert_err("'a: loop { break 'a 1 2 }");
+    assert_err_default("'a: loop { break 'a 1 2 }");
   }
 
   #[test]

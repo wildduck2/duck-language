@@ -2189,8 +2189,15 @@ mod path_tests {
   }
 
   #[test]
-  fn test_qself_lifetime_type_should_error() {
-    assert_err("<&'a T>::Item");
+  fn test_qself_reference_type_parses() {
+    assert!(
+      parse_single("<&'a T>::Item").is_ok(),
+      "expected ok for `<&'a T>::Item`"
+    );
+  }
+
+  #[test]
+  fn test_qself_lifetime_only_type_should_error() {
     assert_err("<'a>::Item");
   }
 

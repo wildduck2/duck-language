@@ -4,7 +4,7 @@ mod logical_tests {
   use crate::{
     ast::expr::{BinaryOp, ExprKind},
     parser_utils::ParserContext,
-    tests::support::{bin, int, simplify_expr_ungrouped, SimpleExpr, parse_expression},
+    tests::support::{bin, boolean, int, simplify_expr_ungrouped, SimpleExpr, parse_expression},
   };
 
   fn parse(input: &str) -> Result<ExprKind, ()> {
@@ -84,12 +84,18 @@ mod logical_tests {
 
   #[test]
   fn single_and_is_not_logical_and() {
-    assert_err("true & false");
+    assert_expr(
+      "true & false",
+      bin(BinaryOp::BitAnd, boolean(true), boolean(false)),
+    );
   }
 
   #[test]
   fn single_or_is_not_logical_or() {
-    assert_err("true | false");
+    assert_expr(
+      "true | false",
+      bin(BinaryOp::BitOr, boolean(true), boolean(false)),
+    );
   }
 
   #[test]

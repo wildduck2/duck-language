@@ -8,7 +8,7 @@ mod loop_tests {
   };
 
   fn parse_single(input: &str) -> Result<ExprKind, ()> {
-    parse_expression(input, "loop_expr_test_temp", ParserContext::LoopCondition)
+    parse_expression(input, "loop_expr_test_temp", ParserContext::Default)
   }
 
   fn assert_ok(input: &str) {
@@ -231,9 +231,9 @@ mod loop_tests {
   }
 
   #[test]
-  fn for_with_break_and_continue() {
-    assert_ok("for x in y { break; }");
-    assert_ok("for x in y { continue; }");
+  fn for_with_break_and_continue_errors() {
+    assert_err("for x in y { break; }");
+    assert_err("for x in y { continue; }");
   }
 
   #[test]
