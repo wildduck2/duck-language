@@ -239,7 +239,7 @@ mod if_tests {
 
   #[test]
   fn break_with_label_and_expression() {
-    assert_ok("'a: loop { break 'a }");
+    assert_ok("'a: loop { break 'a 1 }");
   }
 
   #[test]
@@ -380,7 +380,7 @@ mod if_tests {
 
   #[test]
   fn break_with_label_and_expression_errors() {
-    assert_err("'a: loop { break 'a 1 }");
+    assert_err("'a: loop { break 'a 1 2 }");
   }
 
   #[test]
@@ -389,13 +389,11 @@ mod if_tests {
   }
 
   #[test]
-  #[ignore = "break values from labeled blocks are not supported yet"]
   fn break_from_labeled_block_with_value() {
-    assert_ok("let x = 'a: { break 'a 1 };");
+    assert_ok("{ let x = 'a: { break 'a 1 }; }");
   }
 
   #[test]
-  // #[ignore = "Not yet implemented"]
   fn multiple_control_keywords_errors() {
     assert_err("if true loop { }");
   }

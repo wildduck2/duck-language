@@ -193,6 +193,17 @@ impl Parser {
         }
       },
 
+      TokenKind::RawIdent => {
+        let mut s = self.get_token_lexeme(&self.current_token());
+        self.advance();
+
+        if let Some(rest) = s.strip_prefix("r#") {
+          s = rest.to_string();
+        }
+
+        Ident::Name(s)
+      },
+
       TokenKind::Literal { .. } if accept_digit => {
         let s = self.get_token_lexeme(&self.current_token());
         self.advance();

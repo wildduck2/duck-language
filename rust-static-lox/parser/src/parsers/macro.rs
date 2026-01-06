@@ -204,8 +204,9 @@ impl Parser {
       _ => {
         let token = self.current_token();
         let lexeme = self.get_token_lexeme(&token);
+        let kind = token.kind;
         self.advance();
-        Ok(TokenTree::Token(lexeme))
+        Ok(TokenTree::Token { kind, lexeme })
       },
     }
   }
@@ -459,9 +460,7 @@ impl Parser {
             Some(format!("expected {expected} to start macro arguments")),
             LabelStyle::Primary,
           )
-          .with_help(
-            "macro invocations must be followed by a delimited token tree".to_string(),
-          )
+          .with_help("macro invocations must be followed by a delimited token tree".to_string())
           .with_note("examples: `foo!(...)`, `foo![...]`, `foo!{...}`".to_string());
         self.emit(diagnostic);
         return Err(());
@@ -500,8 +499,10 @@ impl Parser {
       }
 
       // Accept any other token as a raw token tree element.
-      let lexeme = self.get_token_lexeme(&self.current_token());
-      tokens.push(TokenTree::Token(lexeme));
+      let token = self.current_token();
+      let lexeme = self.get_token_lexeme(&token);
+      let kind = token.kind;
+      tokens.push(TokenTree::Token { kind, lexeme });
       self.advance();
     }
 
@@ -563,7 +564,10 @@ impl Parser {
       }
 
       let lexeme = self.get_token_lexeme(&token);
-      tokens.push(TokenTree::Token(lexeme));
+      tokens.push(TokenTree::Token {
+        kind: token.kind,
+        lexeme,
+      });
       self.advance();
     }
 

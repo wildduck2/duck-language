@@ -15,7 +15,6 @@ impl Parser {
     context: ParserContext,
   ) -> Result<Expr, ()> {
     let mut token = self.current_token();
-
     let path = self.parse_path(with_args, context)?;
 
     if match_and_consume!(self, TokenKind::Bang)? {
@@ -101,6 +100,24 @@ impl Parser {
           | TokenKind::Dot
           | TokenKind::KwWhere
           | TokenKind::KwFor
+          | TokenKind::PlusEq
+          | TokenKind::MinusEq
+          | TokenKind::StarEq
+          | TokenKind::SlashEq
+          | TokenKind::PercentEq
+          | TokenKind::AndEq
+          | TokenKind::OrEq
+          | TokenKind::CaretEq
+          | TokenKind::ShiftLeftEq
+          | TokenKind::ShiftRightEq
+          | TokenKind::EqEq
+          | TokenKind::Ne
+          | TokenKind::Le
+          | TokenKind::Ge
+          | TokenKind::KwElse
+          | TokenKind::Star
+          | TokenKind::Amp
+          | TokenKind::KwIf
       )
     {
       self.expect(TokenKind::ColonColon)?; // require '::' separator
@@ -161,28 +178,34 @@ impl Parser {
       return Err(());
     }
 
-    // This handles the case where we only expect a colon colon in any context other than a
-    // type context
-    if !matches!(context, ParserContext::Type) && matches!(self.peek(1).kind, TokenKind::Lt) {
-      self.expect(TokenKind::ColonColon)?;
-    }
-
     if matches!(
       context,
       ParserContext::WhileCondition | ParserContext::Closure
     ) {
-      return Ok((
-        PathSegment::new(PathSegmentKind::Ident(self.get_token_lexeme(&token)), None),
-        false,
-      ));
+      let mut name = self.get_token_lexeme(&token);
+      if matches!(token.kind, TokenKind::RawIdent) {
+        if let Some(rest) = name.strip_prefix("r#") {
+          name = rest.to_string();
+        }
+      }
+      return Ok((PathSegment::new(PathSegmentKind::Ident(name), None), false));
     }
 
-    let args = match (with_args, self.peek(0).kind, self.peek(1).kind) {
-      (true, TokenKind::Lt, TokenKind::Gt) => None,
-      (true, TokenKind::Lt, _) => self.parse_generic_args(context)?,
+    let args = match (with_args, self.current_token().kind, self.peek(1).kind) {
+      (true, TokenKind::Lt, TokenKind::Gt) if matches!(context, ParserContext::Type) => None,
+      (true, TokenKind::Lt, _) if matches!(context, ParserContext::Type | ParserContext::Impl) => {
+        self.parse_generic_args(context)?
+      },
+      (true, TokenKind::LParen, _) if matches!(context, ParserContext::Type) => {
+        self.parse_generic_args(context)?
+      },
       (_, TokenKind::ColonColon, TokenKind::Lt) => {
         self.advance();
-        self.parse_generic_args(context)?
+        self.parse_generic_args(ParserContext::Type)?
+      },
+      (_, TokenKind::ColonColon, TokenKind::LParen) => {
+        self.advance();
+        self.parse_generic_args(ParserContext::Type)?
       },
       _ => None,
     };
@@ -195,6 +218,13 @@ impl Parser {
         PathSegment::new(PathSegmentKind::Ident(self.get_token_lexeme(&token)), args),
         false,
       )),
+      TokenKind::RawIdent => {
+        let mut name = self.get_token_lexeme(&token);
+        if let Some(rest) = name.strip_prefix("r#") {
+          name = rest.to_string();
+        }
+        Ok((PathSegment::new(PathSegmentKind::Ident(name), args), false))
+      },
       TokenKind::KwSelfType => Ok((PathSegment::new(PathSegmentKind::SelfType, args), false)),
       TokenKind::Dollar if self.peek(0).kind == TokenKind::KwCrate => {
         self.advance(); // consume `$crate`

@@ -100,30 +100,40 @@ impl Parser {
         })
       },
 
-      // associatedConstItem
+      // associatedConstItem or const fn
       TokenKind::KwConst => {
-        self.advance(); // consume "const"
-        let name = self.parse_name(false)?;
-        self.expect(TokenKind::Colon)?;
-        let ty = self.parse_type(context)?;
+        if self.can_start_fun() {
+          let item = self.parse_fn_decl(outer_attributes, visibility, context)?;
 
-        if !matches!(self.current_token().kind, TokenKind::Eq) {
+          if let Item::Vis(VisItem {
+            kind: VisItemKind::Function(func),
+            ..
+          }) = item
+          {
+            return Ok(TraitItem::Method(func));
+          }
+
           let found = self.get_token_lexeme(&self.current_token());
           let diagnostic = self
             .diagnostic(
               DiagnosticError::UnexpectedToken,
-              format!("expected `= <expr>`, found `{found}`"),
+              format!("expected `trait item`, found `{found}`"),
             )
             .with_label(
               self.current_token().span,
-              Some("expected `= <expr>` here".to_string()),
+              Some("expected `trait item` here".to_string()),
               LabelStyle::Primary,
             )
             .with_note(format!("unexpected token: `{found}`"))
-            .with_help("provide a default expression for this associated const".to_string());
+            .with_help("add a valid trait item like `type`, `const`, or `fn`".to_string());
           self.emit(diagnostic);
           return Err(());
         }
+
+        self.advance(); // consume "const"
+        let name = self.parse_name(false)?;
+        self.expect(TokenKind::Colon)?;
+        let ty = self.parse_type(context)?;
 
         let default = if match_and_consume!(self, TokenKind::Eq)? {
           Some(self.parse_expression(vec![], context)?)

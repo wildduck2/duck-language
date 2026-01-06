@@ -247,7 +247,6 @@ mod generics_tests {
   }
 
   #[test]
-  #[ignore = "const generic arguments are not parsed yet"]
   fn parses_const_generic_args() {
     let args = parse_path_args("Foo::<3>");
     match args {
@@ -298,7 +297,6 @@ mod generics_tests {
   }
 
   #[test]
-  #[ignore = "generic associated type arguments are not implemented yet"]
   fn parses_binding_and_constraint_with_args() {
     let args = parse_path_args("Foo::<Item<T> = i32, Assoc<U>: Copy>");
     match args {
@@ -356,7 +354,6 @@ mod generics_tests {
   }
 
   #[test]
-  #[ignore = "unit and slice types are rejected in generic args"]
   fn parses_unit_and_slice_generic_args() {
     let args = parse_path_args("Foo::<(), [u8]>");
     match args {
@@ -501,7 +498,7 @@ mod generics_tests {
               None => panic!("expected as-trait path"),
             }
             assert_ident_path(path, "Item");
-          }
+          },
           other => panic!("expected qualified type arg, got {:?}", other),
         }
       },

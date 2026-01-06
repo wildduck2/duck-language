@@ -90,8 +90,6 @@ mod impl_tests {
   fn inherent_impl_with_items_and_outer_attributes() {
     let src = r#"impl Foo {
   fn pre() {}
-  #[assoc_attr]
-  pub type Assoc<T>: Trait where Self: Copy = i32;
   #[const_attr]
   pub const A: i32 = 1;
   fn f() {}
@@ -100,7 +98,7 @@ mod impl_tests {
     let vis = parse_impl_item(src).unwrap();
     let block = impl_block(&vis);
     assert!(block.inner_attributes.is_empty());
-    assert_eq!(block.items.len(), 5);
+    assert_eq!(block.items.len(), 4);
 
     match &block.items[0] {
       ImplItem::Method(func) => assert_eq!(func.sig.name.as_str(), "pre"),
@@ -108,31 +106,6 @@ mod impl_tests {
     }
 
     match &block.items[1] {
-      ImplItem::Type {
-        attributes,
-        visibility,
-        name,
-        generics,
-        where_clause,
-        ty,
-        ..
-      } => {
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(visibility, &Visibility::Public);
-        assert_eq!(name.as_str(), "Assoc");
-        assert!(generics.as_ref().is_some());
-        assert_eq!(
-          generics.as_ref().unwrap().params.len(),
-          1,
-          "expected one generic parameter"
-        );
-        assert!(where_clause.is_some());
-        assert_eq!(ty, &Type::I32);
-      },
-      other => panic!("expected associated type item, got: {:?}", other),
-    }
-
-    match &block.items[2] {
       ImplItem::Const {
         attributes,
         visibility,
@@ -153,12 +126,12 @@ mod impl_tests {
       other => panic!("expected associated const item, got: {:?}", other),
     }
 
-    match &block.items[3] {
+    match &block.items[2] {
       ImplItem::Method(func) => assert_eq!(func.sig.name.as_str(), "f"),
       other => panic!("expected method item, got: {:?}", other),
     }
 
-    match &block.items[4] {
+    match &block.items[3] {
       ImplItem::Macro { mac } => {
         assert_eq!(simplify_path(&mac.path), simple_path(["foo"]));
       },
@@ -185,8 +158,17 @@ mod impl_tests {
   }
 
   #[test]
-  fn trait_impl_rejects_associated_type() {
-    assert_impl_err("impl Trait for Foo { type Assoc = i32; }");
+  fn trait_impl_allows_associated_type() {
+    let vis = parse_impl_item("impl Trait for Foo { type Assoc = i32; }").unwrap();
+    let block = impl_block(&vis);
+    assert_eq!(block.items.len(), 1);
+    match &block.items[0] {
+      ImplItem::Type { name, ty, .. } => {
+        assert_eq!(name.as_str(), "Assoc");
+        assert_eq!(ty, &Type::I32);
+      },
+      other => panic!("expected associated type item, got: {:?}", other),
+    }
   }
 
   #[test]

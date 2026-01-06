@@ -49,7 +49,7 @@ impl Parser {
     }
 
     let condition = self.parse_expression(vec![], context)?;
-    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
+    let body = self.parse_block(None, context, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],
@@ -65,7 +65,7 @@ impl Parser {
   fn parse_while_let_expression(
     &mut self,
     label: Option<String>,
-    outer_attributes: Vec<Attribute>,
+    attributes: Vec<Attribute>,
     token: &mut Token,
     context: ParserContext,
   ) -> Result<Expr, ()> {
@@ -73,10 +73,10 @@ impl Parser {
     let pattern = self.parse_pattern(context)?;
     self.expect(TokenKind::Eq)?;
     let scrutinee = self.parse_expression(vec![], context)?;
-    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
+    let body = self.parse_block(None, context, vec![])?;
 
     Ok(Expr {
-      attributes: vec![],
+      attributes,
       kind: ExprKind::WhileLet {
         label,
         pattern,
@@ -100,10 +100,10 @@ impl Parser {
 
     self.advance(); // consume the "for"
 
-    let pattern = self.parse_pattern(ParserContext::Default)?;
+    let pattern = self.parse_pattern(context)?;
     self.expect(TokenKind::KwIn)?;
-    let iterator = self.parse_expression(vec![], context)?;
-    let body = self.parse_block(None, ParserContext::LoopCondition, outer_attributes)?;
+    let iterator = self.parse_expression(vec![], ParserContext::ForCondition)?;
+    let body = self.parse_block(None, context, outer_attributes)?;
 
     Ok(Expr {
       attributes: vec![],

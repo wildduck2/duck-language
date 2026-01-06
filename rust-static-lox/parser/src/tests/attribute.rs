@@ -8,6 +8,39 @@ mod attributes_tests {
     parser_utils::ParserContext,
     tests::support::run_parser,
   };
+  use lexer::token::{LiteralKind, TokenKind};
+
+  fn assert_token_kind(token: &TokenTree, expected_kind: TokenKind, expected: &str) {
+    match token {
+      TokenTree::Token { kind, lexeme } => {
+        assert_eq!(*kind, expected_kind);
+        assert_eq!(lexeme, expected);
+      },
+      other => panic!("expected token tree token, got: {:?}", other),
+    }
+  }
+
+  fn assert_token_ident(token: &TokenTree, expected: &str) {
+    assert_token_kind(token, TokenKind::Ident, expected);
+  }
+
+  fn assert_token_punct(token: &TokenTree, expected_kind: TokenKind, expected: &str) {
+    assert_token_kind(token, expected_kind, expected);
+  }
+
+  fn assert_token_str_literal(token: &TokenTree, expected: &str) {
+    match token {
+      TokenTree::Token {
+        kind: TokenKind::Literal {
+          kind: LiteralKind::Str,
+        },
+        lexeme,
+      } => {
+        assert_eq!(lexeme, expected);
+      },
+      other => panic!("expected string literal token, got: {:?}", other),
+    }
+  }
 
   fn parse_outer_attrs(input: &str) -> Result<Vec<crate::ast::Attribute>, ()> {
     run_parser(input, "outer_attr_test_temp", |parser| {
@@ -115,17 +148,36 @@ mod attributes_tests {
       Some(AttrArgs::Delimited { delimiter, tokens }) => {
         assert_eq!(*delimiter, Delimiter::Paren);
         assert_eq!(tokens.len(), 2);
-        match &tokens[0] {
-          TokenTree::Token(name) => assert_eq!(name, "any"),
-          other => panic!("expected token tree name, got: {:?}", other),
-        }
+        assert_token_ident(&tokens[0], "any");
         match &tokens[1] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Paren);
-            assert_eq!(tokens, &vec![TokenTree::Token("unix".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "unix");
           },
           other => panic!("expected nested token tree, got: {:?}", other),
         }
+      },
+      other => panic!("expected delimited attr args, got: {:?}", other),
+    }
+  }
+
+  #[test]
+  fn parses_outer_attribute_delimited_string_literals() {
+    let attrs =
+      parse_outer_attrs("#[deprecated(note = \"use new_fn\", since = \"1.56\")]").unwrap();
+    assert_eq!(attrs.len(), 1);
+    match &attrs[0].input.args {
+      Some(AttrArgs::Delimited { delimiter, tokens }) => {
+        assert_eq!(*delimiter, Delimiter::Paren);
+        assert_eq!(tokens.len(), 7);
+        assert_token_ident(&tokens[0], "note");
+        assert_token_punct(&tokens[1], TokenKind::Eq, "=");
+        assert_token_str_literal(&tokens[2], "use new_fn");
+        assert_token_punct(&tokens[3], TokenKind::Comma, ",");
+        assert_token_ident(&tokens[4], "since");
+        assert_token_punct(&tokens[5], TokenKind::Eq, "=");
+        assert_token_str_literal(&tokens[6], "1.56");
       },
       other => panic!("expected delimited attr args, got: {:?}", other),
     }
@@ -138,7 +190,8 @@ mod attributes_tests {
     match &attrs[0].input.args {
       Some(AttrArgs::Delimited { delimiter, tokens }) => {
         assert_eq!(*delimiter, Delimiter::Bracket);
-        assert_eq!(tokens, &vec![TokenTree::Token("unix".to_string())]);
+        assert_eq!(tokens.len(), 1);
+        assert_token_ident(&tokens[0], "unix");
       },
       other => panic!("expected delimited attr args, got: {:?}", other),
     }
@@ -151,7 +204,8 @@ mod attributes_tests {
     match &attrs[0].input.args {
       Some(AttrArgs::Delimited { delimiter, tokens }) => {
         assert_eq!(*delimiter, Delimiter::Brace);
-        assert_eq!(tokens, &vec![TokenTree::Token("unix".to_string())]);
+        assert_eq!(tokens.len(), 1);
+        assert_token_ident(&tokens[0], "unix");
       },
       other => panic!("expected delimited attr args, got: {:?}", other),
     }
@@ -167,7 +221,10 @@ mod attributes_tests {
 
   #[test]
   fn token_tree_helpers_default_for_token_variant() {
-    let tree = TokenTree::Token("x".to_string());
+    let tree = TokenTree::Token {
+      kind: TokenKind::Ident,
+      lexeme: "x".to_string(),
+    };
     assert_eq!(tree.delimiter(), Delimiter::Paren);
     assert!(tree.tokens().is_empty());
   }
@@ -192,21 +249,18 @@ mod attributes_tests {
   }
 
   #[test]
-  #[ignore = "expression attributes are not preserved yet"]
   fn attributes_on_literal_expression() {
     let expr = parse_expression_with_attrs("#[attr] 1").unwrap();
     assert_eq!(expr.attributes.len(), 1);
   }
 
   #[test]
-  #[ignore = "expression attributes are not preserved yet"]
   fn attributes_on_binary_expression() {
     let expr = parse_expression_with_attrs("#[attr] 1 + 2").unwrap();
     assert_eq!(expr.attributes.len(), 1);
   }
 
   #[test]
-  #[ignore = "expression attributes are not preserved yet"]
   fn attributes_on_tuple_expression() {
     let expr = parse_expression_with_attrs("#[attr] (1, 2)").unwrap();
     assert_eq!(expr.attributes.len(), 1);

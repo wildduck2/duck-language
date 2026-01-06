@@ -201,8 +201,20 @@ mod trait_tests {
   }
 
   #[test]
-  fn trait_const_missing_eq_errors() {
-    assert_trait_err("trait Foo { const ID: i32; }");
+  fn trait_const_without_default() {
+    let vis = parse_trait_item("trait Foo { const ID: i32; }").unwrap();
+    let decl = trait_decl(&vis);
+    assert_eq!(decl.items.len(), 1);
+    match &decl.items[0] {
+      TraitItem::Const {
+        name, ty, default, ..
+      } => {
+        assert_eq!(name.as_str(), "ID");
+        assert_eq!(ty, &Type::I32);
+        assert!(default.is_none());
+      },
+      other => panic!("expected const item, got: {:?}", other),
+    }
   }
 
   #[test]

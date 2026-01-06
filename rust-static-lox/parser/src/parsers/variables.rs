@@ -74,7 +74,6 @@ impl Parser {
 
       let rhs = self.parse_range_expr(context)?;
 
-      // TODO: split Assign vs AssignOp when you lower compound operators
       lhs = Expr {
         attributes: vec![],
         kind: ExprKind::Assign {

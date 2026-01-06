@@ -25,6 +25,7 @@ impl Parser {
     let where_clause = self.parse_where_clause(context)?;
     self.expect(TokenKind::Eq)?; // consume '='
     let ty = self.parse_type(context)?;
+    self.expect(TokenKind::Semi)?;
 
     Ok(Item::Vis(VisItem {
       attributes,
@@ -46,10 +47,13 @@ impl Parser {
     self.advance(); // consume the first token of the type
 
     match token.kind {
+      TokenKind::Lt => self.parse_qpath_type(context),
+      TokenKind::KwImpl => self.parse_impl_trait_type(context),
+      TokenKind::KwDyn => self.parse_trait_object_type(context),
+
       TokenKind::KwFn | TokenKind::KwFor | TokenKind::KwUnsafe => {
         self.parse_bare_function_type(context)
       },
-      TokenKind::Lt => self.parse_qpath_type(context),
 
       TokenKind::Bang => Ok(Type::Never),
 
@@ -57,7 +61,7 @@ impl Parser {
       TokenKind::KwSelfType if matches!(self.peek(0).kind, TokenKind::ColonColon) => {
         // Reset position so parse_path can consume the ident or crate token
         self.current -= 1;
-        Ok(Type::Path(self.parse_path(true, context)?))
+        Ok(Type::Path(self.parse_path(true, ParserContext::Type)?))
       },
 
       TokenKind::Ident
@@ -93,7 +97,7 @@ impl Parser {
           _ => {
             // Reset position so parse_path can consume the ident or crate token
             self.current -= 1;
-            Ok(Type::Path(self.parse_path(true, context)?))
+            Ok(Type::Path(self.parse_path(true, ParserContext::Type)?))
           },
         }
       },
@@ -158,6 +162,19 @@ impl Parser {
         Err(())
       },
     }
+  }
+  fn parse_trait_object_type(&mut self, context: ParserContext) -> Result<Type, ()> {
+    let bounds = self.parse_trait_bound_vec("trait object type", context)?;
+    Ok(Type::TraitObject {
+      bounds,
+      lifetime: None,
+      is_dyn: true,
+    })
+  }
+
+  fn parse_impl_trait_type(&mut self, context: ParserContext) -> Result<Type, ()> {
+    let bounds = self.parse_trait_bound_vec("impl trait type", context)?;
+    Ok(Type::ImplTrait(bounds))
   }
 
   fn parse_reference_type(&mut self, context: ParserContext) -> Result<Type, ()> {
@@ -347,7 +364,7 @@ impl Parser {
     self.current -= 1;
     // we unwrap here because we know we have a `<` token
     let qself = self.parse_qself_type_header(context)?;
-    let path = self.parse_path(false, context)?;
+    let path = self.parse_path(false, ParserContext::Type)?;
 
     Ok(Type::QualifiedPath { qself, path })
   }
@@ -364,7 +381,7 @@ impl Parser {
     }
   }
 
-  pub(crate) fn parse_qself_type_header(&mut self, context: ParserContext) -> Result<QSelf, ()> {
+  pub(crate) fn parse_qself_type_header(&mut self, _context: ParserContext) -> Result<QSelf, ()> {
     if !matches!(self.current_token().kind, TokenKind::Lt)
       || !matches!(
         self.peek(1).kind,
@@ -375,6 +392,7 @@ impl Parser {
           | TokenKind::KwSuper
           | TokenKind::Dollar
           | TokenKind::KwCrate
+          | TokenKind::Amp
       )
     {
       let lexeme = self.get_token_lexeme(&self.current_token());
@@ -414,7 +432,7 @@ impl Parser {
 
     // assumes current token is `<`
     self.expect(TokenKind::Lt)?;
-    let self_ty = Box::new(self.parse_type(context)?);
+    let self_ty = Box::new(self.parse_type(ParserContext::Type)?);
 
     let as_trait = if match_and_consume!(self, TokenKind::KwAs)?
       && !matches!(
@@ -425,7 +443,7 @@ impl Parser {
           | TokenKind::KwSuper
           | TokenKind::KwSelfType
       ) {
-      Some(self.parse_path(true, context)?)
+      Some(self.parse_path(true, ParserContext::Type)?)
     } else {
       None
     };

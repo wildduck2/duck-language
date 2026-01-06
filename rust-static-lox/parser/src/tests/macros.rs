@@ -5,6 +5,46 @@ mod macros_tests {
     parser_utils::ParserContext,
     tests::support::{parse_expression, parse_item, run_parser, simple_path, simplify_path},
   };
+  use lexer::token::{Base, LiteralKind, TokenKind};
+
+  fn assert_token_kind(token: &TokenTree, expected_kind: TokenKind, expected_lexeme: &str) {
+    match token {
+      TokenTree::Token { kind, lexeme } => {
+        assert_eq!(*kind, expected_kind);
+        assert_eq!(lexeme, expected_lexeme);
+      },
+      other => panic!("expected token tree token, got: {:?}", other),
+    }
+  }
+
+  fn assert_token_ident(token: &TokenTree, expected: &str) {
+    assert_token_kind(token, TokenKind::Ident, expected);
+  }
+
+  fn assert_token_keyword(token: &TokenTree, expected_kind: TokenKind, expected: &str) {
+    assert_token_kind(token, expected_kind, expected);
+  }
+
+  fn assert_token_punct(token: &TokenTree, expected_kind: TokenKind, expected: &str) {
+    assert_token_kind(token, expected_kind, expected);
+  }
+
+  fn assert_token_int_literal(token: &TokenTree, expected: &str) {
+    match token {
+      TokenTree::Token {
+        kind:
+          TokenKind::Literal {
+            kind: LiteralKind::Integer { base, empty_int, .. },
+          },
+        lexeme,
+      } => {
+        assert_eq!(*base, Base::Decimal);
+        assert!(!empty_int);
+        assert_eq!(lexeme, expected);
+      },
+      other => panic!("expected integer literal token, got: {:?}", other),
+    }
+  }
 
   fn parse_expr(input: &str) -> Result<ExprKind, ()> {
     parse_expression(input, "macro_expr_test_temp", ParserContext::Default)
@@ -36,16 +76,12 @@ mod macros_tests {
     match expr {
       ExprKind::Macro { mac } => {
         assert_eq!(mac.delimiter, Delimiter::Paren);
-        assert_eq!(
-          mac.tokens,
-          vec![
-            TokenTree::Token("x".to_string()),
-            TokenTree::Token(",".to_string()),
-            TokenTree::Token("1".to_string()),
-            TokenTree::Token(",".to_string()),
-            TokenTree::Token("true".to_string()),
-          ]
-        );
+        assert_eq!(mac.tokens.len(), 5);
+        assert_token_ident(&mac.tokens[0], "x");
+        assert_token_punct(&mac.tokens[1], TokenKind::Comma, ",");
+        assert_token_int_literal(&mac.tokens[2], "1");
+        assert_token_punct(&mac.tokens[3], TokenKind::Comma, ",");
+        assert_token_keyword(&mac.tokens[4], TokenKind::KwTrue, "true");
       },
       other => panic!("expected macro expression, got: {:?}", other),
     }
@@ -57,7 +93,8 @@ mod macros_tests {
     match expr {
       ExprKind::Macro { mac } => {
         assert_eq!(mac.delimiter, Delimiter::Bracket);
-        assert_eq!(mac.tokens, vec![TokenTree::Token("x".to_string())]);
+        assert_eq!(mac.tokens.len(), 1);
+        assert_token_ident(&mac.tokens[0], "x");
       },
       other => panic!("expected macro expression, got: {:?}", other),
     }
@@ -69,7 +106,8 @@ mod macros_tests {
     match expr {
       ExprKind::Macro { mac } => {
         assert_eq!(mac.delimiter, Delimiter::Brace);
-        assert_eq!(mac.tokens, vec![TokenTree::Token("x".to_string())]);
+        assert_eq!(mac.tokens.len(), 1);
+        assert_token_ident(&mac.tokens[0], "x");
       },
       other => panic!("expected macro expression, got: {:?}", other),
     }
@@ -84,14 +122,16 @@ mod macros_tests {
         match &mac.tokens[0] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Brace);
-            assert_eq!(tokens, &vec![TokenTree::Token("x".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "x");
           },
           other => panic!("expected delimited token, got: {:?}", other),
         }
         match &mac.tokens[1] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Bracket);
-            assert_eq!(tokens, &vec![TokenTree::Token("y".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "y");
           },
           other => panic!("expected delimited token, got: {:?}", other),
         }
@@ -109,14 +149,16 @@ mod macros_tests {
         match &mac.tokens[0] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Brace);
-            assert_eq!(tokens, &vec![TokenTree::Token("x".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "x");
           },
           other => panic!("expected delimited token, got: {:?}", other),
         }
         match &mac.tokens[1] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Bracket);
-            assert_eq!(tokens, &vec![TokenTree::Token("y".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "y");
           },
           other => panic!("expected delimited token, got: {:?}", other),
         }
@@ -131,7 +173,8 @@ mod macros_tests {
     match stmt {
       Stmt::Macro { mac, .. } => {
         assert_eq!(mac.delimiter, Delimiter::Paren);
-        assert_eq!(mac.tokens, vec![TokenTree::Token("x".to_string())]);
+        assert_eq!(mac.tokens.len(), 1);
+        assert_token_ident(&mac.tokens[0], "x");
       },
       other => panic!("expected macro statement, got: {:?}", other),
     }
@@ -143,7 +186,8 @@ mod macros_tests {
     match stmt {
       Stmt::Macro { mac, .. } => {
         assert_eq!(mac.delimiter, Delimiter::Paren);
-        assert_eq!(mac.tokens, vec![TokenTree::Token("x".to_string())]);
+        assert_eq!(mac.tokens.len(), 1);
+        assert_token_ident(&mac.tokens[0], "x");
       },
       other => panic!("expected macro statement, got: {:?}", other),
     }
@@ -200,7 +244,8 @@ mod macros_tests {
         } => {
           assert_eq!(*kind, RepeatKind::ZeroOrMore);
           assert_eq!(separator, &None);
-          assert_eq!(tokens, &vec![TokenTree::Token("x".to_string())]);
+          assert_eq!(tokens.len(), 1);
+          assert_token_ident(&tokens[0], "x");
         },
         other => panic!("expected repeat token tree, got: {:?}", other),
       },
@@ -334,7 +379,8 @@ mod macros_tests {
       TokenTree::Delimited { tokens, .. } => match &tokens[0] {
         TokenTree::Delimited { delimiter, tokens } => {
           assert_eq!(*delimiter, Delimiter::Paren);
-          assert_eq!(tokens, &vec![TokenTree::Token("x".to_string())]);
+          assert_eq!(tokens.len(), 1);
+          assert_token_ident(&tokens[0], "x");
         },
         other => panic!("expected nested matcher, got: {:?}", other),
       },
@@ -352,21 +398,24 @@ mod macros_tests {
         match &tokens[0] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Brace);
-            assert_eq!(tokens, &vec![TokenTree::Token("x".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "x");
           },
           other => panic!("expected nested brace, got: {:?}", other),
         }
         match &tokens[1] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Bracket);
-            assert_eq!(tokens, &vec![TokenTree::Token("y".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "y");
           },
           other => panic!("expected nested bracket, got: {:?}", other),
         }
         match &tokens[2] {
           TokenTree::Delimited { delimiter, tokens } => {
             assert_eq!(*delimiter, Delimiter::Paren);
-            assert_eq!(tokens, &vec![TokenTree::Token("z".to_string())]);
+            assert_eq!(tokens.len(), 1);
+            assert_token_ident(&tokens[0], "z");
           },
           other => panic!("expected nested paren, got: {:?}", other),
         }
@@ -423,7 +472,8 @@ mod macros_tests {
         MacroItemKind::Invocation(invoc) => {
           assert_eq!(simplify_path(&invoc.path), simple_path(["foo"]));
           assert_eq!(invoc.delimiter, Delimiter::Paren);
-          assert_eq!(invoc.tokens, vec![TokenTree::Token("x".to_string())]);
+          assert_eq!(invoc.tokens.len(), 1);
+          assert_token_ident(&invoc.tokens[0], "x");
         },
         other => panic!("expected macro invocation item, got: {:?}", other),
       },
@@ -439,7 +489,8 @@ mod macros_tests {
         MacroItemKind::Invocation(invoc) => {
           assert_eq!(simplify_path(&invoc.path), simple_path(["foo"]));
           assert_eq!(invoc.delimiter, Delimiter::Brace);
-          assert_eq!(invoc.tokens, vec![TokenTree::Token("x".to_string())]);
+          assert_eq!(invoc.tokens.len(), 1);
+          assert_token_ident(&invoc.tokens[0], "x");
         },
         other => panic!("expected macro invocation item, got: {:?}", other),
       },

@@ -165,9 +165,7 @@ mod type_tests {
   fn parses_reference_to_raw_pointer_types() {
     match parse_type("&*const T").unwrap() {
       Type::Reference {
-        mutability,
-        inner,
-        ..
+        mutability, inner, ..
       } => {
         assert_eq!(mutability, Mutability::Immutable);
         match inner.as_ref() {
@@ -186,9 +184,7 @@ mod type_tests {
 
     match parse_type("&*mut T").unwrap() {
       Type::Reference {
-        mutability,
-        inner,
-        ..
+        mutability, inner, ..
       } => {
         assert_eq!(mutability, Mutability::Immutable);
         match inner.as_ref() {
@@ -360,13 +356,11 @@ mod type_tests {
   }
 
   #[test]
-  #[ignore = "dyn trait types are not implemented yet"]
   fn parses_dyn_trait_type() {
     assert!(parse_type("dyn Trait").is_ok());
   }
 
   #[test]
-  #[ignore = "impl trait types are not implemented yet"]
   fn parses_impl_trait_type() {
     assert!(parse_type("impl Trait").is_ok());
   }
@@ -439,9 +433,7 @@ mod type_tests {
   fn parses_nested_types() {
     match parse_type("&mut Vec<Box<i32>>").unwrap() {
       Type::Reference {
-        mutability,
-        inner,
-        ..
+        mutability, inner, ..
       } => {
         assert_eq!(mutability, Mutability::Mutable);
         match inner.as_ref() {
@@ -449,17 +441,15 @@ mod type_tests {
             Some(GenericArgs::AngleBracketed { args }) => {
               assert_eq!(args.len(), 1);
               match &args[0] {
-                GenericArg::Type(Type::Path(box_path)) => {
-                  match &box_path.segments[0].args {
-                    Some(GenericArgs::AngleBracketed { args }) => {
-                      assert_eq!(args.len(), 1);
-                      match &args[0] {
-                        GenericArg::Type(Type::I32) => {},
-                        other => panic!("expected i32 type arg, got {:?}", other),
-                      }
-                    },
-                    other => panic!("expected Box args, got {:?}", other),
-                  }
+                GenericArg::Type(Type::Path(box_path)) => match &box_path.segments[0].args {
+                  Some(GenericArgs::AngleBracketed { args }) => {
+                    assert_eq!(args.len(), 1);
+                    match &args[0] {
+                      GenericArg::Type(Type::I32) => {},
+                      other => panic!("expected i32 type arg, got {:?}", other),
+                    }
+                  },
+                  other => panic!("expected Box args, got {:?}", other),
                 },
                 other => panic!("expected Box type arg, got {:?}", other),
               }
@@ -476,7 +466,7 @@ mod type_tests {
   #[test]
   fn parses_type_alias_decl() {
     let item = parse_item(
-      "type Foo = i32",
+      "type Foo = i32;",
       "type_alias_test_temp",
       ParserContext::Default,
     )

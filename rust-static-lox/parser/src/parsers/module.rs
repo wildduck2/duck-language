@@ -45,6 +45,7 @@ impl Parser {
       TokenKind::LBrace => {
         self.advance();
         let mut inner_token = self.current_token();
+        let inner_attributes = self.parse_inner_attributes(context)?;
         let mut items = vec![];
         while !self.is_eof() && !matches!(self.current_token().kind, TokenKind::RBrace) {
           let outer_attributes = self.parse_outer_attributes(context)?;
@@ -54,7 +55,7 @@ impl Parser {
         let close = self.expect(TokenKind::RBrace)?;
         inner_token.span.merge(close.span);
         Ok(Some(ModuleBody {
-          inner_attributes: vec![],
+          inner_attributes,
           items,
           span: inner_token.span,
         }))
@@ -199,7 +200,9 @@ impl Parser {
             LabelStyle::Primary,
           )
           .with_note(format!("unexpected token: `{lexeme}`"))
-          .with_help("use `fn`, `static`, `type`, or a macro invocation inside the extern block".to_string());
+          .with_help(
+            "use `fn`, `static`, `type`, or a macro invocation inside the extern block".to_string(),
+          );
         self.emit(diagnostic);
         Err(())
       },

@@ -6,7 +6,7 @@ impl Parser {
     let mut token = self.current_token();
     self.advance(); // consume "match"
 
-    let scrutinee = self.parse_expression(vec![], context)?;
+    let scrutinee = self.parse_expression(vec![], ParserContext::Match)?;
     self.expect(TokenKind::LBrace)?;
     let mut arms = Vec::new();
 
@@ -35,13 +35,13 @@ impl Parser {
 
     let guard = if matches!(self.current_token().kind, TokenKind::KwIf) {
       self.advance(); // consume "if"
-      Some(self.parse_expression(vec![], context)?)
+      Some(self.parse_expression(vec![], ParserContext::Match)?)
     } else {
       None
     };
 
     self.expect(TokenKind::FatArrow)?;
-    let body = self.parse_expression(vec![], ParserContext::Default)?;
+    let body = self.parse_expression(vec![], context)?;
 
     Ok(MatchArm {
       attributes,

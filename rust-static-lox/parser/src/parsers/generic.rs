@@ -138,13 +138,20 @@ impl Parser {
     context_text: &str,
     context: ParserContext,
   ) -> Result<Vec<TypeBound>, ()> {
-    let mut bounds = vec![];
     if !matches!(self.current_token().kind, TokenKind::Colon) {
-      return Ok(bounds);
+      return Ok(vec![]);
     }
 
     self.expect(TokenKind::Colon)?;
+    self.parse_trait_bound_vec(context_text, context)
+  }
 
+  pub(crate) fn parse_trait_bound_vec(
+    &mut self,
+    context_text: &str,
+    context: ParserContext,
+  ) -> Result<Vec<TypeBound>, ()> {
+    let mut bounds = vec![];
     while !self.is_eof() && !Self::is_bound_terminator(&self.current_token().kind) {
       match self.current_token().kind {
         TokenKind::Lifetime { .. } => {
@@ -156,7 +163,7 @@ impl Parser {
           let modifier = self.parse_trait_bound_modifier()?;
 
           let for_lifetimes = self.parse_for_lifetimes()?;
-          let path = self.parse_path(false, context)?;
+          let path = self.parse_path(true, ParserContext::Type)?;
 
           bounds.push(TypeBound::Trait {
             modifier,
@@ -314,68 +321,25 @@ impl Parser {
     }
 
     // 2. const generic argument
-    if matches!(token.kind, TokenKind::Literal { .. } | TokenKind::LBrace) {
-      let expr = self.parse_expression(vec![], ParserContext::Default)?;
+    if matches!(
+      token.kind,
+      TokenKind::Literal { .. }
+        | TokenKind::LBrace
+        | TokenKind::KwTrue
+        | TokenKind::KwFalse
+        | TokenKind::Minus
+    ) {
+      let expr = self.parse_expression(vec![], ParserContext::Function)?;
       return Ok(GenericArg::Const(expr));
     }
 
     // 3. parse a full type first
-    // println!("type: {:?}", self.current_token().kind);
     let r#type = self.parse_type(context)?;
-
-    // reject invalid types in generic args
-    match r#type {
-      Type::Unit | Type::Slice { .. } => {
-        let found = self.get_token_lexeme(&token);
-        let diagnostic = self
-          .diagnostic(
-            DiagnosticError::UnexpectedToken,
-            format!("expected generic argument type, found `{found}`"),
-          )
-          .with_label(
-            *token.span.merge(self.last_token_span()),
-            Some("expected a valid generic argument type here".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_help("use a named type, lifetime, or const expression as a generic argument".to_string());
-        self.emit(diagnostic);
-        return Err(());
-      },
-      _ => {},
-    }
 
     match self.current_token().kind {
       TokenKind::Eq => {
         self.advance();
         let (name, args) = self.extract_assoc_head(r#type)?;
-
-        if let Some(args) = &args {
-          match &args {
-            GenericArgs::AngleBracketed { args } if !args.is_empty() => {
-              let diagnostic = self.diagnostic(
-                DiagnosticError::InvalidGenericArg,
-                "generic arguments are not allowed on associated type bindings",
-              )
-              .with_label(
-                *token.span.merge(self.last_token_span()),
-                Some(
-                  "associated type bindings must use a bare identifier like `Item = Type` or `Assoc: Trait`"
-                    .to_string(),
-                ),
-                LabelStyle::Primary,
-              )
-              .with_help(
-                "remove the generic arguments or move this constraint into a where clause"
-                  .to_string(),
-              );
-              self.emit(diagnostic);
-              return Err(());
-            },
-            _ => {
-              panic!("have not implemented this case yet");
-            },
-          }
-        }
 
         let ty = self.parse_type(context)?;
         Ok(GenericArg::Binding { name, args, ty })
@@ -418,15 +382,23 @@ impl Parser {
         | TokenKind::KwSelfType
         | TokenKind::KwSuper
         | TokenKind::KwCrate
+        | TokenKind::KwDyn
+        | TokenKind::KwImpl
         | TokenKind::ColonColon
         | TokenKind::Lt
         | TokenKind::LParen
         | TokenKind::Amp
         | TokenKind::Star
         | TokenKind::LBracket
+        | TokenKind::LBrace
+        | TokenKind::KwFn
+        | TokenKind::KwFor
+        | TokenKind::KwUnsafe
 
         // const generic starts
         | TokenKind::Literal { .. }
+        | TokenKind::KwTrue
+        | TokenKind::KwFalse
         | TokenKind::Minus
     )
   }
@@ -468,7 +440,10 @@ impl Parser {
         let found = self.get_token_lexeme(&bad);
         let details = format!("expected ',' or '>', found `{found}`");
         let diagnostic = self
-          .diagnostic(DiagnosticError::InvalidComma, "unexpected comma".to_string())
+          .diagnostic(
+            DiagnosticError::InvalidComma,
+            "unexpected comma".to_string(),
+          )
           .with_label(bad.span, Some(details), LabelStyle::Primary)
           .with_help("remove the comma or add a valid element after it".to_string());
         self.emit(diagnostic);

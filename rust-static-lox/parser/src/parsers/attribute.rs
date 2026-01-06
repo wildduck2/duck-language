@@ -115,6 +115,21 @@ impl Parser {
   fn parse_attribute_input(&mut self, context: ParserContext) -> Result<AttrInput, ()> {
     // Attribute paths are simple paths without generic arguments.
     let path = self.parse_path(false, context)?;
+    if path.segments.iter().any(|segment| segment.args.is_some()) {
+      let diagnostic = self
+        .diagnostic(
+          DiagnosticError::UnexpectedToken,
+          "generic arguments are not allowed in attribute paths",
+        )
+        .with_label(
+          self.last_token_span(),
+          Some("remove the generic arguments from this attribute".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("attributes only accept simple paths like `cfg` or `derive`".to_string());
+      self.emit(diagnostic);
+      return Err(());
+    }
     let args = self.parse_attribute_input_tail()?;
 
     Ok(AttrInput { path, args })

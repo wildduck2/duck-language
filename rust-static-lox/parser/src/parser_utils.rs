@@ -29,17 +29,39 @@ pub enum ParserContext {
 
 impl Parser {
   /// Parses the top-level production, collecting statements until EOF.
-  /// Currently this routine prints each item tree for debugging and relies on
-  /// `parse_item` to decide which constructs are supported.
+  /// This handles optional shebangs, inner attributes, and a sequence of items.
   pub fn parse_program(&mut self) {
+    self.ast.clear();
+
+    if matches!(self.current_token().kind, TokenKind::Shebang) {
+      self.advance();
+    }
+
+    if self.parse_inner_attributes(ParserContext::Module).is_err() {
+      self.synchronize();
+    }
+
     while !self.is_eof() {
-      // TODO: check this context
-      match self.parse_stmt(ParserContext::Default) {
-        // Returns Item, not Stmt
+      let attributes = match self.parse_outer_attributes(ParserContext::Module) {
+        Ok(attributes) => attributes,
+        Err(_) => {
+          self.synchronize();
+          continue;
+        },
+      };
+
+      let visibility = match self.parse_visibility(ParserContext::Module) {
+        Ok(visibility) => visibility,
+        Err(_) => {
+          self.synchronize();
+          continue;
+        },
+      };
+
+      match self.parse_item(attributes, visibility) {
         Ok(item) => {
-          println!("{:#?}", item);
-          // item.print_tree("", true);
-          // self.ast.push(item); // ast should be Vec<Item>
+          // println!("{:#?}", item);
+          self.ast.push(item)
         },
         Err(_) => self.synchronize(),
       }
@@ -145,13 +167,7 @@ impl Parser {
             | TokenKind::Dollar
             | TokenKind::KwCrate
             | TokenKind::KwSuper
-            | TokenKind::LParen // )
-                                //   && matches!(
-                                // context,
-                                // ParserContext::Block
-                                //   | ParserContext::LoopCondition
-                                //   | ParserContext::WhileCondition
-                                //   | ParserContext::Default
+            | TokenKind::LParen
         ) =>
       {
         self.parse_macro_invocation_statement(context)
@@ -200,35 +216,79 @@ impl Parser {
     context: ParserContext,
   ) -> Result<Expr, ()> {
     let label = self.parse_label(true)?;
+    let attrs = outer_attributes;
 
-    match self.current_token().kind {
-      TokenKind::KwIf => self.parse_if_expression(ParserContext::IfCondition),
+    let mut expr = match self.current_token().kind {
+      TokenKind::KwIf => self.parse_if_expression(context),
 
-      TokenKind::KwMatch => self.parse_match_expression(ParserContext::Match),
+      TokenKind::KwMatch => self.parse_match_expression(context),
       TokenKind::Or => self.parse_closure(ParserContext::Closure),
       TokenKind::KwMove | TokenKind::KwAsync if self.can_start_closure() => {
         self.parse_closure(ParserContext::Closure)
       },
-      TokenKind::LBrace => self.parse_block(label, ParserContext::Block, outer_attributes),
-      TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry
+      TokenKind::LBrace => {
+        let block_context = if matches!(
+          context,
+          ParserContext::LoopCondition
+            | ParserContext::WhileCondition
+            | ParserContext::ForCondition
+        ) {
+          context
+        } else {
+          ParserContext::Block
+        };
+        self.parse_block(label, block_context, attrs.clone())
+      },
+      TokenKind::KwConst | TokenKind::KwAsync | TokenKind::KwUnsafe | TokenKind::KwTry
         if self.can_start_block_expression() =>
       {
-        self.parse_block(label, ParserContext::Block, outer_attributes)
+        let block_context = if matches!(
+          context,
+          ParserContext::LoopCondition
+            | ParserContext::WhileCondition
+            | ParserContext::ForCondition
+        ) {
+          context
+        } else {
+          ParserContext::Block
+        };
+        self.parse_block(label, block_context, attrs.clone())
       },
       TokenKind::KwContinue => self.parse_continue_expression(context),
       TokenKind::KwBreak => self.parse_break_expression(context),
       TokenKind::KwReturn => self.parse_return_expression(context),
       TokenKind::KwLoop => {
-        self.parse_loop_expression(label, outer_attributes, ParserContext::LoopCondition)
+        let loop_context = if matches!(context, ParserContext::Default) {
+          ParserContext::LoopCondition
+        } else {
+          context
+        };
+        self.parse_loop_expression(label, attrs.clone(), loop_context)
       },
       TokenKind::KwWhile => {
-        self.parse_while_expression(label, outer_attributes, ParserContext::WhileCondition)
+        let while_context = if matches!(context, ParserContext::Default) {
+          ParserContext::WhileCondition
+        } else {
+          context
+        };
+        self.parse_while_expression(label, attrs.clone(), while_context)
       },
       TokenKind::KwFor => {
-        self.parse_for_expression(label, outer_attributes, ParserContext::ForCondition)
+        let for_context = if matches!(context, ParserContext::Default) {
+          ParserContext::ForCondition
+        } else {
+          context
+        };
+        self.parse_for_expression(label, attrs.clone(), for_context)
       },
       _ => self.parse_assignment_expr(context),
+    }?;
+
+    if !attrs.is_empty() {
+      expr.attributes = attrs;
     }
+
+    Ok(expr)
   }
 
   pub(crate) fn parse_primary(&mut self, context: ParserContext) -> Result<Expr, ()> {
@@ -250,6 +310,7 @@ impl Parser {
       TokenKind::ColonColon => self.parse_path_expr(true, context),
 
       TokenKind::Ident
+      | TokenKind::RawIdent
       | TokenKind::KwSelf
       | TokenKind::KwSuper
       | TokenKind::KwCrate

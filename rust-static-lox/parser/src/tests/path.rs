@@ -2133,16 +2133,19 @@ mod path_tests {
 
   #[test]
   fn test_invalid_generic_argument_kinds_should_error() {
-    let cases = [
-      "foo::<1>",
-      "foo::<true>",
-      "foo::<()>",
-      "foo::<{}>",
-      "foo::<[T]>",
-    ];
+    let cases = ["foo::<if>", "foo::<match>", "foo::<let>"];
 
     for src in cases {
       assert_err(src);
+    }
+  }
+
+  #[test]
+  fn test_const_generic_argument_kinds_should_parse() {
+    let cases = ["foo::<1>", "foo::<true>", "foo::<{}>", "foo::<-1>"];
+
+    for src in cases {
+      assert!(parse_single(src).is_ok(), "expected ok for `{}`", src);
     }
   }
 
@@ -2220,7 +2223,6 @@ mod path_tests {
   }
 
   #[test]
-  #[ignore = " we have not implemented the raw identifier path syntax yet"]
   fn test_raw_identifier_path() {
     assert_path(
       "r#type",

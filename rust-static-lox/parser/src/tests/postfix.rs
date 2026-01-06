@@ -736,8 +736,12 @@ mod postfix_tests {
   }
 
   #[test]
+  fn allows_turbofish_on_function_call() {
+    assert!(parse("foo::<i32>()").is_ok());
+  }
+
+  #[test]
   fn errors_on_turbofish_without_method() {
-    assert!(parse("foo::<i32>()").is_err());
     assert!(parse("foo.bar::<i32>").is_err());
   }
 

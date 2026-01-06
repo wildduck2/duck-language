@@ -92,19 +92,16 @@ mod match_tests {
 
   // Unsupported / future work
   #[test]
-  #[ignore = "struct literal scrutinee parsing is not implemented yet"]
   fn match_record_struct_literal_scrutinee_not_supported_yet() {
     assert_ok("match (Foo { bar: 1 }) { _ => 0 }");
   }
 
   #[test]
-  #[ignore = "struct pattern parsing is not implemented yet"]
   fn match_struct_pattern_not_supported_yet() {
     assert_ok("match x { Foo { a, b } => a }");
   }
 
   #[test]
-  #[ignore = "tuple struct pattern parsing is not implemented yet"]
   fn match_tuple_struct_pattern_not_supported_yet() {
     assert_ok("match x { Foo(a, b) => a }");
   }

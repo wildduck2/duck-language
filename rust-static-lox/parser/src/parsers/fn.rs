@@ -34,7 +34,7 @@ impl Parser {
           self.expect(TokenKind::Semi)?;
           None
         } else if has_body {
-          Some(self.parse_block(None, ParserContext::Default, vec![])?)
+          Some(self.parse_block(None, context, vec![])?)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
           let diagnostic = self
@@ -73,7 +73,7 @@ impl Parser {
         }
 
         if has_body {
-          Some(self.parse_block(None, ParserContext::Default, vec![])?)
+          Some(self.parse_block(None, context, vec![])?)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
           let diagnostic = self
@@ -116,7 +116,7 @@ impl Parser {
       },
       _ => {
         if has_body {
-          Some(self.parse_block(None, ParserContext::Default, vec![])?)
+          Some(self.parse_block(None, context, vec![])?)
         } else {
           let found = self.get_token_lexeme(&self.current_token());
           let diagnostic = self
@@ -231,7 +231,10 @@ impl Parser {
         let name = self.get_token_lexeme(&self.current_token());
         if name != "C" {
           let diagnostic = self
-            .diagnostic(DiagnosticError::InvalidAbi, format!("unsupported ABI `{name}`"))
+            .diagnostic(
+              DiagnosticError::InvalidAbi,
+              format!("unsupported ABI `{name}`"),
+            )
             .with_label(
               self.current_token().span,
               Some("only the `C` ABI is supported here".to_string()),

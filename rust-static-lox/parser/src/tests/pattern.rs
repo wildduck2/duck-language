@@ -24,7 +24,10 @@ mod pattern_tests {
   }
 
   fn assert_err(input: &str) {
-    assert!(parse_pattern(input).is_err(), "expected error for {input:?}");
+    assert!(
+      parse_pattern(input).is_err(),
+      "expected error for {input:?}"
+    );
   }
 
   fn assert_or_err(input: &str) {
@@ -216,7 +219,6 @@ mod pattern_tests {
   }
 
   #[test]
-  #[ignore = "single-element tuple patterns are not distinguished from group patterns yet"]
   fn parses_single_element_tuple_pattern() {
     match parse_pattern("(x,)").unwrap() {
       Pattern::Tuple { patterns, .. } => {
@@ -248,7 +250,6 @@ mod pattern_tests {
   }
 
   #[test]
-  #[ignore = "plain path patterns are parsed as bindings until path-pattern support is added"]
   fn parses_path_pattern() {
     match parse_pattern("Foo").unwrap() {
       Pattern::Path { qself, path, .. } => {
@@ -443,7 +444,7 @@ mod pattern_tests {
 
   #[test]
   fn parses_qself_macro_pattern() {
-    match parse_pattern("<T>::foo!").unwrap() {
+    match parse_pattern("<T>::foo!()").unwrap() {
       Pattern::Macro { path, .. } => assert_ident_path(&path, "foo"),
       other => panic!("expected macro pattern, got: {:?}", other),
     }
@@ -536,7 +537,6 @@ mod pattern_tests {
   }
 
   #[test]
-  #[ignore = "tuple struct patterns require path-pattern support"]
   fn parses_tuple_struct_pattern() {
     match parse_pattern("Foo(x)").unwrap() {
       Pattern::TupleStruct { path, patterns, .. } => {
@@ -549,7 +549,6 @@ mod pattern_tests {
   }
 
   #[test]
-  #[ignore = "struct patterns require path-pattern support"]
   fn parses_struct_pattern() {
     match parse_pattern("Foo { x }").unwrap() {
       Pattern::Struct { path, fields, .. } => {
@@ -563,7 +562,6 @@ mod pattern_tests {
   }
 
   #[test]
-  #[ignore = "macro patterns are not supported yet"]
   fn parses_macro_pattern() {
     match parse_pattern("foo!()").unwrap() {
       Pattern::Macro { path, .. } => assert_ident_path(&path, "foo"),

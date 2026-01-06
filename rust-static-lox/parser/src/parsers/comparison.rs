@@ -12,7 +12,9 @@ impl Parser {
     // This solves the problem like this, where we have '>' and it's not
     // the place we should have a comparison in the AST
     // fn foo< const N: usize = 3>() {}
-    if matches!(self.peek(1).kind, TokenKind::Colon) || matches!(context, ParserContext::Function) {
+    if matches!(self.peek(1).kind, TokenKind::Colon | TokenKind::LBrace)
+      || matches!(context, ParserContext::Function)
+    {
       return Ok(lhs);
     }
 

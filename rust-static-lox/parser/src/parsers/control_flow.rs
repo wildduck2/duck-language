@@ -15,7 +15,7 @@ impl Parser {
 
     let mut token = self.current_token();
     self.advance(); // consume the "if"
-    let condition = self.parse_expression(vec![], context)?;
+    let condition = self.parse_expression(vec![], ParserContext::IfCondition)?;
 
     if !matches!(self.current_token().kind, TokenKind::LBrace) {
       let found = self.get_token_lexeme(&self.current_token());
@@ -80,7 +80,7 @@ impl Parser {
 
     let pattern = self.parse_pattern(context)?;
     self.expect(TokenKind::Eq)?;
-    let scrutinee = self.parse_expression(vec![], context)?;
+    let scrutinee = self.parse_expression(vec![], ParserContext::IfCondition)?;
 
     let then_branch = self.parse_expression(vec![], context)?;
 
@@ -161,30 +161,31 @@ impl Parser {
   pub(crate) fn parse_break_expression(&mut self, context: ParserContext) -> Result<Expr, ()> {
     let mut token = self.current_token();
 
+    self.advance();
+
+    let label = self.parse_label(false)?;
     let allowed = matches!(
       context,
       ParserContext::LoopCondition | ParserContext::WhileCondition
-    );
+    ) || (matches!(context, ParserContext::Block) && label.is_some());
 
     if !allowed {
       let diagnostic = self
         .diagnostic(
           DiagnosticError::BreakOutsideLoop,
-          "`break` statement outside of loop",
+          "`break` statement outside of loop or labeled block",
         )
         .with_label(
           token.span,
-          Some("`break` can only be used inside a loop body".to_string()),
+          Some("`break` can only be used inside a loop body or labeled block".to_string()),
           LabelStyle::Primary,
         )
-        .with_help("remove this `break` statement or move it inside a loop".to_string());
+        .with_help(
+          "remove this `break` statement or move it inside a loop or labeled block".to_string(),
+        );
       self.emit(diagnostic);
       return Err(());
     }
-
-    self.advance();
-
-    let label = self.parse_label(false)?;
 
     let value = if !matches!(
       self.current_token().kind,
@@ -344,35 +345,34 @@ impl Parser {
 
     if start {
       self.expect(TokenKind::Colon)?;
-    }
+      if !matches!(
+        self.current_token().kind,
+        TokenKind::KwLoop
+          | TokenKind::KwWhile
+          | TokenKind::KwFor
+          | TokenKind::LBrace
+          | TokenKind::Semi
+          | TokenKind::RBrace
+      ) {
+        let lexeme = self.get_token_lexeme(&self.current_token());
 
-    if !matches!(
-      self.current_token().kind,
-      TokenKind::KwLoop
-        | TokenKind::KwWhile
-        | TokenKind::KwFor
-        | TokenKind::LBrace
-        | TokenKind::Semi
-        | TokenKind::RBrace
-    ) {
-      let lexeme = self.get_token_lexeme(&self.current_token());
+        let diagnostic = self
+          .diagnostic(
+            DiagnosticError::UnexpectedToken,
+            "label must be followed by a loop or block",
+          )
+          .with_label(
+            self.current_token().span,
+            Some(format!("expected loop while for or block found {}", lexeme)),
+            LabelStyle::Primary,
+          )
+          .with_note("labels may only be applied to loop while for or a block".to_string())
+          .with_help("remove the label or wrap the expression in a block".to_string());
 
-      let diagnostic = self
-        .diagnostic(
-          DiagnosticError::UnexpectedToken,
-          "label must be followed by a loop or block",
-        )
-        .with_label(
-          self.current_token().span,
-          Some(format!("expected loop while for or block found {}", lexeme)),
-          LabelStyle::Primary,
-        )
-        .with_note("labels may only be applied to loop while for or a block".to_string())
-        .with_help("remove the label or wrap the expression in a block".to_string());
+        self.emit(diagnostic);
 
-      self.emit(diagnostic);
-
-      return Err(());
+        return Err(());
+      }
     }
 
     Ok(Some(self.get_token_lexeme(&token)))

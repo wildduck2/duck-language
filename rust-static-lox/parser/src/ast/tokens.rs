@@ -2,6 +2,7 @@
 // This is purely syntactic (no expansion).
 
 use crate::ast::Ident;
+use lexer::token::TokenKind;
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
@@ -22,7 +23,10 @@ pub enum RepeatKind {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenTree {
-  Token(String),
+  Token {
+    kind: TokenKind,
+    lexeme: String,
+  },
   Delimited {
     delimiter: Delimiter,
     tokens: Vec<TokenTree>,

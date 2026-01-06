@@ -21,7 +21,7 @@ impl Parser {
       token.span.merge(outer_attributes[0].span);
     }
 
-    let flavor = self.parse_block_expression_flavors(ParserContext::Default)?;
+    let flavor = self.parse_block_expression_flavors(context)?;
     self.advance(); // consume the "{"
 
     let mut stmts = vec![];
@@ -34,7 +34,7 @@ impl Parser {
     Ok(Expr {
       attributes: vec![],
       kind: ExprKind::Block {
-        tail: None, // TODO: implement tail
+        tail: None,
         outer_attributes,
         stmts,
         label,
@@ -46,29 +46,11 @@ impl Parser {
 
   pub(crate) fn parse_block_expression_flavors(
     &mut self,
-    context: ParserContext,
+    _context: ParserContext,
   ) -> Result<BlockFlavor, ()> {
-    if !matches!(context, ParserContext::Default) {
-      let token = self.current_token();
-      let diagnostic = self
-        .diagnostic(
-          DiagnosticError::InvalidBlockFlavorContext,
-          "block flavors are not allowed in this context",
-        )
-        .with_label(
-          token.span,
-          Some("block flavors cannot be used here".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help(
-          "remove the block flavor or use it in a standalone block expression".to_string(),
-        );
-      self.emit(diagnostic);
-      return Err(());
-    }
-
     let start_span = self.current_token().span;
 
+    let mut is_const = false;
     let mut is_async = false;
     let mut is_move = false;
     let mut is_unsafe = false;
@@ -76,6 +58,31 @@ impl Parser {
 
     // First keyword
     match self.current_token().kind {
+      TokenKind::KwConst => {
+        is_const = true;
+        self.advance();
+
+        match self.current_token().kind {
+          TokenKind::KwAsync
+          | TokenKind::KwMove
+          | TokenKind::KwUnsafe
+          | TokenKind::KwTry
+          | TokenKind::KwConst => {
+            let details = "const blocks cannot be combined with other flavors";
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidFlavorOrder,
+                format!("invalid block flavor order: {details}"),
+              )
+              .with_label(start_span, Some(details.to_string()), LabelStyle::Primary)
+              .with_help("use `const { ... }` by itself for a const block".to_string());
+            self.emit(diagnostic);
+            return Err(());
+          },
+          _ => {},
+        }
+      },
+
       TokenKind::KwAsync => {
         is_async = true;
         self.advance();
@@ -176,10 +183,12 @@ impl Parser {
     }
 
     // Check next token is a brace if any flavor was used
-    if (is_async || is_move || is_unsafe || is_try)
+    if (is_const || is_async || is_move || is_unsafe || is_try)
       && !matches!(self.current_token().kind, TokenKind::LBrace)
     {
-      let flavor = if is_unsafe {
+      let flavor = if is_const {
+        "const"
+      } else if is_unsafe {
         "unsafe"
       } else if is_try {
         "try"
@@ -201,7 +210,9 @@ impl Parser {
       return Err(());
     }
 
-    let flavor = if is_async {
+    let flavor = if is_const {
+      BlockFlavor::Const
+    } else if is_async {
       if is_move {
         BlockFlavor::AsyncMove
       } else {
@@ -221,7 +232,13 @@ impl Parser {
   pub(crate) fn can_start_block_expression(&self) -> bool {
     let mut i = 0;
 
-    // Case 1 async or async move
+    // Case 1 const
+    if matches!(self.peek(i).kind, TokenKind::KwConst) {
+      i += 1;
+      return matches!(self.peek(i).kind, TokenKind::LBrace);
+    }
+
+    // Case 2 async or async move
     if matches!(self.peek(i).kind, TokenKind::KwAsync) {
       i += 1;
 
@@ -233,19 +250,19 @@ impl Parser {
       return matches!(self.peek(i).kind, TokenKind::LBrace);
     }
 
-    // Case 2 unsafe
+    // Case 3 unsafe
     if matches!(self.peek(i).kind, TokenKind::KwUnsafe) {
       i += 1;
       return matches!(self.peek(i).kind, TokenKind::LBrace);
     }
 
-    // Case 3 try (nightly only)
+    // Case 4 try (nightly only)
     if matches!(self.peek(i).kind, TokenKind::KwTry) {
       i += 1;
       return matches!(self.peek(i).kind, TokenKind::LBrace);
     }
 
-    // Case 4 plain block
+    // Case 5 plain block
     matches!(self.peek(i).kind, TokenKind::LBrace)
   }
 }

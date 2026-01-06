@@ -251,40 +251,6 @@ impl Parser {
   }
 
   fn parse_call(&mut self, context: ParserContext, mut callee: Expr) -> Result<Expr, ()> {
-    fn has_terminal_turbofish(expr: &Expr) -> bool {
-      match &expr.kind {
-        ExprKind::Group { expr } => has_terminal_turbofish(expr),
-        ExprKind::Path { path, .. } => {
-          if path.segments.len() != 1 {
-            return false;
-          }
-          match path.segments.last() {
-            Some(segment) => segment.args.is_some(),
-            None => false,
-          }
-        },
-        _ => false,
-      }
-    }
-
-    if has_terminal_turbofish(&callee) {
-      let span = *callee.span.merge(self.last_token_span());
-
-      let diagnostic = self
-        .diagnostic(
-          DiagnosticError::UnexpectedToken,
-          "turbofish is not allowed on a call target",
-        )
-        .with_label(
-          span,
-          Some("remove the turbofish or use it on a qualified path or method".to_string()),
-          LabelStyle::Primary,
-        )
-        .with_help("examples: `Vec::<T>::new()` or `value.method::<T>()`".to_string());
-      self.emit(diagnostic);
-      return Err(());
-    }
-
     let mut token = self.current_token();
     self.expect(TokenKind::LParen)?;
     let args = self.parse_call_params(context)?;

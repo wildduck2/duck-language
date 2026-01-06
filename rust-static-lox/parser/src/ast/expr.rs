@@ -212,8 +212,15 @@ pub enum Lit {
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockFlavor {
   Normal,
+
+  Const, // const { ... }
+
   Async,
   AsyncMove,
+
+  ConstAsync,     // const async { ... }
+  ConstAsyncMove, // const async move { ... }
+
   Unsafe,
   Try, // nightly if you support it
 }

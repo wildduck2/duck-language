@@ -32,7 +32,7 @@ impl Parser {
     let is_const = match_and_consume!(self, TokenKind::KwConst).unwrap_or_else(|_: ()| false);
     let polarity = self.parse_impl_polarity();
 
-    let parsed_path = self.parse_path(false, context);
+    let parsed_path = self.parse_path(true, context);
 
     let (trait_ref, is_inherit, self_ty, is_const, polarity) = match parsed_path {
       Ok(path) if matches!(self.current_token().kind, TokenKind::KwFor) => {
@@ -100,14 +100,14 @@ impl Parser {
     &mut self,
     context: ParserContext,
   ) -> Result<(Vec<ImplItem>, Vec<Attribute>), ()> {
-    self.parse_impl_body_common(context, |p, ctx| p.parse_impl_body_item(false, ctx))
+    self.parse_impl_body_common(context, |p, ctx| p.parse_impl_body_item(true, ctx))
   }
 
   pub(crate) fn parse_impl_body(
     &mut self,
     context: ParserContext,
   ) -> Result<(Vec<ImplItem>, Vec<Attribute>), ()> {
-    self.parse_impl_body_common(context, |p, ctx| p.parse_impl_body_item(true, ctx))
+    self.parse_impl_body_common(context, |p, ctx| p.parse_impl_body_item(false, ctx))
   }
 
   fn parse_impl_body_item(
@@ -151,7 +151,7 @@ impl Parser {
           return Err(());
         }
 
-        let where_clause = self.parse_where_clause(context)?;
+        let mut where_clause = self.parse_where_clause(context)?;
 
         // Optional default: `= Type`
         // Your AST requires `ty: Type` (not Option), so require `= Type` here.
@@ -175,11 +175,38 @@ impl Parser {
 
         self.advance(); // consume '='
         let ty = self.parse_type(context)?;
+
+        if matches!(self.current_token().kind, TokenKind::KwWhere) {
+          let trailing_where = self.parse_where_clause(context)?;
+          if where_clause.is_some() && trailing_where.is_some() {
+            let diagnostic = self
+              .diagnostic(
+                DiagnosticError::InvalidWhereClause,
+                "duplicate where clause on associated type",
+              )
+              .with_label(
+                self.current_token().span,
+                Some("only one where clause is allowed on an associated type".to_string()),
+                LabelStyle::Primary,
+              )
+              .with_help("remove the extra where clause".to_string());
+            self.emit(diagnostic);
+            return Err(());
+          }
+
+          if where_clause.is_none() {
+            where_clause = trailing_where;
+          }
+        }
+
         self.expect(TokenKind::Semi)?;
 
         if let k @ Ident::Self_ = name {
           let diagnostic = self
-            .diagnostic(DiagnosticError::InvalidNameIdentifier, "invalid associated type name")
+            .diagnostic(
+              DiagnosticError::InvalidNameIdentifier,
+              "invalid associated type name",
+            )
             .with_label(
               name_span,
               Some(format!("`{}` is a reserved name", k.as_str()).to_string()),
@@ -202,8 +229,8 @@ impl Parser {
         })
       },
 
-      // associatedConstItem
-      TokenKind::KwConst => {
+      // associatedConstItem or const fn
+      TokenKind::KwConst if !self.can_start_fun() => {
         self.advance(); // consume "const"
         let name = self.parse_name(false)?;
         self.expect(TokenKind::Colon)?;
@@ -242,7 +269,13 @@ impl Parser {
       },
 
       // associatedFunctionItem
-      TokenKind::KwFn => {
+      TokenKind::KwFn
+      | TokenKind::KwConst
+      | TokenKind::KwAsync
+      | TokenKind::KwUnsafe
+      | TokenKind::KwExtern
+        if self.can_start_fun() =>
+      {
         let item = self.parse_fn_decl(outer_attributes, visibility, context)?;
         if let Item::Vis(VisItem {
           kind: VisItemKind::Function(func),
@@ -263,7 +296,9 @@ impl Parser {
               LabelStyle::Primary,
             )
             .with_note(format!("unexpected token: `{found}`"))
-            .with_help("add a valid impl item like `fn`, `const`, or a macro invocation".to_string());
+            .with_help(
+              "add a valid impl item like `fn`, `const`, or a macro invocation".to_string(),
+            );
           self.emit(diagnostic);
           Err(())
         }
@@ -274,7 +309,6 @@ impl Parser {
         let path = self.parse_path(false, context)?;
         self.expect(TokenKind::Bang)?;
         let mac = self.parse_macro_invocation(path)?;
-        self.expect(TokenKind::Semi)?;
         Ok(ImplItem::Macro { mac })
       },
 

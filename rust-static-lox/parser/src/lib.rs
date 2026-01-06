@@ -4,9 +4,7 @@ use diagnostic::{
   code::DiagnosticCode,
   diagnostic::{Diagnostic, LabelStyle},
   types::error::DiagnosticError,
-  DiagnosticEngine,
-  SourceFile,
-  Span,
+  DiagnosticEngine, SourceFile, Span,
 };
 use lexer::token::{Token, TokenKind};
 
@@ -252,14 +250,6 @@ impl Parser {
       .to_string()
   }
 
-  /// Consumes tokens until `kind` is encountered or EOF is reached.
-  /// Useful for resynchronizing after a diagnostic within delimited lists.
-  pub(crate) fn advance_till_match(&mut self, kind: TokenKind) {
-    while !self.is_eof() && self.current_token().kind != kind {
-      self.advance();
-    }
-  }
-
   pub(crate) fn check_comma_with_trailing(&mut self, trailing: bool) -> Result<bool, ()> {
     let bad = self.current_token();
     if matches!(bad.kind, TokenKind::Comma) {
@@ -276,7 +266,10 @@ impl Parser {
         _ => {
           let found = self.get_token_lexeme(&bad);
           let diagnostic = self
-            .diagnostic(DiagnosticError::InvalidComma, "unexpected comma".to_string())
+            .diagnostic(
+              DiagnosticError::InvalidComma,
+              "unexpected comma".to_string(),
+            )
             .with_label(
               bad.span,
               Some(format!("expected expression or ')', found `{found}`")),

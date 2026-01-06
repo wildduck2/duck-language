@@ -1,6 +1,3 @@
-// Unifies simplePath, typePath, and pathInExpression at the AST level.
-// The parser enforces contextual restrictions (ex: no turbofish in typePath if you want).
-
 use crate::ast::generic::GenericArgs;
 
 #[derive(Debug, Clone, PartialEq)]

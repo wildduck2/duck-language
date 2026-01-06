@@ -1,3 +1,4 @@
+use diagnostic::{diagnostic::LabelStyle, types::error::DiagnosticError};
 use lexer::token::{Token, TokenKind};
 
 use crate::{
@@ -48,6 +49,7 @@ impl Parser {
       TokenKind::Amp => self.parse_reference_pattern(context),
 
       TokenKind::Ident
+      | TokenKind::RawIdent
       | TokenKind::KwCrate
       | TokenKind::Lt
       | TokenKind::KwSuper
@@ -74,7 +76,22 @@ impl Parser {
     mutability: Mutability,
     context: ParserContext,
   ) -> Result<Pattern, ()> {
+    if reference || mutability == Mutability::Mutable {
+      return self.parse_identifier_binding_pattern(reference, mutability, context);
+    }
+
     if self.looks_like_path_pattern() {
+      return self.parse_path_based_pattern(context);
+    }
+
+    if matches!(self.current_token().kind, TokenKind::Ident)
+      && self
+        .get_token_lexeme(&self.current_token())
+        .chars()
+        .next()
+        .map(|ch| ch.is_ascii_uppercase())
+        .unwrap_or(false)
+    {
       return self.parse_path_based_pattern(context);
     }
 
@@ -95,11 +112,33 @@ impl Parser {
   fn parse_path_based_pattern(&mut self, context: ParserContext) -> Result<Pattern, ()> {
     let mut start = self.current_token();
 
-    let qself_header = self.parse_qself_type_header(context)?;
-    let path = self.parse_path(true, context)?;
-    let (qself, path) = self.merge_qself_with_path(qself_header, path);
+    if matches!(
+      self.current_token().kind,
+      TokenKind::Dollar | TokenKind::KwCrate
+    ) {
+      let diagnostic = self
+        .diagnostic(DiagnosticError::UnexpectedToken, "invalid path segment")
+        .with_label(
+          self.current_token().span,
+          Some("`$crate` is not allowed after `$`".to_string()),
+          LabelStyle::Primary,
+        )
+        .with_help("`$crate` is only allowed as the first segment of a path.".to_string());
+      self.emit(diagnostic);
+      return Err(());
+    }
+
+    let (qself, path) = if matches!(self.current_token().kind, TokenKind::Lt) {
+      let qself_header = self.parse_qself_type_header(context)?;
+      let path = self.parse_path(true, context)?;
+      self.merge_qself_with_path(qself_header, path)
+    } else {
+      let path = self.parse_path(true, context)?;
+      (None, path)
+    };
 
     if match_and_consume!(self, TokenKind::Bang)? {
+      let _ = self.parse_delim_token_tree()?;
       return Ok(Pattern::Macro {
         path,
         span: *start.span.merge(self.last_token_span()),
@@ -201,7 +240,12 @@ impl Parser {
     context: ParserContext,
   ) -> Result<Pattern, ()> {
     let mut token = self.current_token();
-    let name = self.get_token_lexeme(&token);
+    let mut name = self.get_token_lexeme(&token);
+    if name.starts_with("r#") {
+      if let Some(rest) = name.strip_prefix("r#") {
+        name = rest.to_string();
+      }
+    }
 
     self.advance();
 
@@ -292,14 +336,17 @@ impl Parser {
     self.advance();
 
     let mut patterns = vec![];
+    let mut saw_comma = false;
     while !matches!(self.current_token().kind, TokenKind::RParen) {
       patterns.push(self.parse_pattern(context)?);
-      match_and_consume!(self, TokenKind::Comma)?;
+      if match_and_consume!(self, TokenKind::Comma)? {
+        saw_comma = true;
+      }
     }
 
     self.expect(TokenKind::RParen)?;
 
-    if patterns.len() == 1 {
+    if patterns.len() == 1 && !saw_comma {
       Ok(Pattern::Group {
         pattern: Box::new(patterns.pop().unwrap()),
         span: *token.span.merge(self.last_token_span()),

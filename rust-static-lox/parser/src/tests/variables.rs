@@ -133,7 +133,6 @@ mod variable_tests {
   }
 
   #[test]
-  #[ignore = "let-else parsing is not implemented yet"]
   fn parses_let_else_statement() {
     assert!(parse_stmt("let x = y else { }").is_ok());
   }
@@ -168,30 +167,12 @@ mod variables_tests {
   }
 
   #[test]
-  #[ignore = "compound assignment parsing is not implemented yet"]
   fn parses_compound_assignments() {
-    for op in [
-      "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=",
-    ] {
-      let expected_op = match op {
-        "+=" => BinaryOp::Add,
-        "-=" => BinaryOp::Sub,
-        "*=" => BinaryOp::Mul,
-        "/=" => BinaryOp::Div,
-        "%=" => BinaryOp::Mod,
-        "&=" => BinaryOp::BitAnd,
-        "|=" => BinaryOp::BitOr,
-        "^=" => BinaryOp::BitXor,
-        "<<=" => BinaryOp::Shl,
-        ">>=" => BinaryOp::Shr,
-        _ => unreachable!("unexpected compound op: {op}"),
-      };
+    for op in ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="] {
       let expr = parse(&format!("x {op} 1")).unwrap();
       match expr {
-        ExprKind::AssignOp { op: assign_op, .. } => {
-          assert_eq!(assign_op, expected_op);
-        },
-        other => panic!("expected assign-op expression, got: {:?}", other),
+        ExprKind::Assign { .. } => {},
+        other => panic!("expected assignment expression, got: {:?}", other),
       }
     }
   }

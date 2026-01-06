@@ -62,7 +62,6 @@ impl Parser {
       .collect::<Vec<_>>()
       .join("::");
 
-    println!("{:?}", self.get_token_lexeme(&self.current_token()));
     let tree = match self.current_token().kind {
       TokenKind::Ident => {
         let suffix = Box::new(UseTree::Name(self.get_token_lexeme(&self.current_token())));

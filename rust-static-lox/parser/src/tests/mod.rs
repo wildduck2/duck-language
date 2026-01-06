@@ -28,6 +28,7 @@ mod path;
 mod parser_edge_cases;
 mod pattern;
 mod postfix;
+mod program;
 mod range;
 mod shift;
 mod r#static;

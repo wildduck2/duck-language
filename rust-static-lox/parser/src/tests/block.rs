@@ -321,8 +321,8 @@ mod block_tests {
   }
 
   #[test]
-  fn block_flavor_requires_default_context() {
-    assert!(parse_flavor("{ }", ParserContext::Block).is_err());
+  fn block_flavor_allows_non_default_context() {
+    assert!(parse_flavor("{ }", ParserContext::Block).is_ok());
   }
 
   #[test]
