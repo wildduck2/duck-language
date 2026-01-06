@@ -1036,6 +1036,12 @@ impl Lexer {
   /// - If no closing `'` is found, falls back to `lex_lifetime` (`'a`, `'static`, etc.).
   /// - Ensures there is at most one Unicode scalar value (or a single escape).
   fn lex_char(&mut self) -> Result<TokenKind, ()> {
+    if let Some(next) = self.peek() {
+      if (next.is_ascii_alphabetic() || next == '_') && self.peek_next(1) != Some('\'') {
+        return self.lex_lifetime();
+      }
+    }
+
     let mut terminated = false;
 
     // The opening `'` has already been consumed by the caller (`lex_string`),

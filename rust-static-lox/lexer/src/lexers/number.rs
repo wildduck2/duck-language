@@ -107,7 +107,7 @@ impl Lexer {
       } else {
         if c == 'u' || c == 'i' {
           self.check_suffix_type(c, &mut suffix_start, false);
-        } else {
+        } else if c.is_ascii_alphanumeric() || c == '_' {
           let span = Span::new(self.current, self.current + c.len_utf8());
           let diagnostic = Diagnostic::new(
             DiagnosticCode::Error(DiagnosticError::InvalidInteger),
@@ -200,7 +200,7 @@ impl Lexer {
       } else {
         if c == 'u' || c == 'i' {
           self.check_suffix_type(c, &mut suffix_start, false);
-        } else {
+        } else if c.is_ascii_alphanumeric() || c == '_' {
           let span = Span::new(self.current, self.current + c.len_utf8());
           let diagnostic = Diagnostic::new(
             DiagnosticCode::Error(DiagnosticError::InvalidInteger),
@@ -624,7 +624,7 @@ impl Lexer {
     if let Some(c) = self.peek() {
       if c == 'u' || c == 'i' || (c == 'f' && (has_dot || has_exponent)) {
         self.check_suffix_type(c, &mut suffix_start, has_dot || has_exponent);
-      } else if c != 'p' && c != 'P' {
+      } else if c.is_ascii_alphanumeric() || c == '_' {
         let span = Span::new(self.current, self.current + c.len_utf8());
         let diagnostic = Diagnostic::new(
           DiagnosticCode::Error(DiagnosticError::InvalidInteger),

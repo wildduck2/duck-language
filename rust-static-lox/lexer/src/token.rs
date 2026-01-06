@@ -385,7 +385,6 @@ pub enum TokenKind {
   KwExtern,     // extern
   KwMacro,      // macro (2.0 / reserved)
   KwAuto,       // auto (contextual in real Rust; treated as keyword here)
-  KwDefault,    // default (contextual in real Rust; treated as keyword here)
   KwMacroRules, // macro_rules! (2.0 / reserved)
 
   // Modifier Keywords
@@ -503,7 +502,7 @@ impl TokenKind {
   pub fn can_start_path(&self) -> bool {
     matches!(
       self,
-      Ident | KwSelf | KwSuper | KwCrate | Dollar | ColonColon | KwSelfType
+      Ident | RawIdent | KwSelf | KwSuper | KwCrate | Dollar | ColonColon | KwSelfType
     )
   }
 
@@ -524,6 +523,10 @@ impl TokenKind {
         | KwWhile
         | KwFor
         | KwLoop
+        | KwSelf
+        | Or
+        | KwTrue
+        | KwFalse
     )
   }
 
@@ -533,6 +536,8 @@ impl TokenKind {
       Ident
       | RawIdent
       | Literal { .. }
+      | KwTrue
+      | KwFalse
 
       // grouping and array and block and struct literal
       | LParen
