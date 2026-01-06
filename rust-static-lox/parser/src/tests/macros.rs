@@ -420,6 +420,22 @@ mod macros_tests {
   }
 
   #[test]
+  fn parses_macro_invocation_item_without_semicolon() {
+    let item = parse_item_decl("foo! { x }").unwrap();
+    match item {
+      Item::Macro(mac) => match mac.kind {
+        MacroItemKind::Invocation(invoc) => {
+          assert_eq!(simplify_path(&invoc.path), simple_path(["foo"]));
+          assert_eq!(invoc.delimiter, Delimiter::Brace);
+          assert_eq!(invoc.tokens, vec![TokenTree::Token("x".to_string())]);
+        },
+        other => panic!("expected macro invocation item, got: {:?}", other),
+      },
+      other => panic!("expected macro item, got: {:?}", other),
+    }
+  }
+
+  #[test]
   fn parses_macro_invocation_item_with_attribute() {
     let item = parse_item_decl("#[doc = \"mac\"] foo!(x);").unwrap();
     match item {

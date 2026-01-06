@@ -412,7 +412,7 @@ impl Parser {
     let path = self.parse_path(true, context)?;
     self.expect(TokenKind::Bang)?;
     let mac = self.parse_macro_invocation(path)?;
-    self.expect(TokenKind::Semi)?;
+    match_and_consume!(self, TokenKind::Semi)?;
 
     Ok(Item::Macro(MacroItem {
       attributes,
