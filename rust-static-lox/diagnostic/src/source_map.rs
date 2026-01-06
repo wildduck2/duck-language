@@ -5,7 +5,7 @@ use std::cell::Cell;
 
 #[cfg(any(test, coverage))]
 thread_local! {
-  static FORCE_READDIR_ENTRY_ERROR: Cell<bool> = Cell::new(false);
+  static FORCE_READDIR_ENTRY_ERROR: Cell<bool> = const { Cell::new(false) };
 }
 
 #[cfg(any(test, coverage))]
@@ -18,7 +18,7 @@ pub fn with_forced_readdir_entry_error<T>(f: impl FnOnce() -> T) -> T {
   })
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Span {
   pub start: usize, // byte offset in source
   pub end: usize,   // byte offset in source
@@ -58,12 +58,6 @@ impl Span {
     let start = line_start + col.saturating_sub(1);
     let end = start + len;
     Self { start, end }
-  }
-}
-
-impl Default for Span {
-  fn default() -> Self {
-    Self { start: 0, end: 0 }
   }
 }
 
@@ -138,12 +132,9 @@ impl SourceMap {
   }
 
   pub fn add_wd(&mut self, path: &str) -> Result<(), std::io::Error> {
-    match self.get_files(path) {
-      Err(e) => {
-        println!("{}", e.to_string());
-        std::process::exit(64);
-      },
-      Ok(_) => {},
+    if let Err(e) = self.get_files(path) {
+      println!("{}", e);
+      std::process::exit(64);
     }
 
     Ok(())
@@ -153,16 +144,12 @@ impl SourceMap {
     for entry in fs::read_dir(path)? {
       #[cfg(any(test, coverage))]
       let entry = if FORCE_READDIR_ENTRY_ERROR.with(|flag| flag.replace(false)) {
-        Err(std::io::Error::new(
-          std::io::ErrorKind::Other,
-          "forced read_dir entry error",
-        ))
+        Err(std::io::Error::other("forced read_dir entry error"))
       } else {
         entry
       };
-      #[cfg(not(any(test, coverage)))]
-      let entry = entry;
 
+      let entry = entry;
       let entry = entry?;
       let path = entry.path();
 
