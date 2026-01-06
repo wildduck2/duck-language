@@ -127,6 +127,18 @@ mod macros_tests {
 
   #[test]
   fn parses_macro_invocation_statement() {
+    let stmt = parse_stmt("foo!(x);").unwrap();
+    match stmt {
+      Stmt::Macro { mac, .. } => {
+        assert_eq!(mac.delimiter, Delimiter::Paren);
+        assert_eq!(mac.tokens, vec![TokenTree::Token("x".to_string())]);
+      },
+      other => panic!("expected macro statement, got: {:?}", other),
+    }
+  }
+
+  #[test]
+  fn parses_macro_invocation_statement_without_semicolon() {
     let stmt = parse_stmt("foo!(x)").unwrap();
     match stmt {
       Stmt::Macro { mac, .. } => {
