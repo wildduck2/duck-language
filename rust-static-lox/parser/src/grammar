@@ -3,9 +3,9 @@
  * Models rustc behavior modulo macro expansion and semantic checks.
  */
 
-program                 -> shebang? innerAttr* item* EOF ;  [-]
+program                 -> shebang? innerAttr* item* EOF ;  [x]
 
-shebang                 -> "#!" ~[\n]* ;                   [-]
+shebang                 -> "#!" ~[\n]* ;                   [x]
 
 /* ------------------------------------------------------------------------- */
 /* Items                                                                     */
@@ -52,9 +52,9 @@ delimTokenTree          -> "(" tokenStream ")"                                 [
                          | "[" tokenStream "]"                                 [x]
                          | "{" tokenStream "}" ;                               [x]
 
-metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;  [-]
-metaSeq                 -> metaItemInner ("," metaItemInner)* ","? ;          [-]
-metaItemInner           -> metaItem | literalExpr ;                           [-]
+metaItem                -> simplePath ("(" metaSeq ")" | "=" literalExpr)? ;  [x]
+metaSeq                 -> metaItemInner ("," metaItemInner)* ","? ;          [x]
+metaItemInner           -> metaItem | literalExpr ;                           [x]
 
 /* ------------------------------------------------------------------------- */
 /* Functions                                                                 */
@@ -289,12 +289,12 @@ visibility                -> "pub" ("(" ("crate" | "self" | "super" | "in" simpl
 /* ------------------------------------------------------------------------- */
 
 type                      -> typeNoBounds             [x]
-                           | implTraitType            [-]
-                           | traitObjectType ;         [-]
+                           | implTraitType            [x]
+                           | traitObjectType ;        [x]
 
 typeNoBounds              -> parenthesizedType        [x]
-                           | implTraitTypeOneBound    [-]
-                           | traitObjectTypeOneBound  [-]
+                           | implTraitTypeOneBound    [x]
+                           | traitObjectTypeOneBound  [x]
                            | typePath                 [x]
                            | tupleType                [x]
                            | neverType                [x]
@@ -324,6 +324,12 @@ inferredType              -> "_" ;                            [x]
 bareFunctionType          -> forLifetimes? unsafe? externAbi? "fn"
                              "(" (type ("," type)* ("," "...")? | "...")? ","? ")"
                              ("->" typeNoBounds)?                                  [x]
+
+implTraitType             -> "impl" typeParamBounds ;  [x]
+traitObjectType           -> "dyn" typeParamBounds ;   [x]
+
+implTraitTypeOneBound     -> "impl" traitBound ;       [x]
+traitObjectTypeOneBound   -> "dyn" traitBound ;        [x]
 
 qualifiedPathInType       -> qualifiedPathType ("::" typePath)? ;     [x]
 qualifiedPathType         -> "<" type ("as" typePath)? ">" ;          [x]
