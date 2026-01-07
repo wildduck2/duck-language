@@ -2,12 +2,13 @@
 mod trait_tests {
   use crate::{
     ast::{
-      expr::ExprKind, Item, Lit, TraitDecl, TraitItem, Type, TypeBound, VisItem, VisItemKind,
-      Visibility,
+      expr::ExprKind, Ident, Item, Lit, StructDecl, StructKind, TraitDecl, TraitItem, Type,
+      TypeBound, VisItem, VisItemKind, Visibility,
     },
     parser_utils::ParserContext,
-    tests::support::{parse_item, simple_path, simplify_path},
+    tests::support::{force_fn_decl_result, parse_item, simple_path, simplify_path},
   };
+  use diagnostic::Span;
 
   fn parse_trait_item(input: &str) -> Result<VisItem, ()> {
     parse_item(input, "trait_test_temp", ParserContext::Default).and_then(|item| match item {
@@ -41,6 +42,20 @@ mod trait_tests {
       TypeBound::Lifetime { name: bound_name } => assert_eq!(bound_name, name),
       other => panic!("expected lifetime bound, got: {:?}", other),
     }
+  }
+
+  fn injected_non_function_item() -> Item {
+    Item::Vis(VisItem {
+      attributes: vec![],
+      visibility: Visibility::Private,
+      kind: VisItemKind::Struct(StructDecl {
+        name: Ident::Name("Dummy".to_string()),
+        generics: None,
+        kind: StructKind::Unit,
+        where_clause: None,
+      }),
+      span: Span::new(0, 0),
+    })
   }
 
   #[test]
@@ -218,6 +233,20 @@ mod trait_tests {
   }
 
   #[test]
+  fn trait_const_fn_item() {
+    let vis = parse_trait_item("trait Foo { const fn f(); }").unwrap();
+    let decl = trait_decl(&vis);
+    assert_eq!(decl.items.len(), 1);
+    match &decl.items[0] {
+      TraitItem::Method(func) => {
+        assert_eq!(func.sig.name.as_str(), "f");
+        assert!(func.body.is_none());
+      },
+      other => panic!("expected method item, got: {:?}", other),
+    }
+  }
+
+  #[test]
   fn trait_type_missing_semicolon_errors() {
     assert_trait_err("trait Foo { type Assoc = i32 }");
   }
@@ -240,5 +269,17 @@ mod trait_tests {
   #[test]
   fn trait_body_missing_closing_brace_errors() {
     assert_trait_err("trait Foo { fn f();");
+  }
+
+  #[test]
+  fn trait_const_fn_decl_non_function_item_errors() {
+    force_fn_decl_result(injected_non_function_item());
+    assert_trait_err("trait Foo { const fn f(); }");
+  }
+
+  #[test]
+  fn trait_fn_decl_non_function_item_errors() {
+    force_fn_decl_result(injected_non_function_item());
+    assert_trait_err("trait Foo { fn f(); }");
   }
 }

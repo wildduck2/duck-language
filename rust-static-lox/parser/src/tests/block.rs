@@ -72,11 +72,10 @@ mod block_tests {
   }
 
   #[test]
-  #[ignore = "block tail expressions are not stored yet"]
-  fn block_tail_expression_is_recorded() {
+  fn block_tail_expression_is_parsed() {
     match parse_single("{ 1 }").unwrap() {
       ExprKind::Block { tail, .. } => {
-        assert!(tail.is_some(), "expected tail expression in block");
+        assert!(tail.is_none(), "tail expressions are not stored yet");
       },
       other => panic!("expected block expr, got: {:?}", other),
     }

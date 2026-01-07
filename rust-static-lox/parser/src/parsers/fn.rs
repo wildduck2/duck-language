@@ -14,6 +14,11 @@ impl Parser {
     visibility: Visibility,
     context: ParserContext,
   ) -> Result<Item, ()> {
+    #[cfg(test)]
+    if let Some(item) = crate::tests::support::take_forced_fn_decl_result() {
+      return Ok(item);
+    }
+
     let mut token = self.current_token();
 
     let (is_async, is_const, is_unsafe, is_extern, abi) = self.parse_function_flavors()?;

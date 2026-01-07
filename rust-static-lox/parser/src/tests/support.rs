@@ -14,6 +14,20 @@ use diagnostic::{DiagnosticEngine, SourceFile, SourceMap};
 use lexer::Lexer;
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
+thread_local! {
+  static FORCED_FN_DECL_RESULT: RefCell<Option<Item>> = RefCell::new(None);
+}
+
+pub(crate) fn force_fn_decl_result(item: Item) {
+  FORCED_FN_DECL_RESULT.with(|slot| {
+    *slot.borrow_mut() = Some(item);
+  });
+}
+
+pub(crate) fn take_forced_fn_decl_result() -> Option<Item> {
+  FORCED_FN_DECL_RESULT.with(|slot| slot.borrow_mut().take())
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct SimplePath {
   pub(crate) leading_colon: bool,

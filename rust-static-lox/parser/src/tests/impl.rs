@@ -158,6 +158,20 @@ mod impl_tests {
   }
 
   #[test]
+  fn impl_const_fn_method() {
+    let vis = parse_impl_item("impl Foo { const fn f() {} }").unwrap();
+    let block = impl_block(&vis);
+    assert_eq!(block.items.len(), 1);
+    match &block.items[0] {
+      ImplItem::Method(func) => {
+        assert_eq!(func.sig.name.as_str(), "f");
+        assert!(func.body.is_some());
+      },
+      other => panic!("expected method item, got: {:?}", other),
+    }
+  }
+
+  #[test]
   fn trait_impl_allows_associated_type() {
     let vis = parse_impl_item("impl Trait for Foo { type Assoc = i32; }").unwrap();
     let block = impl_block(&vis);
@@ -169,6 +183,35 @@ mod impl_tests {
       },
       other => panic!("expected associated type item, got: {:?}", other),
     }
+  }
+
+  #[test]
+  fn trait_impl_assoc_type_trailing_where_clause() {
+    let vis =
+      parse_impl_item("impl Trait for Foo { type Assoc = i32 where Self: Copy; }").unwrap();
+    let block = impl_block(&vis);
+    assert_eq!(block.items.len(), 1);
+    match &block.items[0] {
+      ImplItem::Type { where_clause, .. } => {
+        assert!(where_clause.is_some());
+      },
+      other => panic!("expected associated type item, got: {:?}", other),
+    }
+  }
+
+  #[test]
+  fn trait_impl_assoc_type_missing_default_errors() {
+    assert_impl_err("impl Trait for Foo { type Assoc; }");
+  }
+
+  #[test]
+  fn trait_impl_assoc_type_missing_bounds_errors() {
+    assert_impl_err("impl Trait for Foo { type Assoc: = i32; }");
+  }
+
+  #[test]
+  fn trait_impl_assoc_type_self_name_errors() {
+    assert_impl_err("impl Trait for Foo { type self = i32; }");
   }
 
   #[test]
