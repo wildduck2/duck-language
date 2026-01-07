@@ -284,23 +284,7 @@ impl Parser {
         {
           Ok(ImplItem::Method(func))
         } else {
-          let found = self.get_token_lexeme(&self.current_token());
-          let diagnostic = self
-            .diagnostic(
-              DiagnosticError::UnexpectedToken,
-              format!("expected `impl item`, found `{found}`"),
-            )
-            .with_label(
-              self.current_token().span,
-              Some("expected `impl item` here".to_string()),
-              LabelStyle::Primary,
-            )
-            .with_note(format!("unexpected token: `{found}`"))
-            .with_help(
-              "add a valid impl item like `fn`, `const`, or a macro invocation".to_string(),
-            );
-          self.emit(diagnostic);
-          Err(())
+          self.unexpected_impl_item()
         }
       },
 
@@ -312,24 +296,26 @@ impl Parser {
         Ok(ImplItem::Macro { mac })
       },
 
-      _ => {
-        let found = self.get_token_lexeme(&self.current_token());
-        let diagnostic = self
-          .diagnostic(
-            DiagnosticError::UnexpectedToken,
-            format!("expected `impl item`, found `{found}`"),
-          )
-          .with_label(
-            self.current_token().span,
-            Some("expected `impl item` here".to_string()),
-            LabelStyle::Primary,
-          )
-          .with_note(format!("unexpected token: `{found}`"))
-          .with_help("add a valid impl item like `fn`, `const`, or a macro invocation".to_string());
-        self.emit(diagnostic);
-        Err(())
-      },
+      _ => self.unexpected_impl_item(),
     }
+  }
+
+  fn unexpected_impl_item(&mut self) -> Result<ImplItem, ()> {
+    let found = self.get_token_lexeme(&self.current_token());
+    let diagnostic = self
+      .diagnostic(
+        DiagnosticError::UnexpectedToken,
+        format!("expected `impl item`, found `{found}`"),
+      )
+      .with_label(
+        self.current_token().span,
+        Some("expected `impl item` here".to_string()),
+        LabelStyle::Primary,
+      )
+      .with_note(format!("unexpected token: `{found}`"))
+      .with_help("add a valid impl item like `fn`, `const`, or a macro invocation".to_string());
+    self.emit(diagnostic);
+    Err(())
   }
 
   fn parse_impl_polarity(&mut self) -> ImplPolarity {

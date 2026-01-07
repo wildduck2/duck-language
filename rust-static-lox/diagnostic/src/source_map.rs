@@ -156,7 +156,7 @@ impl SourceMap {
       if path.is_dir() {
         self.get_files(path.to_str().unwrap())?;
       } else if path.is_file() {
-        if path.extension().and_then(|ext| ext.to_str()) != Some("duck") {
+        if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
           continue;
         }
 

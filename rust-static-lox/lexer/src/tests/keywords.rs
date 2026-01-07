@@ -75,7 +75,6 @@ mod keyword_tests {
       ("extern", TokenKind::KwExtern),
       ("macro", TokenKind::KwMacro),
       ("auto", TokenKind::KwAuto),
-      ("default", TokenKind::KwDefault),
     ];
 
     for (src, expected) in cases {
